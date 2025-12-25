@@ -8,10 +8,12 @@ import {
   ScrollView,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { formatDateDisplay, getToday, getTomorrow } from '../utils/dateUtils';
 import { Task } from '../types';
+import { convertParagraphToTasks, checkApiKey } from '../utils/aiService';
 
 export default function CreatePlanScreen() {
   const { plans, savePlan } = useApp();
@@ -20,6 +22,9 @@ export default function CreatePlanScreen() {
   const [selectedDate, setSelectedDate] = useState('');
   const [taskInput, setTaskInput] = useState('');
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [paragraphInput, setParagraphInput] = useState(''); // AI için paragraf
+  const [isAiLoading, setIsAiLoading] = useState(false); // AI yükleniyor mu?
+  const [showAiSection, setShowAiSection] = useState(false); // AI bölümü göster/gizle
   
   // İlk açılışta default tarihi belirle
   useEffect(() => {
@@ -86,6 +91,42 @@ export default function CreatePlanScreen() {
     const tomorrow = getTomorrow();
     setSelectedDate(selectedDate === today ? tomorrow : today);
   };
+
+  // AI ile görev oluştur
+  const handleAiGenerate = async () => {
+    if (paragraphInput.trim() === '') {
+      Alert.alert('Uyarı', 'Lütfen bir paragraf yazın');
+      return;
+    }
+
+    if (!checkApiKey()) {
+      Alert.alert('Hata', 'API anahtarı bulunamadı. Lütfen .env dosyasını kontrol edin.');
+      return;
+    }
+
+    setIsAiLoading(true);
+
+    try {
+      const aiTasks = await convertParagraphToTasks(paragraphInput);
+      
+      // AI'dan gelen görevleri Task formatına çevir
+      const newTasks: Task[] = aiTasks.map((title) => ({
+        id: Date.now().toString() + Math.random().toString(),
+        title,
+        done: false,
+      }));
+
+      setTasks([...tasks, ...newTasks]);
+      setParagraphInput(''); // Paragrafı temizle
+      setShowAiSection(false); // AI bölümünü kapat
+      
+      Alert.alert('Başarılı', `${aiTasks.length} görev oluşturuldu! 🎉`);
+    } catch (error: any) {
+      Alert.alert('AI Hatası', error.message || 'Görevler oluşturulamadı');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
   
   return (
     <ScrollView style={styles.container}>
@@ -99,9 +140,46 @@ export default function CreatePlanScreen() {
           </TouchableOpacity>
         </View>
         
+        {/* AI Bölümü Toggle */}
+        <TouchableOpacity
+          style={styles.aiToggleButton}
+          onPress={() => setShowAiSection(!showAiSection)}
+        >
+          <Text style={styles.aiToggleText}>
+            {showAiSection ? '❌ AI Bölümünü Kapat' : '🤖 AI ile Görev Oluştur'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* AI Paragraf Input */}
+        {showAiSection && (
+          <View style={styles.aiSection}>
+            <Text style={styles.label}>Planınızı yazın:</Text>
+            <TextInput
+              style={styles.paragraphInput}
+              placeholder="Örn: Sabah 7'de kalkıp kahvaltı yapacağım, sonra spor salonuna gidip 1 saat egzersiz yapacağım..."
+              value={paragraphInput}
+              onChangeText={setParagraphInput}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              style={[styles.aiButton, isAiLoading && styles.aiButtonDisabled]}
+              onPress={handleAiGenerate}
+              disabled={isAiLoading}
+            >
+              {isAiLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.aiButtonText}>✨ AI ile Görev Oluştur</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+        
         {/* Manuel Görev Ekleme */}
         <View style={styles.inputSection}>
-          <Text style={styles.label}>Görev Ekle:</Text>
+          <Text style={styles.label}>Manuel Görev Ekle:</Text>
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
@@ -144,11 +222,6 @@ export default function CreatePlanScreen() {
         >
           <Text style={styles.saveButtonText}>💾 Planı Kaydet</Text>
         </TouchableOpacity>
-        
-        {/* Bilgilendirme */}
-        <Text style={styles.infoText}>
-          💡 AI ile görev oluşturma özelliği yakında eklenecek
-        </Text>
       </View>
     </ScrollView>
   );
@@ -291,10 +364,56 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  infoText: {
-    fontSize: 14,
-    color: '#8E8E93',
-    textAlign: 'center',
-    fontStyle: 'italic',
+  aiToggleButton: {
+    backgroundColor: '#FF9500',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  aiToggleText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  aiSection: {
+    backgroundColor: '#FFF3E0',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: '#FF9500',
+  },
+  paragraphInput: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    fontSize: 16,
+    minHeight: 100,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  aiButton: {
+    backgroundColor: '#FF9500',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  aiButtonDisabled: {
+    opacity: 0.6,
+  },
+  aiButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });
