@@ -13,9 +13,10 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
-import { formatDateDisplay, getToday, getTomorrow } from '../utils/dateUtils';
+import { formatDateDisplay, getToday, getTomorrow, addDays } from '../utils/dateUtils';
 import { Task } from '../types';
 import { convertParagraphToTasks, checkApiKey } from '../utils/aiService';
+import CalendarModal from '../components/CalendarModal';
 
 export default function CreatePlanScreen() {
   const { plans, savePlan } = useApp();
@@ -27,18 +28,30 @@ export default function CreatePlanScreen() {
   const [paragraphInput, setParagraphInput] = useState(''); // AI için paragraf
   const [isAiLoading, setIsAiLoading] = useState(false); // AI yükleniyor mu?
   const [showAiSection, setShowAiSection] = useState(false); // AI bölümü göster/gizle
+  const [showCalendar, setShowCalendar] = useState(false); // Takvim modal
   
-  // İlk açılışta default tarihi belirle
+  // İlk açılışta default tarihi belirle - boş gün bulana kadar ilerle
   useEffect(() => {
-    const today = getToday();
-    const tomorrow = getTomorrow();
+    const findFirstEmptyDate = () => {
+      let currentDate = getToday();
+      let daysChecked = 0;
+      const maxDays = 365; // Maksimum 1 yıl ileri bak
+      
+      // Boş gün bulana kadar ilerle
+      while (daysChecked < maxDays) {
+        if (!plans[currentDate] || plans[currentDate].length === 0) {
+          return currentDate; // Boş gün bulundu
+        }
+        // Bir sonraki güne geç
+        currentDate = addDays(currentDate, 1);
+        daysChecked++;
+      }
+      
+      // Hiç boş gün bulunamadıysa bugünü döndür
+      return getToday();
+    };
     
-    // Eğer bugün için plan yoksa bugün, varsa yarın
-    if (plans[today] && plans[today].length > 0) {
-      setSelectedDate(tomorrow);
-    } else {
-      setSelectedDate(today);
-    }
+    setSelectedDate(findFirstEmptyDate());
   }, [plans]);
   
   // Manuel görev ekle
@@ -87,11 +100,21 @@ export default function CreatePlanScreen() {
     }
   };
   
-  // Tarihi değiştir (bugün/yarın)
-  const toggleDate = () => {
-    const today = getToday();
-    const tomorrow = getTomorrow();
-    setSelectedDate(selectedDate === today ? tomorrow : today);
+  // Tarihi değiştir (bugün/yarın) - ESKI YÖNTEMden kaldırıldı
+  // const toggleDate = () => {
+  //   const today = getToday();
+  //   const tomorrow = getTomorrow();
+  //   setSelectedDate(selectedDate === today ? tomorrow : today);
+  // };
+
+  // Takvim modaldan tarih seç
+  const handleDateSelect = (date: string) => {
+    setSelectedDate(date);
+  };
+
+  // Dolu günleri al (plan var)
+  const getOccupiedDates = (): string[] => {
+    return Object.keys(plans).filter(date => plans[date].length > 0);
   };
 
   // AI ile görev oluştur
@@ -142,7 +165,7 @@ export default function CreatePlanScreen() {
           {/* Tarih Seçici */}
           <View style={styles.dateSection}>
             <Text style={styles.label}>📅 Tarih Seçin</Text>
-            <TouchableOpacity style={styles.dateButton} onPress={toggleDate}>
+            <TouchableOpacity style={styles.dateButton} onPress={() => setShowCalendar(true)}>
               <LinearGradient
                 colors={['#667eea', '#764ba2']}
                 style={styles.dateGradient}
@@ -281,6 +304,15 @@ export default function CreatePlanScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Takvim Modal */}
+      <CalendarModal
+        visible={showCalendar}
+        onClose={() => setShowCalendar(false)}
+        selectedDate={selectedDate}
+        onSelectDate={handleDateSelect}
+        occupiedDates={getOccupiedDates()}
+      />
     </LinearGradient>
   );
 }
