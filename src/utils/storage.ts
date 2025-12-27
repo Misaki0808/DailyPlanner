@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Plans, Task } from '../types';
+import { Plans, Task, Settings } from '../types';
 
 // Storage anahtarları - tek yerden yönetmek için
 const STORAGE_KEYS = {
   PLANS: '@daily_planner_plans',
   USER_NAME: '@daily_planner_user_name',
   GENDER: '@daily_planner_gender',
+  SETTINGS: '@daily_planner_settings',
 };
 
 /**
@@ -145,6 +146,40 @@ export const getGender = async (): Promise<'male' | 'female'> => {
   } catch (error) {
     console.error('Gender okunurken hata:', error);
     return 'male';
+  }
+};
+
+/**
+ * AYARLARI KAYDET
+ */
+export const saveSettings = async (settings: Settings) => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    return true;
+  } catch (error) {
+    console.error('Ayarlar kaydedilirken hata:', error);
+    return false;
+  }
+};
+
+/**
+ * AYARLARI GETİR
+ */
+export const getSettings = async (): Promise<Settings> => {
+  try {
+    const settingsJson = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS);
+    if (settingsJson === null) {
+      // Varsayılan ayarlar
+      return {
+        askBeforeDeleteAll: true, // Default: Sor
+      };
+    }
+    return JSON.parse(settingsJson);
+  } catch (error) {
+    console.error('Ayarlar okunurken hata:', error);
+    return {
+      askBeforeDeleteAll: true,
+    };
   }
 };
 

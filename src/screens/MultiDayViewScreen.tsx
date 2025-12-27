@@ -14,7 +14,7 @@ import { Task } from '../types';
 import CopyPlanModal from '../components/CopyPlanModal';
 
 export default function MultiDayViewScreen() {
-  const { plans, updateTask, refreshPlans, savePlan, deletePlan } = useApp();
+  const { plans, updateTask, refreshPlans, savePlan, deletePlan, settings } = useApp();
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
   const [isEditMode, setIsEditMode] = useState(false); // Düzenleme modu
@@ -98,9 +98,30 @@ export default function MultiDayViewScreen() {
 
   // Tüm günü sil
   const handleDeleteDay = async () => {
-    await deletePlan(selectedDate);
-    setCurrentTasks([]); // UI'ı anında güncelle
-    setIsEditMode(false);
+    // Ayarlarda "daima sor" aktifse onay iste
+    if (settings?.askBeforeDeleteAll) {
+      Alert.alert(
+        'Tüm Planları Sil',
+        `${formatDateDisplay(selectedDate)} tarihindeki tüm görevleri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
+        [
+          { text: 'İptal', style: 'cancel' },
+          { 
+            text: 'Sil', 
+            style: 'destructive', 
+            onPress: async () => {
+              await deletePlan(selectedDate);
+              setCurrentTasks([]);
+              setIsEditMode(false);
+            }
+          }
+        ]
+      );
+    } else {
+      // Ayar kapalıysa direkt sil
+      await deletePlan(selectedDate);
+      setCurrentTasks([]);
+      setIsEditMode(false);
+    }
   };
 
   // Planı kopyala
@@ -202,16 +223,7 @@ export default function MultiDayViewScreen() {
               {isEditMode && (
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={() => {
-                    Alert.alert(
-                      'Tüm Günü Sil',
-                      'Bu günün tüm görevlerini silmek istediğinizden emin misiniz?',
-                      [
-                        { text: 'İptal', style: 'cancel' },
-                        { text: 'Sil', style: 'destructive', onPress: handleDeleteDay }
-                      ]
-                    );
-                  }}
+                  onPress={handleDeleteDay}
                 >
                   <LinearGradient
                     colors={['#ff6b6b', '#ee5a6f']}

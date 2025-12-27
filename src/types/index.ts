@@ -17,6 +17,11 @@ export interface Plans {
   [date: string]: Task[]; // "2025-12-24": [task1, task2, ...]
 }
 
+// Settings tipi
+export interface Settings {
+  askBeforeDeleteAll: boolean; // Tüm planları silerken sor
+}
+
 // Navigation için tip tanımları
 export type RootTabParamList = {
   CreatePlan: undefined;

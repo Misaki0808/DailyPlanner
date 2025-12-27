@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 
 export default function SettingsScreen() {
-  const { username, setUsername, plans, gender, setGender } = useApp();
+  const { username, setUsername, plans, gender, setGender, settings, updateSettings } = useApp();
   const [nameInput, setNameInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
@@ -236,6 +237,28 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
+
+          {/* Tercihler */}
+          <View style={styles.preferencesSection}>
+            <Text style={styles.sectionTitle}>⚙️ Tercihler</Text>
+            <View style={styles.glassCard}>
+              <View style={styles.preferenceItem}>
+                <View style={styles.preferenceTextContainer}>
+                  <Text style={styles.preferenceTitle}>Tüm planları silerken daima sor</Text>
+                  <Text style={styles.preferenceDescription}>
+                    Bir günün tüm görevlerini silmeden önce onay istenir
+                  </Text>
+                </View>
+                <Switch
+                  value={settings.askBeforeDeleteAll}
+                  onValueChange={(value) => updateSettings({ askBeforeDeleteAll: value })}
+                  trackColor={{ false: 'rgba(255, 255, 255, 0.3)', true: 'rgba(67, 233, 123, 0.7)' }}
+                  thumbColor={settings.askBeforeDeleteAll ? '#43e97b' : '#f4f3f4'}
+                  ios_backgroundColor="rgba(255, 255, 255, 0.3)"
+                />
+              </View>
+            </View>
+          </View>
         </View>
       </ScrollView>
     </LinearGradient>
@@ -450,5 +473,29 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  preferencesSection: {
+    marginBottom: 24,
+  },
+  preferenceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+  },
+  preferenceTextContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
+  preferenceTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  preferenceDescription: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
+    lineHeight: 18,
   },
 });
