@@ -159,7 +159,6 @@ export default function CreatePlanScreen() {
 
       setTasks([...tasks, ...newTasks]);
       setParagraphInput(''); // Paragrafı temizle
-      setShowAiSection(false); // AI bölümünü kapat
       
       Alert.alert('Başarılı', `${aiTasks.length} görev oluşturuldu! 🎉`);
     } catch (error: any) {
