@@ -131,14 +131,14 @@ export default function CopyPlanModal({
                 <View style={styles.dateUnit}>
                   <TouchableOpacity
                     style={styles.arrowButton}
-                    onPress={() => setTargetYear(targetYear - 1)}
+                    onPress={() => setTargetYear(targetYear + 1)}
                   >
                     <Text style={styles.arrowText}>▲</Text>
                   </TouchableOpacity>
                   <Text style={styles.dateValue}>{targetYear}</Text>
                   <TouchableOpacity
                     style={styles.arrowButton}
-                    onPress={() => setTargetYear(targetYear + 1)}
+                    onPress={() => setTargetYear(targetYear - 1)}
                   >
                     <Text style={styles.arrowText}>▼</Text>
                   </TouchableOpacity>
@@ -146,20 +146,6 @@ export default function CopyPlanModal({
 
                 {/* Ay */}
                 <View style={styles.dateUnit}>
-                  <TouchableOpacity
-                    style={styles.arrowButton}
-                    onPress={() => {
-                      if (targetMonth === 1) {
-                        setTargetMonth(12);
-                        setTargetYear(targetYear - 1);
-                      } else {
-                        setTargetMonth(targetMonth - 1);
-                      }
-                    }}
-                  >
-                    <Text style={styles.arrowText}>▲</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.dateValue}>{targetMonth}</Text>
                   <TouchableOpacity
                     style={styles.arrowButton}
                     onPress={() => {
@@ -171,12 +157,46 @@ export default function CopyPlanModal({
                       }
                     }}
                   >
+                    <Text style={styles.arrowText}>▲</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.dateValue}>{targetMonth}</Text>
+                  <TouchableOpacity
+                    style={styles.arrowButton}
+                    onPress={() => {
+                      if (targetMonth === 1) {
+                        setTargetMonth(12);
+                        setTargetYear(targetYear - 1);
+                      } else {
+                        setTargetMonth(targetMonth - 1);
+                      }
+                    }}
+                  >
                     <Text style={styles.arrowText}>▼</Text>
                   </TouchableOpacity>
                 </View>
 
                 {/* Gün */}
                 <View style={styles.dateUnit}>
+                  <TouchableOpacity
+                    style={styles.arrowButton}
+                    onPress={() => {
+                      if (targetDay >= daysInMonth) {
+                        // Sonraki aya geç
+                        if (targetMonth === 12) {
+                          setTargetMonth(1);
+                          setTargetYear(targetYear + 1);
+                        } else {
+                          setTargetMonth(targetMonth + 1);
+                        }
+                        setTargetDay(1);
+                      } else {
+                        setTargetDay(targetDay + 1);
+                      }
+                    }}
+                  >
+                    <Text style={styles.arrowText}>▲</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.dateValue}>{targetDay}</Text>
                   <TouchableOpacity
                     style={styles.arrowButton}
                     onPress={() => {
@@ -193,26 +213,6 @@ export default function CopyPlanModal({
                         }
                       } else {
                         setTargetDay(targetDay - 1);
-                      }
-                    }}
-                  >
-                    <Text style={styles.arrowText}>▲</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.dateValue}>{targetDay}</Text>
-                  <TouchableOpacity
-                    style={styles.arrowButton}
-                    onPress={() => {
-                      if (targetDay >= daysInMonth) {
-                        // Sonraki aya geç
-                        if (targetMonth === 12) {
-                          setTargetMonth(1);
-                          setTargetYear(targetYear + 1);
-                        } else {
-                          setTargetMonth(targetMonth + 1);
-                        }
-                        setTargetDay(1);
-                      } else {
-                        setTargetDay(targetDay + 1);
                       }
                     }}
                   >

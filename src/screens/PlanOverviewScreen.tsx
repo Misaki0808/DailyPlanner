@@ -75,7 +75,7 @@ export default function PlanOverviewScreen() {
     >
       {/* Merkez (Seçili Gün) */}
       <View style={styles.centerNodeContainer} pointerEvents="box-none">
-        <View style={styles.centerNode}>
+        <View style={styles.centerNode} pointerEvents="auto">
           <LinearGradient
             colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
             style={styles.centerGradient}
@@ -94,10 +94,10 @@ export default function PlanOverviewScreen() {
 
       {/* Çevresel Nodlar */}
       {surroundingDays.map((date, index) => {
-        const posStyle: ViewStyle = index === 0 ? { top: '10%', left: 20 } :
-                        index === 1 ? { top: '10%', right: 20 } :
-                        index === 2 ? { bottom: '10%', left: 20 } :
-                        { bottom: '10%', right: 20 };
+        const posStyle: ViewStyle = index === 0 ? { top: '12%', left: 20 } :
+                        index === 1 ? { top: '12%', right: 20 } :
+                        index === 2 ? { bottom: '12%', left: 20 } :
+                        { bottom: '12%', right: 20 };
 
         return (
           <TouchableOpacity 
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 100,
   },
   centerNode: {
     width: width * 0.5,
@@ -181,6 +181,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
     overflow: 'hidden',
+    zIndex: 1,
   },
   nodeGradient: {
     flex: 1,
