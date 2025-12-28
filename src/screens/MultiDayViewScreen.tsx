@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Platform,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,7 +12,6 @@ import { useApp } from '../context/AppContext';
 import { formatDateDisplay, getToday, addDays } from '../utils/dateUtils';
 import { Task } from '../types';
 import CopyPlanModal from '../components/CopyPlanModal';
-import ConfirmModal from '../components/ConfirmModal';
 
 export default function MultiDayViewScreen() {
   const { plans, updateTask, refreshPlans, savePlan, deletePlan, settings } = useApp();
@@ -21,7 +19,6 @@ export default function MultiDayViewScreen() {
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
   const [isEditMode, setIsEditMode] = useState(false); // Düzenleme modu
   const [isCopyModalVisible, setIsCopyModalVisible] = useState(false); // Kopyalama modal
-  const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false); // Silme onay modal
 
   // Seçilen tarih değiştiğinde görevleri güncelle
   useEffect(() => {
@@ -103,23 +100,18 @@ export default function MultiDayViewScreen() {
   const handleDeleteDay = async () => {
     // Ayarlarda "daima sor" aktifse onay iste
     if (settings?.askBeforeDeleteAll) {
-      // Web'de custom modal, native'de Alert kullan
-      if (Platform.OS === 'web') {
-        setIsDeleteConfirmVisible(true);
-      } else {
-        Alert.alert(
-          'Tüm Planları Sil',
-          `${formatDateDisplay(selectedDate)} tarihindeki tüm görevleri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
-          [
-            { text: 'İptal', style: 'cancel' },
-            { 
-              text: 'Sil', 
-              style: 'destructive', 
-              onPress: confirmDelete
-            }
-          ]
-        );
-      }
+      Alert.alert(
+        'Tüm Planları Sil',
+        `${formatDateDisplay(selectedDate)} tarihindeki tüm görevleri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
+        [
+          { text: 'İptal', style: 'cancel' },
+          { 
+            text: 'Sil', 
+            style: 'destructive', 
+            onPress: confirmDelete
+          }
+        ]
+      );
     } else {
       // Ayar kapalıysa direkt sil
       await confirmDelete();
@@ -131,7 +123,6 @@ export default function MultiDayViewScreen() {
     await deletePlan(selectedDate);
     setCurrentTasks([]);
     setIsEditMode(false);
-    setIsDeleteConfirmVisible(false);
   };
 
   // Planı kopyala
@@ -351,18 +342,6 @@ export default function MultiDayViewScreen() {
           sourceTasks={currentTasks}
           sourceDate={formatDateDisplay(selectedDate)}
           onCopy={handleCopyPlan}
-        />
-
-        {/* Silme Onay Modal (Web için) */}
-        <ConfirmModal
-          visible={isDeleteConfirmVisible}
-          title="Tüm Planları Sil"
-          message={`${formatDateDisplay(selectedDate)} tarihindeki tüm görevleri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`}
-          confirmText="Sil"
-          cancelText="İptal"
-          destructive={true}
-          onConfirm={confirmDelete}
-          onCancel={() => setIsDeleteConfirmVisible(false)}
         />
       </View>
     </LinearGradient>

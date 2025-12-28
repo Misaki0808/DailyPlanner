@@ -78,7 +78,7 @@ export default function ConfirmModal({
                       colors={
                         destructive
                           ? ['#ff6b6b', '#ee5a6f']
-                          : ['#4facfe', '00f2fe']
+                          : ['#4facfe', '#00f2fe']
                       }
                       style={styles.buttonGradient}
                     >
