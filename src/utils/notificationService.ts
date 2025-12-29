@@ -72,7 +72,6 @@ export const scheduleDailyNotification = async (
       },
     });
     
-    console.log(`Bildirim planlandı: ${hour}:${minute} - ID: ${notificationId}`);
     return notificationId;
   } catch (error) {
     console.error('Bildirim planlanırken hata:', error);
@@ -86,7 +85,6 @@ export const scheduleDailyNotification = async (
 export const cancelAllNotifications = async (): Promise<void> => {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('Tüm bildirimler iptal edildi');
   } catch (error) {
     console.error('Bildirimler iptal edilirken hata:', error);
   }

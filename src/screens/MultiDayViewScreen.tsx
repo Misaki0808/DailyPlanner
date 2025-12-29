@@ -17,6 +17,7 @@ import { Task } from '../types';
 import CopyPlanModal from '../components/CopyPlanModal';
 import ShareModal from '../components/ShareModal';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import AnimatedTaskItem from '../components/AnimatedTaskItem';
 
 // Sadece native platformlarda import et
 let RNShare: any = null;
@@ -24,7 +25,7 @@ if (Platform.OS !== 'web') {
   try {
     RNShare = require('react-native-share').default;
   } catch (e) {
-    console.log('react-native-share not available');
+    // react-native-share not available on web
   }
 }
 
@@ -173,8 +174,6 @@ export default function MultiDayViewScreen() {
 
   // Planı paylaş (WhatsApp, Instagram, vb.)
   const handleSharePlan = async () => {
-    console.log('📤 Paylaş butonuna tıklandı');
-    
     if (currentTasks.length === 0) {
       if (Platform.OS === 'web') {
         window.alert('Paylaşılacak görev yok');
@@ -200,15 +199,11 @@ export default function MultiDayViewScreen() {
     shareText += `\n💪 ${percentage}% tamamlandı!\n`;
     shareText += `\n#DailyPlanner #PlanımıPaylaşıyorum`;
 
-    console.log('📝 Paylaşım metni:', shareText);
-
     try {
       if (Platform.OS === 'web') {
-        console.log('🌐 Web - Modal gösteriliyor');
         // Web'de modal göster
         setIsShareModalVisible(true);
       } else {
-        console.log('📱 Mobil - Share sheet açılıyor');
         // Mobilde share sheet
         if (RNShare) {
           try {
@@ -442,62 +437,17 @@ export default function MultiDayViewScreen() {
               </View>
             </View>
           ) : (
-            currentTasks.map((task, index) => {
-                const priorityColor = 
-                  task.priority === 'high' ? '#F44336' :
-                task.priority === 'medium' ? '#FFC107' :
-                '#4CAF50';
-              
-              return (
-              <View key={task.id} style={styles.taskItemWrapper}>
-                <View style={[styles.glassCard, { borderLeftWidth: 4, borderLeftColor: priorityColor }]}>
-                  <TouchableOpacity
-                    style={styles.taskItem}
-                    onPress={() => !isEditMode && toggleTaskDone(task.id, task.done)}
-                    activeOpacity={0.7}
-                    disabled={isEditMode}
-                  >
-                    {/* Checkbox */}
-                    {!isEditMode && (
-                      <View style={[styles.checkbox, task.done && styles.checkboxChecked]}>
-                        {task.done && (
-                          <LinearGradient
-                            colors={['#4facfe', '#00f2fe']}
-                            style={styles.checkboxGradient}
-                          >
-                            <Text style={styles.checkmark}>✓</Text>
-                          </LinearGradient>
-                        )}
-                      </View>
-                    )}
-                    
-                    {/* Görev Numarası ve Başlığı */}
-                    <View style={styles.taskContent}>
-                      <TouchableOpacity
-                        style={[styles.taskNumberBadge, { backgroundColor: priorityColor }]}
-                        onPress={() => isEditMode && handleChangePriority(task.id)}
-                        disabled={!isEditMode}
-                      >
-                        <Text style={styles.taskNumber}>{index + 1}</Text>
-                      </TouchableOpacity>
-                      <Text style={[styles.taskTitle, task.done && styles.taskTitleDone]}>
-                        {task.title}
-                      </Text>
-                    </View>
-
-                    {/* Silme Butonu (Edit Mode) */}
-                    {isEditMode && (
-                      <TouchableOpacity
-                        onPress={() => handleRemoveTask(task.id)}
-                        style={styles.removeButton}
-                      >
-                        <Text style={styles.removeButtonText}>✕</Text>
-                      </TouchableOpacity>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )})
+            currentTasks.map((task, index) => (
+              <AnimatedTaskItem
+                key={task.id}
+                task={task}
+                index={index}
+                isEditMode={isEditMode}
+                onToggleDone={() => toggleTaskDone(task.id, task.done)}
+                onChangePriority={() => handleChangePriority(task.id)}
+                onRemove={() => handleRemoveTask(task.id)}
+              />
+            ))
           )}
         </ScrollView>
 

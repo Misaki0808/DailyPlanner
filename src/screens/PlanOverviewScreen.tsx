@@ -68,31 +68,12 @@ export default function PlanOverviewScreen() {
 
   return (
     <LinearGradient
-      colors={['#1a2a6c', '#b21f1f', '#fdbb2d']} // Biraz daha koyu/dashboard havası
+      colors={['#1a2a6c', '#b21f1f', '#fdbb2d']}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
-      {/* Merkez (Seçili Gün) */}
-      <View style={styles.centerNodeContainer} pointerEvents="box-none">
-        <View style={styles.centerNode} pointerEvents="auto">
-          <LinearGradient
-            colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
-            style={styles.centerGradient}
-          >
-            <Text style={styles.centerTitle}>
-              {centerDate === getToday() ? 'Bugün' : formatDateDisplay(centerDate).split(' ')[0]}
-            </Text>
-            <Text style={styles.centerDate}>{formatDateDisplay(centerDate)}</Text>
-            <View style={styles.divider} />
-            <ScrollView style={styles.centerScroll} showsVerticalScrollIndicator={false}>
-              {renderTaskPreview(centerDate, 10)}
-            </ScrollView>
-          </LinearGradient>
-        </View>
-      </View>
-
-      {/* Çevresel Nodlar */}
+      {/* Çevresel Nodlar (Arka planda) */}
       {surroundingDays.map((date, index) => {
         const posStyle: ViewStyle = index === 0 ? { top: '12%', left: 20 } :
                         index === 1 ? { top: '12%', right: 20 } :
@@ -117,6 +98,25 @@ export default function PlanOverviewScreen() {
           </TouchableOpacity>
         );
       })}
+
+      {/* Merkez (Seçili Gün) - En üstte */}
+      <View style={styles.centerNodeContainer}>
+        <View style={styles.centerNode}>
+          <LinearGradient
+            colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+            style={styles.centerGradient}
+          >
+            <Text style={styles.centerTitle}>
+              {centerDate === getToday() ? 'Bugün' : formatDateDisplay(centerDate).split(' ')[0]}
+            </Text>
+            <Text style={styles.centerDate}>{formatDateDisplay(centerDate)}</Text>
+            <View style={styles.divider} />
+            <ScrollView style={styles.centerScroll} showsVerticalScrollIndicator={false}>
+              {renderTaskPreview(centerDate, 10)}
+            </ScrollView>
+          </LinearGradient>
+        </View>
+      </View>
     </LinearGradient>
   );
 }
@@ -133,7 +133,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 100,
+    zIndex: 10,
+    pointerEvents: 'box-none',
   },
   centerNode: {
     width: width * 0.5,
@@ -147,6 +148,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 10,
+    pointerEvents: 'auto',
   },
   centerGradient: {
     flex: 1,

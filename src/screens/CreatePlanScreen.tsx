@@ -13,10 +13,11 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
-import { formatDateDisplay, getToday, getTomorrow, addDays } from '../utils/dateUtils';
+import { formatDateDisplay, getToday, addDays } from '../utils/dateUtils';
 import { Task } from '../types';
 import { convertParagraphToTasks, checkApiKey } from '../utils/aiService';
 import CalendarModal from '../components/CalendarModal';
+import SuccessModal from '../components/SuccessModal';
 
 export default function CreatePlanScreen() {
   const { plans, savePlan, settings } = useApp();
@@ -24,11 +25,13 @@ export default function CreatePlanScreen() {
   // State'ler
   const [selectedDate, setSelectedDate] = useState('');
   const [taskInput, setTaskInput] = useState('');
-  const [selectedPriority, setSelectedPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [selectedPriority, setSelectedPriority] = useState<'low' | 'medium' | 'high'>('low');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [paragraphInput, setParagraphInput] = useState(''); // AI için paragraf
   const [isAiLoading, setIsAiLoading] = useState(false); // AI yükleniyor mu?
   const [showCalendar, setShowCalendar] = useState(false); // Takvim modal
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // Başarı modal
+  const [savedDate, setSavedDate] = useState(''); // Kaydedilen tarih
   
   // İlk açılışta default tarihi belirle - boş gün bulana kadar ilerle
   useEffect(() => {
@@ -70,7 +73,7 @@ export default function CreatePlanScreen() {
     
     setTasks([...tasks, newTask]);
     setTaskInput(''); // Input'u temizle
-    setSelectedPriority('medium'); // Priority'yi resetle
+    setSelectedPriority('low'); // Priority'yi low olarak resetle
   };
   
   // Görev sil
@@ -80,7 +83,7 @@ export default function CreatePlanScreen() {
 
   // Görev priority değiştir (döngüsel: low -> medium -> high -> low)
   const handleChangePriority = (taskId: string) => {
-    setTasks(tasks.map(task => {
+    setTasks(prevTasks => prevTasks.map(task => {
       if (task.id === taskId) {
         const nextPriority = 
           task.priority === 'low' ? 'medium' :
@@ -101,27 +104,39 @@ export default function CreatePlanScreen() {
     
     try {
       await savePlan(selectedDate, tasks);
-      Alert.alert('Başarılı', 'Plan kaydedildi!', [
-        {
-          text: 'Tamam',
-          onPress: () => {
-            // Formu temizle
-            setTasks([]);
-            setTaskInput('');
-          },
-        },
-      ]);
+      // Başarı modal'ını göster
+      setSavedDate(selectedDate);
+      setShowSuccessModal(true);
     } catch (error) {
       Alert.alert('Hata', 'Plan kaydedilemedi');
     }
   };
   
-  // Tarihi değiştir (bugün/yarın) - ESKI YÖNTEMden kaldırıldı
-  // const toggleDate = () => {
-  //   const today = getToday();
-  //   const tomorrow = getTomorrow();
-  //   setSelectedDate(selectedDate === today ? tomorrow : today);
-  // };
+  // Success modal kapatıldığında formu temizle
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    // Formu temizle
+    setTasks([]);
+    setTaskInput('');
+    setParagraphInput('');
+    setSelectedPriority('low');
+    // Yeni boş gün bul
+    const findFirstEmptyDate = () => {
+      let currentDate = addDays(getToday(), 0);
+      let daysChecked = 0;
+      const maxDays = 365;
+      
+      while (daysChecked < maxDays) {
+        if (!plans[currentDate] || plans[currentDate].length === 0) {
+          return currentDate;
+        }
+        currentDate = addDays(currentDate, 1);
+        daysChecked++;
+      }
+      return getToday();
+    };
+    setSelectedDate(findFirstEmptyDate());
+  };
 
   // Takvim modaldan tarih seç
   const handleDateSelect = (date: string) => {
@@ -357,6 +372,15 @@ export default function CreatePlanScreen() {
         selectedDate={selectedDate}
         onSelectDate={handleDateSelect}
         occupiedDates={getOccupiedDates()}
+      />
+
+      {/* Başarı Modal */}
+      <SuccessModal
+        visible={showSuccessModal}
+        onClose={handleSuccessModalClose}
+        date={formatDateDisplay(savedDate)}
+        taskCount={tasks.length}
+        settings={settings}
       />
     </LinearGradient>
   );
