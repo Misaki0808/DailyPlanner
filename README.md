@@ -19,6 +19,15 @@ Uygulama, "To-Do List" konseptine **üretken yapay zeka** katmanı ekleyerek öz
 * **📅 Gelişmiş Takvim Görünümü:** Görevlerinizi günlük veya çoklu gün görünümünde takip etme imkanı.
 * **📤 Paylaşım:** Oluşturulan planları metin olarak diğer uygulamalarla paylaşabilme.
 
+## 📸 Uygulama Görselleri (Screenshots)
+
+<div align="center">
+  <img src="screenshots/create_plan.png" alt="Plan Oluştur Ekranı" width="300"/>
+  <img src="screenshots/overview.png" alt="Genel Bakış Ekranı" width="300"/>
+</div>
+
+*Sol: Plan Oluştur Ekranı | Sağ: Genel Bakış Ekranı*
+
 ## 🛠️ Teknoloji Yığını (Tech Stack)
 
 Proje, performans ve geliştirici deneyimi açısından modern araçlar seçilerek geliştirilmiştir:
