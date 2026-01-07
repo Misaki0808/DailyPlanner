@@ -28,6 +28,13 @@ Uygulama, "To-Do List" konseptine **üretken yapay zeka** katmanı ekleyerek öz
 
 *Sol: Plan Oluştur Ekranı | Sağ: Genel Bakış Ekranı*
 
+<div align="center">
+  <img src="screenshots/plans.png" alt="Planlarım Ekranı" width="300"/>
+  <img src="screenshots/settings.png" alt="Ayarlar Ekranı" width="300"/>
+</div>
+
+*Sol: Planlarım Ekranı | Sağ: Ayarlar Ekranı*
+
 ## 🛠️ Teknoloji Yığını (Tech Stack)
 
 Proje, performans ve geliştirici deneyimi açısından modern araçlar seçilerek geliştirilmiştir:
