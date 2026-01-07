@@ -50,7 +50,6 @@ export default function SettingsScreen() {
     try {
       await setUsername(nameInput.trim());
       setIsEditing(false);
-      Alert.alert('Başarılı', 'İsminiz kaydedildi!');
     } catch (error) {
       Alert.alert('Hata', 'İsim kaydedilemedi');
     }
@@ -77,7 +76,6 @@ export default function SettingsScreen() {
   const handleGenderChange = async (newGender: 'male' | 'female') => {
     try {
       await setGender(newGender);
-      Alert.alert('Başarılı', 'Profil resminiz değiştirildi!');
     } catch (error) {
       Alert.alert('Hata', 'Profil resmi değiştirilemedi');
     }
@@ -97,12 +95,10 @@ export default function SettingsScreen() {
       const minute = parseInt(notificationMinute);
       await scheduleDailyNotification(hour, minute);
       await updateSettings({ notificationsEnabled: true });
-      Alert.alert('Başarılı', `Günlük bildirim ${notificationHour}:${notificationMinute} için ayarlandı!`);
     } else {
       // Bildirimleri iptal et
       await cancelAllNotifications();
       await updateSettings({ notificationsEnabled: false });
-      Alert.alert('Bilgi', 'Bildirimler kapatıldı');
     }
   };
 
@@ -432,6 +428,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
     paddingBottom: 100,
   },
   content: {

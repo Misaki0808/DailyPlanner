@@ -1,11 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { DrawerProvider, useDrawer } from './src/context/DrawerContext';
 import JSDrawer from './src/components/JSDrawer';
 import Svg, { Line } from 'react-native-svg';
+import { useEffect } from 'react';
 
 // Ekranlar
 import CreatePlanScreen from './src/screens/CreatePlanScreen';
@@ -34,6 +35,27 @@ import { navigationRef } from './src/utils/navigationRef';
 // Ana uygulama içeriği
 function AppContent() {
   const { isLoading } = useApp();
+
+  // Web için global stil ayarı
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const style = document.createElement('style');
+      style.textContent = `
+        html, body, #root {
+          height: 100%;
+          overflow: auto;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+        }
+      `;
+      document.head.appendChild(style);
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
+  }, []);
 
   if (isLoading) {
     return (

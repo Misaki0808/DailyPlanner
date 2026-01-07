@@ -31,7 +31,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [gender, setGenderState] = useState<Gender>('male'); // Default erkek
   const [settings, setSettingsState] = useState<Settings>({ 
     askBeforeDeleteAll: true,
-    darkMode: false,
+    darkMode: true,
     notificationsEnabled: true,
     notificationTime: '08:00',
   });
