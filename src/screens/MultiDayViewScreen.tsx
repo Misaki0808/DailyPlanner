@@ -424,10 +424,7 @@ export default function MultiDayViewScreen() {
                     />
                     <VoiceInputButton
                       mode="task"
-                      onTranscript={(text, isFinal) => {
-                        if (isFinal) setQuickAddText(text);
-                        else setQuickAddText(text);
-                      }}
+                      onTranscript={(text) => setQuickAddText(text)}
                     />
                     <TouchableOpacity
                       onPress={handleQuickAddTask}
@@ -471,7 +468,7 @@ export default function MultiDayViewScreen() {
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                     >
-                      <Text style={styles.compactButtonIcon}>{"\uD83D\uDDD1"}</Text>
+                      <Text style={styles.compactButtonText}>{"\uD83D\uDDD1"}</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </>
@@ -857,9 +854,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
   },
-  compactButtonIcon: {
-    fontSize: 18,
-  },
+
   undoSnackbar: {
     position: 'absolute',
     bottom: 20,

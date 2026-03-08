@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
-import { RecurringTask } from '../types';
 import VoiceInputButton from '../components/VoiceInputButton';
 import { scheduleDailyNotification, cancelAllNotifications, requestNotificationPermissions } from '../utils/notificationService';
 
@@ -331,35 +330,35 @@ export default function SettingsScreen() {
 
           {/* Tekrarlayan Görevler */}
           <View style={styles.recurringSection}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <View style={styles.recurringSectionHeader}>
               <Text style={styles.sectionTitle}>🔁 Tekrarlayan Görevler</Text>
               <TouchableOpacity onPress={() => setShowRecurringModal(true)} activeOpacity={0.7}>
                 <LinearGradient
                   colors={['#667eea', '#764ba2']}
-                  style={{ width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' }}
+                  style={styles.recurringAddBtnGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>+</Text>
+                  <Text style={styles.recurringAddBtnText}>+</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
 
             {recurringTasks.length === 0 ? (
               <View style={styles.glassCard}>
-                <View style={{ padding: 24, alignItems: 'center' }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, textAlign: 'center' }}>
+                <View style={styles.recurringEmptyContainer}>
+                  <Text style={styles.recurringEmptyText}>
                     Henüz tekrarlayan görev yok.{'\n'}Yukarıdaki + butonuyla ekleyebilirsin.
                   </Text>
                 </View>
               </View>
             ) : (
               recurringTasks.map((rt) => (
-                <View key={rt.id} style={[styles.glassCard, { marginBottom: 10 }]}>
+                <View key={rt.id} style={[styles.glassCard, styles.recurringCardSpacing]}>
                   <View style={styles.recurringItem}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{rt.title}</Text>
-                      <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 4 }}>
+                    <View style={styles.recurringItemTextContainer}>
+                      <Text style={styles.recurringItemTitle}>{rt.title}</Text>
+                      <Text style={styles.recurringItemSubtitle}>
                         {frequencyLabels[rt.frequency]}
                         {rt.frequency === 'weekly' && rt.weekDay !== undefined ? ` · ${weekDayNames[rt.weekDay]}` : ''}
                         {rt.frequency === 'monthly' && rt.monthDay ? ` · Her ayın ${rt.monthDay}. günü` : ''}
@@ -375,9 +374,9 @@ export default function SettingsScreen() {
                     />
                     <TouchableOpacity
                       onPress={() => removeRecurringTask(rt.id)}
-                      style={{ marginLeft: 8 }}
+                      style={styles.recurringDeleteBtn}
                     >
-                      <Text style={{ fontSize: 20 }}>🗑</Text>
+                      <Text style={styles.recurringDeleteIcon}>🗑</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -557,10 +556,10 @@ export default function SettingsScreen() {
 
             {/* Aylık gün seçimi */}
             {rtFrequency === 'monthly' && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+              <View style={styles.monthDayRow}>
                 <Text style={styles.modalLabel}>Her ayın </Text>
                 <TextInput
-                  style={[styles.modalInput, { width: 50, textAlign: 'center' }]}
+                  style={[styles.modalInput, styles.monthDayInput]}
                   value={String(rtMonthDay)}
                   onChangeText={(t) => setRtMonthDay(Math.min(31, Math.max(1, parseInt(t) || 1)))}
                   keyboardType="number-pad"
@@ -571,7 +570,7 @@ export default function SettingsScreen() {
             )}
 
             {/* Öncelik */}
-            <Text style={[styles.modalLabel, { marginTop: 16 }]}>Öncelik</Text>
+            <Text style={[styles.modalLabel, styles.priorityLabel]}>Öncelik</Text>
             <View style={styles.freqRow}>
               {(['low', 'medium', 'high'] as const).map((p) => (
                 <TouchableOpacity
@@ -589,23 +588,23 @@ export default function SettingsScreen() {
             </View>
 
             {/* Butonlar */}
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 24 }}>
+            <View style={styles.modalButtonsRow}>
               <TouchableOpacity
-                style={{ flex: 1 }}
+                style={styles.modalButtonFlex}
                 onPress={() => setShowRecurringModal(false)}
               >
                 <View style={styles.modalCancelBtn}>
-                  <Text style={{ color: '#fff', fontWeight: '600', textAlign: 'center' }}>İptal</Text>
+                  <Text style={styles.modalBtnText}>İptal</Text>
                 </View>
               </TouchableOpacity>
-              <TouchableOpacity style={{ flex: 1 }} onPress={handleAddRecurring}>
+              <TouchableOpacity style={styles.modalButtonFlex} onPress={handleAddRecurring}>
                 <LinearGradient
                   colors={['#667eea', '#764ba2']}
                   style={styles.modalSaveBtn}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  <Text style={{ color: '#fff', fontWeight: '700', textAlign: 'center' }}>Kaydet</Text>
+                  <Text style={styles.modalBtnTextBold}>Kaydet</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -916,6 +915,55 @@ const styles = StyleSheet.create({
   recurringSection: {
     marginBottom: 24,
   },
+  recurringSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  recurringAddBtnGradient: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recurringAddBtnText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  recurringEmptyContainer: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  recurringEmptyText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  recurringCardSpacing: {
+    marginBottom: 10,
+  },
+  recurringItemTextContainer: {
+    flex: 1,
+  },
+  recurringItemTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  recurringItemSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  recurringDeleteBtn: {
+    marginLeft: 8,
+  },
+  recurringDeleteIcon: {
+    fontSize: 20,
+  },
   recurringItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1013,5 +1061,36 @@ const styles = StyleSheet.create({
   modalSaveBtn: {
     paddingVertical: 14,
     borderRadius: 14,
+  },
+  monthDayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  monthDayInput: {
+    width: 50,
+    textAlign: 'center',
+    flex: 0,
+  },
+  priorityLabel: {
+    marginTop: 16,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  modalButtonFlex: {
+    flex: 1,
+  },
+  modalBtnText: {
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalBtnTextBold: {
+    color: '#fff',
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
