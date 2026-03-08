@@ -21,7 +21,19 @@ import ShareModal from '../components/ShareModal';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import AnimatedTaskItem from '../components/AnimatedTaskItem';
 import VoiceInputButton from '../components/VoiceInputButton';
-import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
+
+// DraggableFlatList sadece native'de kullanılır (web'de Babel hatası verir)
+let DraggableFlatList: any = null;
+let ScaleDecorator: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    const draggable = require('react-native-draggable-flatlist');
+    DraggableFlatList = draggable.default;
+    ScaleDecorator = draggable.ScaleDecorator;
+  } catch (e) {
+    // Library not available
+  }
+}
 
 // Sadece native platformlarda import et
 let RNShare: any = null;
@@ -520,19 +532,19 @@ export default function MultiDayViewScreen() {
         )}
 
         {/* Görev Listesi */}
-        {isEditMode && currentTasks.length > 0 ? (
-          /* Edit modda: Sürükle-bırak FlatList */
+        {isEditMode && currentTasks.length > 0 && DraggableFlatList ? (
+          /* Edit modda: Sürükle-bırak FlatList (sadece native) */
           <DraggableFlatList
             data={currentTasks}
-            keyExtractor={(item) => item.id}
-            onDragEnd={async ({ data }) => {
+            keyExtractor={(item: Task) => item.id}
+            onDragEnd={async ({ data }: { data: Task[] }) => {
               setCurrentTasks(data);
               await savePlan(selectedDate, data);
               await refreshPlans();
             }}
-            renderItem={({ item, getIndex, drag, isActive }: RenderItemParams<Task>) => {
+            renderItem={({ item, getIndex, drag, isActive }: any) => {
               const idx = getIndex() ?? 0;
-              return (
+              return ScaleDecorator ? (
                 <ScaleDecorator activeScale={1.04}>
                   <AnimatedTaskItem
                     task={item}
@@ -547,6 +559,17 @@ export default function MultiDayViewScreen() {
                     onLongPressSelect={drag}
                   />
                 </ScaleDecorator>
+              ) : (
+                <AnimatedTaskItem
+                  task={item}
+                  index={idx}
+                  totalCount={currentTasks.length}
+                  isEditMode={true}
+                  onToggleDone={() => toggleTaskDone(item.id, item.done)}
+                  onChangePriority={() => handleChangePriority(item.id)}
+                  onRemove={() => handleRemoveTask(item.id)}
+                  onNoteEdit={handleNoteEdit}
+                />
               );
             }}
             containerStyle={{ flex: 1, paddingHorizontal: 0 }}
@@ -571,7 +594,7 @@ export default function MultiDayViewScreen() {
                   task={task}
                   index={index}
                   totalCount={currentTasks.length}
-                  isEditMode={false}
+                  isEditMode={isEditMode}
                   onToggleDone={() => toggleTaskDone(task.id, task.done)}
                   onChangePriority={() => handleChangePriority(task.id)}
                   onRemove={() => handleRemoveTask(task.id)}
