@@ -319,7 +319,7 @@ export default function CreatePlanScreen() {
             </View>
 
             <View style={styles.inputRow}>
-              <View style={[styles.glassCard, { flexDirection: 'row', alignItems: 'center' }]}>
+              <View style={[styles.glassCard, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
                 <TextInput
                   style={styles.input}
                   placeholder="Örn: Alışverişe git"

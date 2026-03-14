@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 import VoiceInputButton from '../components/VoiceInputButton';
+import WeeklyStatsChart from '../components/WeeklyStatsChart';
 import { scheduleDailyNotification, cancelAllNotifications, requestNotificationPermissions } from '../utils/notificationService';
 
 export default function SettingsScreen() {
@@ -326,6 +327,9 @@ export default function SettingsScreen() {
                 </View>
               )}
             </View>
+
+            {/* Haftalık Performans Grafiği */}
+            <WeeklyStatsChart plans={plans} />
           </View>
 
           {/* Tekrarlayan Görevler */}

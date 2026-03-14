@@ -30,6 +30,9 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
             const SpeechRecognition =
                 (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
             setIsSupported(!!SpeechRecognition);
+        } else {
+            // Native'de Speech Recognition yok (Expo Go limiti)
+            setIsSupported(false);
         }
     }, []);
 
@@ -113,12 +116,20 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         else startListening();
     };
 
-    if (Platform.OS !== 'web' || !isSupported) return null;
+    const handleNativePress = () => {
+        Alert.alert(
+            '🌐 Web Gerekli',
+            'Sesli giriş şu an sadece web tarayıcıda çalışıyor.\n\nWeb tarayıcıdan (Chrome) açıp kullanabilirsiniz.',
+            [{ text: 'Tamam' }]
+        );
+    };
+
+    // Hem web hem native'de göster
 
     return (
         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
             <TouchableOpacity
-                onPress={toggleListening}
+                onPress={Platform.OS === 'web' ? toggleListening : handleNativePress}
                 disabled={disabled || isCorrecting}
                 activeOpacity={0.7}
             >

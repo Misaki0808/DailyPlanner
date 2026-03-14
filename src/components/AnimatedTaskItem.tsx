@@ -203,17 +203,19 @@ export default function AnimatedTaskItem({
       <TouchableOpacity
         style={styles.taskItem}
         onPress={() => !isEditMode && onToggleDone()}
-        onLongPress={() => {
-          if (isEditMode && onLongPressSelect) onLongPressSelect();
-        }}
-        delayLongPress={300}
         activeOpacity={0.7}
       >
         {/* Görev Numarası ve Başlığı */}
         <View style={styles.taskContent}>
-          {/* Sürükleme tutacağı */}
-          {isEditMode && (
-            <Text style={[styles.grabHandle, isSelected && { color: '#f9ca24' }]}>≡</Text>
+          {/* Sürükleme tutacağı — basili tut = drag başlat */}
+          {isEditMode && onLongPressSelect && (
+            <TouchableOpacity
+              onPressIn={onLongPressSelect}
+              style={styles.grabHandleTouch}
+              activeOpacity={0.6}
+            >
+              <Text style={[styles.grabHandle, isSelected && { color: '#f9ca24' }]}>☰</Text>
+            </TouchableOpacity>
           )}
           <TouchableOpacity
             style={[styles.taskNumberBadge, { backgroundColor: priorityColor }]}
@@ -418,8 +420,12 @@ const styles = StyleSheet.create({
   grabHandle: {
     fontSize: 20,
     color: 'rgba(255,255,255,0.35)',
-    marginRight: 6,
     letterSpacing: 2,
+  },
+  grabHandleTouch: {
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    marginRight: 4,
   },
   noteIconContainer: {
     width: 32,
