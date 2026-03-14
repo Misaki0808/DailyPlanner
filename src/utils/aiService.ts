@@ -1,9 +1,9 @@
 import Constants from 'expo-constants';
 
 // .env'den API key'i al (EXPO_PUBLIC_ prefix otomatik çalışır)
-const GEMINI_API_KEY = Constants.expoConfig?.extra?.EXPO_PUBLIC_GEMINI_API_KEY ||
-  Constants.manifest?.extra?.EXPO_PUBLIC_GEMINI_API_KEY ||
+const GEMINI_API_KEY =
   process.env.EXPO_PUBLIC_GEMINI_API_KEY ||
+  Constants.expoConfig?.extra?.geminiApiKey ||
   '';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';

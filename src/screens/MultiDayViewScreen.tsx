@@ -22,19 +22,6 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import AnimatedTaskItem from '../components/AnimatedTaskItem';
 import VoiceInputButton from '../components/VoiceInputButton';
 
-// DraggableFlatList sadece native'de kullanılır (web'de Babel hatası verir)
-let DraggableFlatList: any = null;
-let ScaleDecorator: any = null;
-if (Platform.OS !== 'web') {
-  try {
-    const draggable = require('react-native-draggable-flatlist');
-    DraggableFlatList = draggable.default;
-    ScaleDecorator = draggable.ScaleDecorator;
-  } catch (e) {
-    // Library not available
-  }
-}
-
 // Sadece native platformlarda import et
 let RNShare: any = null;
 if (Platform.OS !== 'web') {
@@ -532,78 +519,33 @@ export default function MultiDayViewScreen() {
         )}
 
         {/* Görev Listesi */}
-        {isEditMode && currentTasks.length > 0 && DraggableFlatList ? (
-          /* Edit modda: Sürükle-bırak FlatList (sadece native) */
-          <DraggableFlatList
-            data={currentTasks}
-            keyExtractor={(item: Task) => item.id}
-            onDragEnd={async ({ data }: { data: Task[] }) => {
-              setCurrentTasks(data);
-              await savePlan(selectedDate, data);
-              await refreshPlans();
-            }}
-            renderItem={({ item, getIndex, drag, isActive }: any) => {
-              const idx = getIndex() ?? 0;
-              return ScaleDecorator ? (
-                <ScaleDecorator activeScale={1.04}>
-                  <AnimatedTaskItem
-                    task={item}
-                    index={idx}
-                    totalCount={currentTasks.length}
-                    isEditMode={true}
-                    isSelected={isActive}
-                    onToggleDone={() => toggleTaskDone(item.id, item.done)}
-                    onChangePriority={() => handleChangePriority(item.id)}
-                    onRemove={() => handleRemoveTask(item.id)}
-                    onNoteEdit={handleNoteEdit}
-                    onLongPressSelect={drag}
-                  />
-                </ScaleDecorator>
-              ) : (
-                <AnimatedTaskItem
-                  task={item}
-                  index={idx}
-                  totalCount={currentTasks.length}
-                  isEditMode={true}
-                  onToggleDone={() => toggleTaskDone(item.id, item.done)}
-                  onChangePriority={() => handleChangePriority(item.id)}
-                  onRemove={() => handleRemoveTask(item.id)}
-                  onNoteEdit={handleNoteEdit}
-                />
-              );
-            }}
-            containerStyle={{ flex: 1, paddingHorizontal: 0 }}
-            activationDistance={5}
-          />
-        ) : (
-          <ScrollView style={styles.taskList}>
-            {currentTasks.length === 0 ? (
-              <View style={styles.emptyState}>
-                <View style={styles.emptyStateCard}>
-                  <Text style={styles.emptyStateIcon}>📭</Text>
-                  <Text style={styles.emptyStateTitle}>Bu gün için plan yok</Text>
-                  <Text style={styles.emptyStateSubtitle}>
-                    "Plan Oluştur" sekmesinden yeni plan ekleyebilirsiniz
-                  </Text>
-                </View>
+        <ScrollView style={styles.taskList}>
+          {currentTasks.length === 0 ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateIcon}>📭</Text>
+                <Text style={styles.emptyStateTitle}>Bu gün için plan yok</Text>
+                <Text style={styles.emptyStateSubtitle}>
+                  "Plan Oluştur" sekmesinden yeni plan ekleyebilirsiniz
+                </Text>
               </View>
-            ) : (
-              currentTasks.map((task, index) => (
-                <AnimatedTaskItem
-                  key={task.id}
-                  task={task}
-                  index={index}
-                  totalCount={currentTasks.length}
-                  isEditMode={isEditMode}
-                  onToggleDone={() => toggleTaskDone(task.id, task.done)}
-                  onChangePriority={() => handleChangePriority(task.id)}
-                  onRemove={() => handleRemoveTask(task.id)}
-                  onNoteEdit={handleNoteEdit}
-                />
-              ))
-            )}
-          </ScrollView>
-        )}
+            </View>
+          ) : (
+            currentTasks.map((task, index) => (
+              <AnimatedTaskItem
+                key={task.id}
+                task={task}
+                index={index}
+                totalCount={currentTasks.length}
+                isEditMode={isEditMode}
+                onToggleDone={() => toggleTaskDone(task.id, task.done)}
+                onChangePriority={() => handleChangePriority(task.id)}
+                onRemove={() => handleRemoveTask(task.id)}
+                onNoteEdit={handleNoteEdit}
+              />
+            ))
+          )}
+        </ScrollView>
 
         {/* Geri Al Snackbar */}
         {deletedTask && (

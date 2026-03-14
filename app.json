@@ -25,6 +25,15 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow DailyPlanner to access your microphone to recognize speech.",
+          "speechRecognitionPermission": "Allow DailyPlanner to recognize your speech."
+        }
+      ]
+    ]
   }
 }

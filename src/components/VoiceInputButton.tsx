@@ -9,6 +9,7 @@ import {
     View,
     ActivityIndicator,
 } from 'react-native';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { correctVoiceTranscript, convertToSingleTask, checkApiKey } from '../utils/aiService';
 
 interface VoiceInputButtonProps {
@@ -31,10 +32,41 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
                 (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
             setIsSupported(!!SpeechRecognition);
         } else {
-            // Native'de Speech Recognition yok (Expo Go limiti)
-            setIsSupported(false);
+            // Native is supported via expo-speech-recognition
+            setIsSupported(true);
         }
     }, []);
+
+    // --- Native Speech Recognition Events ---
+    useSpeechRecognitionEvent('result', (event) => {
+        if (Platform.OS === 'web') return; // Sadece native için
+
+        const transcript = event.results[0]?.transcript || '';
+        onTranscript(transcript, event.isFinal);
+
+        if (event.isFinal) {
+            setIsListening(false);
+            const rawText = transcript.trim();
+            if (rawText.length > 0 && checkApiKey()) {
+                setIsCorrecting(true);
+                const corrector = mode === 'task' ? convertToSingleTask : correctVoiceTranscript;
+                corrector(rawText)
+                    .then((corrected) => onTranscript(corrected, true))
+                    .finally(() => setIsCorrecting(false));
+            }
+        }
+    });
+
+    useSpeechRecognitionEvent('error', (event) => {
+        if (Platform.OS === 'web') return;
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
+            Alert.alert('İzin Gerekli', 'Mikrofon izni verilmedi.');
+        } else if (event.error !== 'aborted') {
+            console.warn('Speech recognition error:', event.error, event.message);
+        }
+    });
+    // ----------------------------------------
 
     useEffect(() => {
         if (isListening) {
@@ -103,25 +135,48 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         setIsListening(true);
     };
 
+    const startNativeListening = async () => {
+        try {
+            const { status } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('İzin Gerekli', 'Mikrofon izni verilmedi.');
+                return;
+            }
+
+            setIsListening(true);
+            ExpoSpeechRecognitionModule.start({
+                lang: 'tr-TR',
+                interimResults: true,
+                maxAlternatives: 1,
+            });
+        } catch (e) {
+            console.error(e);
+            setIsListening(false);
+        }
+    };
+
     const stopListening = () => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-            recognitionRef.current = null;
+        if (Platform.OS === 'web') {
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+                recognitionRef.current = null;
+            }
+        } else {
+            ExpoSpeechRecognitionModule.stop();
         }
         setIsListening(false);
     };
 
     const toggleListening = () => {
-        if (isListening) stopListening();
-        else startListening();
-    };
-
-    const handleNativePress = () => {
-        Alert.alert(
-            '🌐 Web Gerekli',
-            'Sesli giriş şu an sadece web tarayıcıda çalışıyor.\n\nWeb tarayıcıdan (Chrome) açıp kullanabilirsiniz.',
-            [{ text: 'Tamam' }]
-        );
+        if (isListening) {
+            stopListening();
+        } else {
+            if (Platform.OS === 'web') {
+                startListening();
+            } else {
+                startNativeListening();
+            }
+        }
     };
 
     // Hem web hem native'de göster
@@ -129,7 +184,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
     return (
         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
             <TouchableOpacity
-                onPress={Platform.OS === 'web' ? toggleListening : handleNativePress}
+                onPress={toggleListening}
                 disabled={disabled || isCorrecting}
                 activeOpacity={0.7}
             >

@@ -18,12 +18,10 @@ interface AnimatedTaskItemProps {
   index: number;
   totalCount?: number;
   isEditMode: boolean;
-  isSelected?: boolean;
   onToggleDone: () => void;
   onChangePriority: () => void;
   onRemove: () => void;
   onNoteEdit?: (taskId: string, note: string | undefined) => void;
-  onLongPressSelect?: () => void;
 }
 
 export default function AnimatedTaskItem({
@@ -31,12 +29,10 @@ export default function AnimatedTaskItem({
   index,
   totalCount = 0,
   isEditMode,
-  isSelected = false,
   onToggleDone,
   onChangePriority,
   onRemove,
   onNoteEdit,
-  onLongPressSelect,
 }: AnimatedTaskItemProps) {
   const { settings } = useApp();
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -190,14 +186,6 @@ export default function AnimatedTaskItem({
         borderLeftWidth: 4,
         borderLeftColor: priorityColor,
         backgroundColor: cardBackgroundColor,
-        ...(isSelected ? {
-          borderColor: '#f9ca24',
-          borderWidth: 2,
-          shadowColor: '#f9ca24',
-          shadowOpacity: 0.6,
-          shadowRadius: 12,
-          elevation: 10,
-        } : {}),
       }
     ]}>
       <TouchableOpacity
@@ -207,16 +195,6 @@ export default function AnimatedTaskItem({
       >
         {/* Görev Numarası ve Başlığı */}
         <View style={styles.taskContent}>
-          {/* Sürükleme tutacağı — basili tut = drag başlat */}
-          {isEditMode && onLongPressSelect && (
-            <TouchableOpacity
-              onPressIn={onLongPressSelect}
-              style={styles.grabHandleTouch}
-              activeOpacity={0.6}
-            >
-              <Text style={[styles.grabHandle, isSelected && { color: '#f9ca24' }]}>☰</Text>
-            </TouchableOpacity>
-          )}
           <TouchableOpacity
             style={[styles.taskNumberBadge, { backgroundColor: priorityColor }]}
             onPress={onChangePriority}
@@ -416,16 +394,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     marginTop: 4,
-  },
-  grabHandle: {
-    fontSize: 20,
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 2,
-  },
-  grabHandleTouch: {
-    paddingHorizontal: 4,
-    paddingVertical: 6,
-    marginRight: 4,
   },
   noteIconContainer: {
     width: 32,
