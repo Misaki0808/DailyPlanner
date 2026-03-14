@@ -9,8 +9,16 @@ import {
     View,
     ActivityIndicator,
 } from 'react-native';
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { correctVoiceTranscript, convertToSingleTask, checkApiKey } from '../utils/aiService';
+
+let ExpoSpeechRecognitionModule: any = null;
+if (Platform.OS !== 'web') {
+    try {
+        ExpoSpeechRecognitionModule = require('expo-speech-recognition').ExpoSpeechRecognitionModule;
+    } catch (e) {
+        // Native module not found (e.g. running in Expo Go instead of custom dev client)
+    }
+}
 
 interface VoiceInputButtonProps {
     onTranscript: (text: string, isFinal: boolean) => void;
@@ -38,34 +46,40 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
     }, []);
 
     // --- Native Speech Recognition Events ---
-    useSpeechRecognitionEvent('result', (event) => {
-        if (Platform.OS === 'web') return; // Sadece native için
+    useEffect(() => {
+        if (Platform.OS === 'web' || !ExpoSpeechRecognitionModule) return;
 
-        const transcript = event.results[0]?.transcript || '';
-        onTranscript(transcript, event.isFinal);
+        const resultSub = ExpoSpeechRecognitionModule.addListener('result', (event: any) => {
+            const transcript = event.results[0]?.transcript || '';
+            onTranscript(transcript, event.isFinal);
 
-        if (event.isFinal) {
-            setIsListening(false);
-            const rawText = transcript.trim();
-            if (rawText.length > 0 && checkApiKey()) {
-                setIsCorrecting(true);
-                const corrector = mode === 'task' ? convertToSingleTask : correctVoiceTranscript;
-                corrector(rawText)
-                    .then((corrected) => onTranscript(corrected, true))
-                    .finally(() => setIsCorrecting(false));
+            if (event.isFinal) {
+                setIsListening(false);
+                const rawText = transcript.trim();
+                if (rawText.length > 0 && checkApiKey()) {
+                    setIsCorrecting(true);
+                    const corrector = mode === 'task' ? convertToSingleTask : correctVoiceTranscript;
+                    corrector(rawText)
+                        .then((corrected) => onTranscript(corrected, true))
+                        .finally(() => setIsCorrecting(false));
+                }
             }
-        }
-    });
+        });
 
-    useSpeechRecognitionEvent('error', (event) => {
-        if (Platform.OS === 'web') return;
-        setIsListening(false);
-        if (event.error === 'not-allowed') {
-            Alert.alert('İzin Gerekli', 'Mikrofon izni verilmedi.');
-        } else if (event.error !== 'aborted') {
-            console.warn('Speech recognition error:', event.error, event.message);
-        }
-    });
+        const errorSub = ExpoSpeechRecognitionModule.addListener('error', (event: any) => {
+            setIsListening(false);
+            if (event.error === 'not-allowed') {
+                Alert.alert('İzin Gerekli', 'Mikrofon izni verilmedi.');
+            } else if (event.error !== 'aborted') {
+                console.warn('Speech recognition error:', event.error, event.message);
+            }
+        });
+
+        return () => {
+            resultSub.remove();
+            errorSub.remove();
+        };
+    }, [mode, onTranscript]);
     // ----------------------------------------
 
     useEffect(() => {
@@ -136,6 +150,11 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
     };
 
     const startNativeListening = async () => {
+        if (!ExpoSpeechRecognitionModule) {
+            Alert.alert('Özellik Desteklenmiyor', 'Native ses algılama modülü bulunamadı. Lütfen uygulamanın tam APK sürümünü deneyin.');
+            return;
+        }
+
         try {
             const { status } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
             if (status !== 'granted') {
@@ -161,7 +180,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
                 recognitionRef.current.stop();
                 recognitionRef.current = null;
             }
-        } else {
+        } else if (ExpoSpeechRecognitionModule) {
             ExpoSpeechRecognitionModule.stop();
         }
         setIsListening(false);
