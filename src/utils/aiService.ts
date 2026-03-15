@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { Task } from '../types';
 
 // .env'den API key'i al (EXPO_PUBLIC_ prefix otomatik çalışır)
 const GEMINI_API_KEY =
@@ -219,5 +220,81 @@ Görev başlığı:`;
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || rawTranscript;
   } catch {
     return rawTranscript;
+  }
+};
+
+/**
+ * Kullanıcının son 7 günlük verilerini analiz edip motive edici bir özet çıkarır.
+ */
+export const generateWeeklySummary = async (
+  userName: string,
+  weeklyData: { date: string; tasks: Task[] }[]
+): Promise<string> => {
+  if (!GEMINI_API_KEY) {
+    throw new Error('API key bulunamadı. Lütfen .env dosyasını kontrol edin.');
+  }
+
+  // Veriyi metne dök
+  let dataText = '';
+  let totalTasks = 0;
+  let completedTasks = 0;
+
+  weeklyData.forEach(day => {
+    dataText += `Tarih: ${day.date}\n`;
+    if (day.tasks.length === 0) {
+      dataText += `- Görev yok\n`;
+    } else {
+      day.tasks.forEach(task => {
+        dataText += `- [${task.done ? 'TAMAMLANDI' : 'YAPILMADI'}] ${task.title} (Öncelik: ${task.priority})\n`;
+        totalTasks++;
+        if (task.done) completedTasks++;
+      });
+    }
+    dataText += '\n';
+  });
+
+  const prompt = `
+Sen "DailyPlanner" uygulamasının tatlı, esprili ve motive edici yapay zeka asistanısın.
+Görev analizini okuyup kullanıcının haftasını değerlendireceksin.
+
+KULLANICI BİLGİLERİ:
+İsim: ${userName || 'Kullanıcı'}
+Toplam Görev: ${totalTasks}
+Tamamlanan: ${completedTasks}
+
+GÜNLÜK VERİLER:
+${dataText}
+
+KURALLAR:
+1. Kullanıcıya ismiyle hitap et.
+2. Fazla uzun yazma, 3-4 cümlelik kısa ve samimi bir paragraf olsun.
+3. Hangi konularda (örneğin spor, iş, ders, su içme) eksik kaldığını veya hangilerinde çok iyi olduğunu fark et.
+4. Robot gibi değil, yakın bir arkadaş veya yaşam koçu gibi konuş. Mutlaka emoji kullan.
+5. Sadece yanıtı döndür, başka hiçbir şey yazma.`;
+
+  const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7 },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('API yanıt vermedi.');
+    }
+
+    const data = await response.json();
+    const summary = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+    if (!summary) throw new Error('AI yanıt üretemedi.');
+    return summary;
+  } catch (error) {
+    console.error('AI Weekly Summary Hatası:', error);
+    throw new Error('Analiz oluşturulurken bir hata meydana geldi.');
   }
 };

@@ -15,6 +15,8 @@ import { useApp } from '../context/AppContext';
 import VoiceInputButton from '../components/VoiceInputButton';
 import WeeklyStatsChart from '../components/WeeklyStatsChart';
 import { scheduleDailyNotification, cancelAllNotifications, requestNotificationPermissions } from '../utils/notificationService';
+import { generateWeeklySummary, checkApiKey } from '../utils/aiService';
+import { getToday, addDays } from '../utils/dateUtils';
 
 export default function SettingsScreen() {
   const { username, setUsername, plans, gender, setGender, settings, updateSettings, theme, recurringTasks, addRecurringTask, removeRecurringTask, toggleRecurringTask } = useApp();
@@ -32,6 +34,10 @@ export default function SettingsScreen() {
   const [rtWeekDays, setRtWeekDays] = useState<number[]>([1]); // Pazartesi
   const [rtMonthDay, setRtMonthDay] = useState(1);
   const [rtFlexibleTarget, setRtFlexibleTarget] = useState(2); // flexible target
+
+  // AI Weekly Summary state
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   // İlk açılışta kullanıcı adı yoksa düzenleme modunu aç
   useEffect(() => {
@@ -164,6 +170,32 @@ export default function SettingsScreen() {
 
   const weekDayNames = ['Pzr', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
   const frequencyLabels: Record<string, string> = { daily: 'Günlük', weekly: 'Haftalık', monthly: 'Aylık', flexible: 'Esnek' };
+
+  // Haftamı Analiz Et (AI)
+  const handleAnalyzeWeek = async () => {
+    if (!checkApiKey()) {
+      Alert.alert('Hata', 'Gemini API Anahtarı bulunamadı.');
+      return;
+    }
+
+    setIsAiLoading(true);
+    try {
+      // Son 7 günün verilerini topla
+      const weeklyData = [];
+      const today = getToday();
+      for (let i = 6; i >= 0; i--) {
+        const d = addDays(today, -i);
+        weeklyData.push({ date: d, tasks: plans[d] || [] });
+      }
+
+      const summary = await generateWeeklySummary(username || 'Kullanıcı', weeklyData);
+      setAiSummary(summary);
+    } catch (error: any) {
+      Alert.alert('Hata', error.message || 'Analiz oluşturulurken hata oluştu.');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   const renderWeekDaysText = (rt: any) => {
     if (rt.weekDays && rt.weekDays.length > 0) {
@@ -341,6 +373,47 @@ export default function SettingsScreen() {
 
             {/* Haftalık Performans Grafiği */}
             <WeeklyStatsChart plans={plans} />
+
+            {/* Yapay Zeka (Gemini) Analizi */}
+            <View style={{ marginTop: 24 }}>
+              <View style={styles.recurringSectionHeader}>
+                <Text style={styles.sectionTitle}>🤖 Haftalık Yapay Zeka Karnesi</Text>
+              </View>
+
+              <View style={styles.glassCard}>
+                {!aiSummary && !isAiLoading ? (
+                  <View style={{ paddingVertical: 10, alignItems: 'center' }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: 15, fontSize: 13 }}>
+                      Yapay zeka asistanımız, son 7 gündeki tamamlanmış ve tamamlanmamış görevlerini inceleyip sana özel bir rapor çıkarır.
+                    </Text>
+                    <TouchableOpacity onPress={handleAnalyzeWeek}>
+                      <LinearGradient
+                        colors={['#f093fb', '#f5576c']}
+                        style={{ paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                      >
+                        <Text style={{ color: '#fff', fontWeight: 'bold' }}>✨ Haftamı Analiz Et</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                ) : isAiLoading ? (
+                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '500' }}>Gemini verilerini inceliyor... ⏳</Text>
+                  </View>
+                ) : (
+                  <View style={{ paddingVertical: 5 }}>
+                    <Text style={{ color: '#fff', fontSize: 14, lineHeight: 22, fontWeight: '500' }}>
+                      {aiSummary}
+                    </Text>
+                    <TouchableOpacity onPress={handleAnalyzeWeek} style={{ marginTop: 15, alignSelf: 'flex-start' }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, textDecorationLine: 'underline' }}>
+                        Tekrar Analiz Et
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </View>
           </View>
 
           {/* Tekrarlayan Görevler */}
