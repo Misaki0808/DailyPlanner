@@ -28,9 +28,10 @@ export default function SettingsScreen() {
   const [showRecurringModal, setShowRecurringModal] = useState(false);
   const [rtTitle, setRtTitle] = useState('');
   const [rtPriority, setRtPriority] = useState<'low' | 'medium' | 'high'>('medium');
-  const [rtFrequency, setRtFrequency] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [rtWeekDay, setRtWeekDay] = useState(1); // Pazartesi
+  const [rtFrequency, setRtFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'flexible'>('daily');
+  const [rtWeekDays, setRtWeekDays] = useState<number[]>([1]); // Pazartesi
   const [rtMonthDay, setRtMonthDay] = useState(1);
+  const [rtFlexibleTarget, setRtFlexibleTarget] = useState(2); // flexible target
 
   // İlk açılışta kullanıcı adı yoksa düzenleme modunu aç
   useEffect(() => {
@@ -150,8 +151,9 @@ export default function SettingsScreen() {
       title: rtTitle.trim(),
       priority: rtPriority,
       frequency: rtFrequency,
-      weekDay: rtFrequency === 'weekly' ? rtWeekDay : undefined,
+      weekDays: rtFrequency === 'weekly' ? rtWeekDays : undefined,
       monthDay: rtFrequency === 'monthly' ? rtMonthDay : undefined,
+      flexibleTarget: rtFrequency === 'flexible' ? rtFlexibleTarget : undefined,
       isActive: true,
     });
     setRtTitle('');
@@ -161,7 +163,16 @@ export default function SettingsScreen() {
   };
 
   const weekDayNames = ['Pzr', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
-  const frequencyLabels: Record<string, string> = { daily: 'Günlük', weekly: 'Haftalık', monthly: 'Aylık' };
+  const frequencyLabels: Record<string, string> = { daily: 'Günlük', weekly: 'Haftalık', monthly: 'Aylık', flexible: 'Esnek' };
+
+  const renderWeekDaysText = (rt: any) => {
+    if (rt.weekDays && rt.weekDays.length > 0) {
+      const sortedDays = [...rt.weekDays].sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b));
+      return ` · ${sortedDays.map(d => weekDayNames[d]).join(', ')}`;
+    }
+    if (rt.weekDay !== undefined) return ` · ${weekDayNames[rt.weekDay]}`;
+    return '';
+  };
 
   const stats = calculateStats();
 
@@ -364,8 +375,9 @@ export default function SettingsScreen() {
                       <Text style={styles.recurringItemTitle}>{rt.title}</Text>
                       <Text style={styles.recurringItemSubtitle}>
                         {frequencyLabels[rt.frequency]}
-                        {rt.frequency === 'weekly' && rt.weekDay !== undefined ? ` · ${weekDayNames[rt.weekDay]}` : ''}
+                        {rt.frequency === 'weekly' ? renderWeekDaysText(rt) : ''}
                         {rt.frequency === 'monthly' && rt.monthDay ? ` · Her ayın ${rt.monthDay}. günü` : ''}
+                        {rt.frequency === 'flexible' && rt.flexibleTarget ? ` · Haftada ${rt.flexibleTarget} defa` : ''}
                         {' · '}
                         {rt.priority === 'high' ? '🔴' : rt.priority === 'medium' ? '🟡' : '🟢'}
                       </Text>
@@ -529,12 +541,12 @@ export default function SettingsScreen() {
 
             {/* Sıklık */}
             <Text style={styles.modalLabel}>Sıklık</Text>
-            <View style={styles.freqRow}>
-              {(['daily', 'weekly', 'monthly'] as const).map((f) => (
+            <View style={[styles.freqRow, { flexWrap: 'wrap', gap: 8 }]}>
+              {(['daily', 'weekly', 'monthly', 'flexible'] as const).map((f) => (
                 <TouchableOpacity
                   key={f}
                   onPress={() => setRtFrequency(f)}
-                  style={[styles.freqButton, rtFrequency === f && styles.freqButtonActive]}
+                  style={[styles.freqButton, rtFrequency === f && styles.freqButtonActive, { marginBottom: 8 }]}
                 >
                   <Text style={[styles.freqButtonText, rtFrequency === f && { color: '#fff' }]}>
                     {frequencyLabels[f]}
@@ -545,31 +557,69 @@ export default function SettingsScreen() {
 
             {/* Haftalık gün seçimi */}
             {rtFrequency === 'weekly' && (
-              <View style={styles.weekDayRow}>
-                {weekDayNames.map((name, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    onPress={() => setRtWeekDay(i)}
-                    style={[styles.weekDayButton, rtWeekDay === i && styles.weekDayButtonActive]}
-                  >
-                    <Text style={[styles.weekDayText, rtWeekDay === i && { color: '#fff' }]}>{name}</Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={[styles.weekDayRow, { flexWrap: 'wrap', gap: 6 }]}>
+                {weekDayNames.map((name, i) => {
+                  const isSelected = rtWeekDays.includes(i);
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => {
+                        if (isSelected) {
+                          if (rtWeekDays.length > 1) {
+                            setRtWeekDays(rtWeekDays.filter(d => d !== i));
+                          }
+                        } else {
+                          setRtWeekDays([...rtWeekDays, i]);
+                        }
+                      }}
+                      style={[styles.weekDayButton, { marginBottom: 6 }, isSelected && styles.weekDayButtonActive]}
+                    >
+                      <Text style={[styles.weekDayText, isSelected && { color: '#fff' }]}>{name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             )}
 
             {/* Aylık gün seçimi */}
             {rtFrequency === 'monthly' && (
-              <View style={styles.monthDayRow}>
-                <Text style={styles.modalLabel}>Her ayın </Text>
-                <TextInput
-                  style={[styles.modalInput, styles.monthDayInput]}
-                  value={String(rtMonthDay)}
-                  onChangeText={(t) => setRtMonthDay(Math.min(31, Math.max(1, parseInt(t) || 1)))}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                />
+              <View style={[styles.monthDayRow, { alignItems: 'center' }]}>
+                <Text style={styles.modalLabel}>Her ayın</Text>
+
+                <View style={[styles.stepperContainer, { marginHorizontal: 12 }]}>
+                  <TouchableOpacity onPress={() => setRtMonthDay(Math.max(1, rtMonthDay - 1))} style={styles.stepperButton}>
+                    <Text style={styles.stepperButtonText}>-</Text>
+                  </TouchableOpacity>
+                  <View style={styles.stepperValueContainer}>
+                    <Text style={styles.stepperValue}>{rtMonthDay}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setRtMonthDay(Math.min(31, rtMonthDay + 1))} style={styles.stepperButton}>
+                    <Text style={styles.stepperButtonText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+
                 <Text style={styles.modalLabel}>. günü</Text>
+              </View>
+            )}
+
+            {/* Esnek Hedef seçimi */}
+            {rtFrequency === 'flexible' && (
+              <View style={[styles.monthDayRow, { alignItems: 'center' }]}>
+                <Text style={styles.modalLabel}>Haftalık Hedef:</Text>
+
+                <View style={[styles.stepperContainer, { marginHorizontal: 12 }]}>
+                  <TouchableOpacity onPress={() => setRtFlexibleTarget(Math.max(1, rtFlexibleTarget - 1))} style={styles.stepperButton}>
+                    <Text style={styles.stepperButtonText}>-</Text>
+                  </TouchableOpacity>
+                  <View style={styles.stepperValueContainer}>
+                    <Text style={styles.stepperValue}>{rtFlexibleTarget}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setRtFlexibleTarget(Math.min(6, rtFlexibleTarget + 1))} style={styles.stepperButton}>
+                    <Text style={styles.stepperButtonText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.modalLabel}>gün</Text>
               </View>
             )}
 
@@ -1072,12 +1122,44 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   monthDayInput: {
-    width: 50,
+    width: 60,
     textAlign: 'center',
-    flex: 0,
+    marginHorizontal: 10,
+    marginVertical: 0,
+    marginBottom: 0,
   },
   priorityLabel: {
-    marginTop: 16,
+    marginTop: 15,
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  stepperButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepperButtonText: {
+    color: '#fff',
+    fontSize: 24,
+    lineHeight: 26,
+    fontWeight: '400',
+  },
+  stepperValueContainer: {
+    width: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
   },
   modalButtonsRow: {
     flexDirection: 'row',

@@ -33,7 +33,7 @@ if (Platform.OS !== 'web') {
 }
 
 export default function MultiDayViewScreen() {
-  const { plans, updateTask, refreshPlans, savePlan, deletePlan, settings, theme } = useApp();
+  const { plans, updateTask, refreshPlans, savePlan, deletePlan, settings, theme, recurringTasks } = useApp();
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
   const [isEditMode, setIsEditMode] = useState(false); // Düzenleme modu
@@ -143,6 +143,19 @@ export default function MultiDayViewScreen() {
     setQuickAddText('');
   };
 
+  // Esnek görev havuzundan bugüne ekle
+  const handleAddFlexibleTask = async (title: string, priority: 'low' | 'medium' | 'high') => {
+    const newTask: Task = {
+      id: Date.now().toString() + Math.random().toString(),
+      title,
+      done: false,
+      priority,
+    };
+    const updatedTasks = [...currentTasks, newTask];
+    await savePlan(selectedDate, updatedTasks);
+    await refreshPlans();
+  };
+
   // Priority değiştir (edit mode)
   const handleChangePriority = async (taskId: string) => {
     const updatedTasks = currentTasks.map(task => {
@@ -212,6 +225,51 @@ export default function MultiDayViewScreen() {
     setCurrentTasks([]);
     setIsEditMode(false);
   };
+
+  // Esnek görevlerin o haftaki ilerlemesini hesapla
+  const getFlexibleTasksProgress = () => {
+    const flexibleTasks = recurringTasks.filter(rt => rt.isActive && rt.frequency === 'flexible' && rt.flexibleTarget);
+    if (flexibleTasks.length === 0) return [];
+
+    const todayObj = new Date(selectedDate);
+    const dayOfWeek = todayObj.getDay() === 0 ? 7 : todayObj.getDay();
+    const mondayObj = new Date(todayObj);
+    mondayObj.setDate(todayObj.getDate() - dayOfWeek + 1);
+
+    const weekDates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(mondayObj);
+      d.setDate(mondayObj.getDate() + i);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    });
+
+    return flexibleTasks.map(rt => {
+      let currentCount = 0;
+      let isAddedToday = false;
+      const titleLower = rt.title.toLowerCase();
+
+      weekDates.forEach(date => {
+        const dayTasks = plans[date] || [];
+        const hasTask = dayTasks.some(t => t.title.toLowerCase() === titleLower);
+        if (hasTask) {
+          currentCount++;
+          if (date === selectedDate) {
+            isAddedToday = true;
+          }
+        }
+      });
+
+      return {
+        ...rt,
+        currentCount,
+        isAddedToday,
+      };
+    }).filter(rt => rt.currentCount < (rt.flexibleTarget || 0) || rt.isAddedToday);
+  };
+
+  const flexibleProgress = getFlexibleTasksProgress();
 
   // Planı kopyala
   const handleCopyPlan = async (targetDate: string, selectedTasks: Task[]) => {
@@ -375,6 +433,47 @@ export default function MultiDayViewScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Esnek Görev Havuzu */}
+          {flexibleProgress.length > 0 && (
+            <View style={{ marginTop: 15, paddingHorizontal: 5 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600', marginBottom: 8, marginLeft: 5 }}>
+                🏊‍♂️ ESNEK GÖREV HAVUZU (Bu Hafta)
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 20 }}>
+                {flexibleProgress.map(fp => {
+                  const target = fp.flexibleTarget || 0;
+                  const isDone = fp.currentCount >= target;
+                  return (
+                    <View key={fp.id} style={[
+                      styles.flexibleCard,
+                      fp.isAddedToday && { borderColor: '#43e97b', borderWidth: 1 }
+                    ]}>
+                      <View style={styles.flexibleCardTop}>
+                        <Text style={styles.flexibleTitle} numberOfLines={1}>{fp.title}</Text>
+                        <View style={styles.flexibleBadge}>
+                          <Text style={styles.flexibleBadgeText}>{fp.currentCount}/{target}</Text>
+                        </View>
+                      </View>
+                      {!fp.isAddedToday && !isDone && (
+                        <TouchableOpacity style={styles.flexibleAddBtn} onPress={() => handleAddFlexibleTask(fp.title, fp.priority)}>
+                          <LinearGradient colors={['#fa709a', '#fee140']} style={styles.flexibleAddBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                            <Text style={styles.flexibleAddBtnText}>Bugüne Ekle</Text>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      )}
+                      {fp.isAddedToday && (
+                        <Text style={styles.flexibleAddedText}>✅ Bugüne eklendi</Text>
+                      )}
+                      {isDone && !fp.isAddedToday && (
+                        <Text style={styles.flexibleAddedText}>🎉 Hedef tamam!</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Buton Grubu */}
           {totalCount > 0 && (
@@ -932,6 +1031,56 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     marginLeft: 12,
+  },
+  flexibleCard: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    padding: 12,
+    width: 200,
+  },
+  flexibleCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  flexibleTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 8,
+  },
+  flexibleBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  flexibleBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  flexibleAddBtn: {
+    marginTop: 4,
+  },
+  flexibleAddBtnGradient: {
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  flexibleAddBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  flexibleAddedText: {
+    color: '#43e97b',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
 

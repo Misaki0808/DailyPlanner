@@ -96,8 +96,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       let shouldAdd = false;
       if (rt.frequency === 'daily') {
         shouldAdd = true;
-      } else if (rt.frequency === 'weekly' && rt.weekDay === dayOfWeek) {
-        shouldAdd = true;
+      } else if (rt.frequency === 'weekly') {
+        if (rt.weekDays && rt.weekDays.includes(dayOfWeek)) {
+          shouldAdd = true;
+        } else if ((rt as any).weekDay !== undefined && (rt as any).weekDay === dayOfWeek) {
+          // Backward compatibility
+          shouldAdd = true;
+        }
       } else if (rt.frequency === 'monthly' && rt.monthDay === dayOfMonth) {
         shouldAdd = true;
       }

@@ -12,9 +12,10 @@ export interface RecurringTask {
   id: string;
   title: string;
   priority: 'low' | 'medium' | 'high';
-  frequency: 'daily' | 'weekly' | 'monthly';
-  weekDay?: number;      // weekly: 0=Pazar, 1=Pazartesi... 6=Cumartesi
+  frequency: 'daily' | 'weekly' | 'monthly' | 'flexible';
+  weekDays?: number[];   // weekly: [1, 3, 5] (Pzt, Çar, Cum)
   monthDay?: number;     // monthly: 1-31
+  flexibleTarget?: number; // flexible: haftada kaç kez? (örneğin 2)
   isActive: boolean;
   createdAt: string;     // YYYY-MM-DD
 }
