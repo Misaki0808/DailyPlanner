@@ -558,18 +558,19 @@ export default function SettingsScreen() {
             {/* Haftalık gün seçimi */}
             {rtFrequency === 'weekly' && (
               <View style={[styles.weekDayRow, { flexWrap: 'wrap', gap: 6 }]}>
-                {weekDayNames.map((name, i) => {
-                  const isSelected = rtWeekDays.includes(i);
+                {[1, 2, 3, 4, 5, 6, 0].map((dayIndex) => {
+                  const name = weekDayNames[dayIndex];
+                  const isSelected = rtWeekDays.includes(dayIndex);
                   return (
                     <TouchableOpacity
-                      key={i}
+                      key={dayIndex}
                       onPress={() => {
                         if (isSelected) {
                           if (rtWeekDays.length > 1) {
-                            setRtWeekDays(rtWeekDays.filter(d => d !== i));
+                            setRtWeekDays(rtWeekDays.filter(d => d !== dayIndex));
                           }
                         } else {
-                          setRtWeekDays([...rtWeekDays, i]);
+                          setRtWeekDays([...rtWeekDays, dayIndex]);
                         }
                       }}
                       style={[styles.weekDayButton, { marginBottom: 6 }, isSelected && styles.weekDayButtonActive]}
