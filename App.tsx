@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, StackNavigationOptions } from '@react-navigation/stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { DrawerProvider, useDrawer } from './src/context/DrawerContext';
@@ -14,18 +14,20 @@ import CreatePlanScreen from './src/screens/CreatePlanScreen';
 import MultiDayViewScreen from './src/screens/MultiDayViewScreen';
 import PlanOverviewScreen from './src/screens/PlanOverviewScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import { RootTabParamList } from './src/types';
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<RootTabParamList>();
 
 // Header'daki Menü Butonu (Modern Icon)
 function MenuButton() {
   const { openDrawer } = useDrawer();
+  const { theme } = useApp();
   return (
     <TouchableOpacity onPress={openDrawer} style={{ paddingLeft: 15 }}>
       <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-        <Line x1="3" y1="6" x2="21" y2="6" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
-        <Line x1="3" y1="12" x2="21" y2="12" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
-        <Line x1="3" y1="18" x2="21" y2="18" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+        <Line x1="3" y1="6" x2="21" y2="6" stroke={theme.textOnGradient} strokeWidth="2.5" strokeLinecap="round" />
+        <Line x1="3" y1="12" x2="21" y2="12" stroke={theme.textOnGradient} strokeWidth="2.5" strokeLinecap="round" />
+        <Line x1="3" y1="18" x2="21" y2="18" stroke={theme.textOnGradient} strokeWidth="2.5" strokeLinecap="round" />
       </Svg>
     </TouchableOpacity>
   );
@@ -35,7 +37,7 @@ import { navigationRef } from './src/utils/navigationRef';
 
 // Ana uygulama içeriği
 function AppContent() {
-  const { isLoading } = useApp();
+  const { isLoading, theme, settings } = useApp();
 
   // Web için global stil ayarı
   useEffect(() => {
@@ -60,19 +62,21 @@ function AppContent() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Yükleniyor...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.accent} />
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Yükleniyor...</Text>
       </View>
     );
   }
 
   // Ortak Header ayarları
-  const screenOptions = {
+  const screenOptions: StackNavigationOptions = {
     headerStyle: {
-      backgroundColor: '#667eea',
+      backgroundColor: theme.headerBackground,
+      elevation: 0,
+      shadowOpacity: 0,
     },
-    headerTintColor: '#fff',
+    headerTintColor: theme.textOnGradient,
     headerTitleStyle: {
       fontWeight: 'bold',
       fontSize: 20,
@@ -83,7 +87,7 @@ function AppContent() {
   return (
     <NavigationContainer ref={navigationRef}>
       <JSDrawer>
-        <Stack.Navigator screenOptions={screenOptions as any}>
+        <Stack.Navigator screenOptions={screenOptions}>
           <Stack.Screen
             name="CreatePlan"
             component={CreatePlanScreen}
@@ -106,7 +110,7 @@ function AppContent() {
           />
         </Stack.Navigator>
       </JSDrawer>
-      <StatusBar style="light" />
+      <StatusBar style={settings?.darkMode ? 'light' : 'dark'} />
     </NavigationContainer>
   );
 }
@@ -127,7 +131,6 @@ export default function App() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
@@ -135,6 +138,5 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
   },
 });

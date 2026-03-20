@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useApp } from '../context/AppContext';
 
 interface ShareModalProps {
   visible: boolean;
@@ -16,46 +17,31 @@ interface ShareModalProps {
   onCopy: () => void;
 }
 
-export default function ShareModal({
-  visible,
-  onClose,
-  onWhatsApp,
-  onCopy,
-}: ShareModalProps) {
+export default function ShareModal({ visible, onClose, onWhatsApp, onCopy }: ShareModalProps) {
+  const { theme } = useApp();
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
             <View style={styles.modalContainer}>
-              <View style={styles.glassCard}>
-                {/* Başlık */}
-                <View style={styles.header}>
-                  <Text style={styles.title}>📤 Planı Paylaş</Text>
-                  <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                    <Text style={styles.closeText}>✕</Text>
+              <View style={[styles.glassCard, { backgroundColor: theme.modalBackground, borderColor: theme.border }]}>
+                <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                  <Text style={[styles.title, { color: theme.text }]}>📤 Planı Paylaş</Text>
+                  <TouchableOpacity onPress={onClose} style={[styles.closeButton, { backgroundColor: theme.accentLight }]}>
+                    <Text style={[styles.closeText, { color: theme.textSecondary }]}>✕</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Açıklama */}
-                <Text style={styles.description}>
+                <Text style={[styles.description, { color: theme.textSecondary }]}>
                   Bugünkü planınızı nasıl paylaşmak istersiniz?
                 </Text>
 
-                {/* Seçenekler */}
                 <View style={styles.optionsContainer}>
-                  {/* WhatsApp */}
                   <TouchableOpacity
                     style={styles.optionButton}
-                    onPress={() => {
-                      onWhatsApp();
-                      onClose();
-                    }}
+                    onPress={() => { onWhatsApp(); onClose(); }}
                     activeOpacity={0.8}
                   >
                     <LinearGradient
@@ -69,17 +55,13 @@ export default function ShareModal({
                     </LinearGradient>
                   </TouchableOpacity>
 
-                  {/* Kopyala */}
                   <TouchableOpacity
                     style={styles.optionButton}
-                    onPress={() => {
-                      onCopy();
-                      onClose();
-                    }}
+                    onPress={() => { onCopy(); onClose(); }}
                     activeOpacity={0.8}
                   >
                     <LinearGradient
-                      colors={['#667eea', '#764ba2']}
+                      colors={theme.accentGradient}
                       style={styles.optionGradient}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
@@ -90,13 +72,8 @@ export default function ShareModal({
                   </TouchableOpacity>
                 </View>
 
-                {/* İptal Butonu */}
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={onClose}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.cancelButtonText}>İptal</Text>
+                <TouchableOpacity style={[styles.cancelButton, { borderTopColor: theme.border }]} onPress={onClose} activeOpacity={0.8}>
+                  <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>İptal</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -119,10 +96,8 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
@@ -137,29 +112,24 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#333',
   },
   closeButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeText: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#666',
   },
   description: {
     fontSize: 15,
-    color: '#666',
     textAlign: 'center',
     padding: 20,
     paddingTop: 12,
@@ -199,11 +169,9 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
   },
 });

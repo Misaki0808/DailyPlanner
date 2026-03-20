@@ -5,7 +5,7 @@ import * as storage from '../utils/storage';
 export const useSettings = () => {
   const [settings, setSettings] = useState<Settings>({
     askBeforeDeleteAll: true,
-    darkMode: false,
+    darkMode: true,
     notificationsEnabled: true,
     notificationTime: '08:00',
   });

@@ -19,11 +19,12 @@ import { convertParagraphToTasks, checkApiKey } from '../utils/aiService';
 import CalendarModal from '../components/CalendarModal';
 import SuccessModal from '../components/SuccessModal';
 import VoiceInputButton from '../components/VoiceInputButton';
-import { sharedStyles } from '../utils/sharedStyles';
+import { createSharedStyles } from '../utils/sharedStyles';
 import NoteEditModal from '../components/NoteEditModal';
 
 export default function CreatePlanScreen() {
   const { plans, savePlan, settings, theme, recurringTasks } = useApp();
+  const themed = createSharedStyles(theme);
 
   // State'ler
   const [selectedDate, setSelectedDate] = useState('');
@@ -189,6 +190,12 @@ export default function CreatePlanScreen() {
     }
   };
 
+  const priorityColors = {
+    low: theme.priorityLow,
+    medium: theme.priorityMedium,
+    high: theme.priorityHigh,
+  };
+
   return (
     <LinearGradient
       colors={theme.primaryGradient}
@@ -200,10 +207,10 @@ export default function CreatePlanScreen() {
         <View style={styles.content}>
           {/* Tarih Seçici */}
           <View style={styles.dateSection}>
-            <Text style={styles.label}>📅 Tarih Seçin</Text>
+            <Text style={[styles.label, { color: theme.text }]}>📅 Tarih Seçin</Text>
             <TouchableOpacity style={styles.dateButton} onPress={() => setShowCalendar(true)}>
               <LinearGradient
-                colors={['#667eea', '#764ba2']}
+                colors={theme.accentGradient}
                 style={styles.dateGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -219,12 +226,12 @@ export default function CreatePlanScreen() {
           {/* AI Paragraf Input */}
           {
             <View style={styles.aiSection}>
-              <Text style={styles.label}>✨ Planınızı Yazın</Text>
-              <View style={[sharedStyles.glassCardNoBorder, { borderWidth: 0 }]}>
+              <Text style={[styles.label, { color: theme.text }]}>✨ Planınızı Yazın</Text>
+              <View style={[themed.glassCardNoBorder, { borderWidth: 0 }]}>
                 <TextInput
-                  style={styles.paragraphInput}
+                  style={[styles.paragraphInput, { color: theme.text }]}
                   placeholder="Örn: Sabah 7'de kalkıp kahvaltı yapacağım..."
-                  placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                  placeholderTextColor={theme.textMuted}
                   value={paragraphInput}
                   onChangeText={(text) => {
                     setParagraphInput(text);
@@ -255,15 +262,15 @@ export default function CreatePlanScreen() {
                     activeOpacity={0.7}
                   >
                     <LinearGradient
-                      colors={isAiLoading || paragraphInput.trim() === '' ? ['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.1)'] : ['#667eea', '#764ba2']}
+                      colors={isAiLoading || paragraphInput.trim() === '' ? [theme.accentLight, theme.accentLight] : (theme.accentGradient as [string, string])}
                       style={styles.sendButton}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                     >
                       {isAiLoading ? (
-                        <ActivityIndicator size="small" color="#fff" />
+                        <ActivityIndicator size="small" color={theme.textOnGradient} />
                       ) : (
-                        <Text style={styles.sendIcon}>➜</Text>
+                        <Text style={[styles.sendIcon, { color: theme.textOnGradient }]}>➜</Text>
                       )}
                     </LinearGradient>
                   </TouchableOpacity>
@@ -274,7 +281,7 @@ export default function CreatePlanScreen() {
 
           {/* Manuel Görev Ekleme */}
           <View style={styles.inputSection}>
-            <Text style={styles.label}>✏️ Manuel Görev Ekle</Text>
+            <Text style={[styles.label, { color: theme.text }]}>✏️ Manuel Görev Ekle</Text>
 
             {/* Öncelik Seçici */}
             <View style={styles.prioritySelector}>
@@ -282,7 +289,7 @@ export default function CreatePlanScreen() {
                 style={[
                   styles.priorityButton,
                   selectedPriority === 'low' && styles.priorityButtonActive,
-                  { backgroundColor: selectedPriority === 'low' ? '#4CAF50' : 'rgba(76, 175, 80, 0.3)' }
+                  { backgroundColor: selectedPriority === 'low' ? theme.priorityLow : `${theme.priorityLow}40` }
                 ]}
                 onPress={() => setSelectedPriority('low')}
               >
@@ -295,7 +302,7 @@ export default function CreatePlanScreen() {
                 style={[
                   styles.priorityButton,
                   selectedPriority === 'medium' && styles.priorityButtonActive,
-                  { backgroundColor: selectedPriority === 'medium' ? '#FFC107' : 'rgba(255, 193, 7, 0.3)' }
+                  { backgroundColor: selectedPriority === 'medium' ? theme.priorityMedium : `${theme.priorityMedium}40` }
                 ]}
                 onPress={() => setSelectedPriority('medium')}
               >
@@ -308,7 +315,7 @@ export default function CreatePlanScreen() {
                 style={[
                   styles.priorityButton,
                   selectedPriority === 'high' && styles.priorityButtonActive,
-                  { backgroundColor: selectedPriority === 'high' ? '#F44336' : 'rgba(244, 67, 54, 0.3)' }
+                  { backgroundColor: selectedPriority === 'high' ? theme.priorityHigh : `${theme.priorityHigh}40` }
                 ]}
                 onPress={() => setSelectedPriority('high')}
               >
@@ -320,11 +327,11 @@ export default function CreatePlanScreen() {
             </View>
 
             <View style={styles.inputRow}>
-              <View style={[sharedStyles.glassCardNoBorder, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+              <View style={[themed.glassCardNoBorder, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: theme.text }]}
                   placeholder="Örn: Alışverişe git"
-                  placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                  placeholderTextColor={theme.textMuted}
                   value={taskInput}
                   onChangeText={setTaskInput}
                   onSubmitEditing={handleAddTask}
@@ -337,7 +344,7 @@ export default function CreatePlanScreen() {
               </View>
               <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
                 <LinearGradient
-                  colors={['#667eea', '#764ba2']}
+                  colors={theme.accentGradient}
                   style={styles.addButtonGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
@@ -351,16 +358,13 @@ export default function CreatePlanScreen() {
           {/* Görev Listesi */}
           {tasks.length > 0 && (
             <View style={styles.taskListSection}>
-              <Text style={styles.label}>📝 Görevler ({tasks.length})</Text>
+              <Text style={[styles.label, { color: theme.text }]}>📝 Görevler ({tasks.length})</Text>
               {tasks.map((task, index) => {
-                const priorityColor =
-                  task.priority === 'high' ? '#F44336' :
-                    task.priority === 'medium' ? '#FFC107' :
-                      '#4CAF50';
+                const priorityColor = priorityColors[task.priority];
 
                 return (
                   <View key={task.id} style={styles.taskItem}>
-                    <View style={[sharedStyles.glassCardNoBorder, { borderLeftWidth: 4, borderLeftColor: priorityColor }]}>
+                    <View style={[themed.glassCardNoBorder, { borderLeftWidth: 4, borderLeftColor: priorityColor }]}>
                       <View style={styles.taskContent}>
                         <TouchableOpacity
                           style={[styles.taskNumberBadge, { backgroundColor: priorityColor }]}
@@ -372,15 +376,15 @@ export default function CreatePlanScreen() {
                           style={{ flex: 1 }}
                           onPress={() => setEditingNoteTaskId(task.id)}
                         >
-                          <Text style={styles.taskTitle}>{task.title}</Text>
-                          {task.note && <Text style={styles.taskNoteHint}>📝 {task.note}</Text>}
+                          <Text style={[styles.taskTitle, { color: theme.text }]}>{task.title}</Text>
+                          {task.note && <Text style={[styles.taskNoteHint, { color: theme.textMuted }]}>📝 {task.note}</Text>}
                         </TouchableOpacity>
 
                         <TouchableOpacity
                           onPress={() => handleRemoveTask(task.id)}
-                          style={styles.removeButton}
+                          style={[styles.removeButton, { backgroundColor: `${theme.error}20` }]}
                         >
-                          <Text style={styles.removeButtonText}>✕</Text>
+                          <Text style={[styles.removeButtonText, { color: theme.error }]}>✕</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -415,7 +419,7 @@ export default function CreatePlanScreen() {
             disabled={tasks.length === 0}
           >
             <LinearGradient
-              colors={tasks.length === 0 ? ['#ccc', '#999'] : ['#4facfe', '#00f2fe']}
+              colors={tasks.length === 0 ? [theme.textMuted, theme.textMuted] : (theme.successGradient as [string, string])}
               style={styles.saveButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -464,18 +468,14 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
     marginBottom: 12,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   dateButton: {
     borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 8,
   },
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   changeDateBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -501,32 +501,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  aiToggleButton: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  aiToggleGradient: {
-    padding: 18,
-    alignItems: 'center',
-  },
-  aiToggleText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#fff',
-  },
   aiSection: {
     marginBottom: 20,
   },
-
   paragraphInput: {
     fontSize: 16,
-    color: '#fff',
     minHeight: 100,
   },
   inputActions: {
@@ -545,30 +524,7 @@ const styles = StyleSheet.create({
   },
   sendIcon: {
     fontSize: 18,
-    color: '#fff',
     fontWeight: '700',
-  },
-  aiButton: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginTop: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  aiButtonGradient: {
-    padding: 18,
-    alignItems: 'center',
-  },
-  aiButtonDisabled: {
-    opacity: 0.6,
-  },
-  aiButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#fff',
   },
   inputSection: {
     marginBottom: 20,
@@ -588,7 +544,7 @@ const styles = StyleSheet.create({
   priorityButtonActive: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
   },
@@ -603,10 +559,6 @@ const styles = StyleSheet.create({
   priorityText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#ffffff',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   inputRow: {
     flexDirection: 'row',
@@ -615,7 +567,6 @@ const styles = StyleSheet.create({
   },
   input: {
     fontSize: 16,
-    color: '#fff',
     flex: 1,
   },
   addButton: {
@@ -625,7 +576,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 8,
   },
@@ -655,7 +606,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(102, 126, 234, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -667,19 +617,16 @@ const styles = StyleSheet.create({
   taskTitle: {
     flex: 1,
     fontSize: 16,
-    color: '#fff',
     fontWeight: '500',
   },
   removeButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(245, 87, 108, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   removeButtonText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '700',
   },
@@ -689,7 +636,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 8,
   },
@@ -707,7 +654,6 @@ const styles = StyleSheet.create({
   },
   taskNoteHint: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.5)',
     marginTop: 2,
     fontStyle: 'italic',
   },

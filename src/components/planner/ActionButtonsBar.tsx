@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import VoiceInputButton from '../VoiceInputButton';
+import { useApp } from '../../context/AppContext';
 
 interface ActionButtonsBarProps {
   isEditMode: boolean;
@@ -31,6 +32,8 @@ export default function ActionButtonsBar({
   onCopyPlan,
   onDeleteDay,
 }: ActionButtonsBarProps) {
+  const { theme } = useApp();
+
   return (
     <View style={styles.buttonGroup}>
       {!isEditMode ? (
@@ -41,7 +44,7 @@ export default function ActionButtonsBar({
             onPress={() => onSetEditMode(true)}
           >
             <LinearGradient
-              colors={['#667eea', '#764ba2']}
+              colors={theme.accentGradient}
               style={styles.actionButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -55,7 +58,7 @@ export default function ActionButtonsBar({
             onPress={onSharePlan}
           >
             <LinearGradient
-              colors={['#4facfe', '#00f2fe']}
+              colors={theme.blueGradient}
               style={styles.actionButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -69,7 +72,7 @@ export default function ActionButtonsBar({
             onPress={onCopyPlan}
           >
             <LinearGradient
-              colors={['#f093fb', '#f5576c']}
+              colors={theme.purpleGradient}
               style={styles.actionButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -82,15 +85,16 @@ export default function ActionButtonsBar({
         // Edit mod
         <>
           {/* Hızlı Görev Ekle */}
-          <View style={styles.quickAddWrapper}>
+          <View style={[styles.quickAddWrapper, { backgroundColor: theme.accentLight }]}>
             <TextInput
               style={[
                 styles.quickAddInput,
+                { color: theme.text },
                 // @ts-ignore — web-only CSS property
                 Platform.OS === 'web' && { outlineStyle: 'none' },
               ]}
               placeholder="Yeni gorev ekle..."
-              placeholderTextColor="rgba(255,255,255,0.5)"
+              placeholderTextColor={theme.textMuted}
               value={quickAddText}
               onChangeText={onQuickAddTextChange}
               onSubmitEditing={onQuickAddSubmit}
@@ -107,7 +111,7 @@ export default function ActionButtonsBar({
               style={styles.quickAddBtnInline}
             >
               <LinearGradient
-                colors={quickAddText.trim() === '' ? ['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.1)'] : ['#00b894', '#00cec9']}
+                colors={quickAddText.trim() === '' ? [theme.accentLight, theme.accentLight] : (theme.successGradient as [string, string])}
                 style={styles.quickAddButton}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -123,7 +127,7 @@ export default function ActionButtonsBar({
             activeOpacity={0.7}
           >
             <LinearGradient
-              colors={['#f093fb', '#f5576c']}
+              colors={theme.pinkGradient}
               style={styles.compactButton}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -137,7 +141,7 @@ export default function ActionButtonsBar({
             activeOpacity={0.7}
           >
             <LinearGradient
-              colors={['#ff6b6b', '#ee5a6f']}
+              colors={[theme.error, theme.error]}
               style={styles.compactButton}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -177,7 +181,6 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 14,
     paddingLeft: 14,
     paddingRight: 4,
@@ -188,7 +191,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 36,
     fontSize: 14,
-    color: '#fff',
   },
   quickAddBtnInline: {
     marginLeft: 4,

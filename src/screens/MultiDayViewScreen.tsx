@@ -310,7 +310,7 @@ export default function MultiDayViewScreen() {
 
   return (
     <LinearGradient
-      colors={settings.darkMode ? theme.primaryGradient : theme.secondaryGradient}
+      colors={theme.primaryGradient}
       style={styles.gradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -356,10 +356,10 @@ export default function MultiDayViewScreen() {
         <ScrollView style={styles.taskList}>
           {currentTasks.length === 0 ? (
             <View style={styles.emptyState}>
-              <View style={styles.emptyStateCard}>
+              <View style={[styles.emptyStateCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
                 <Text style={styles.emptyStateIcon}>📭</Text>
-                <Text style={styles.emptyStateTitle}>Bu gün için plan yok</Text>
-                <Text style={styles.emptyStateSubtitle}>
+                <Text style={[styles.emptyStateTitle, { color: theme.text }]}>Bu gün için plan yok</Text>
+                <Text style={[styles.emptyStateSubtitle, { color: theme.textSecondary }]}>
                   "Plan Oluştur" sekmesinden yeni plan ekleyebilirsiniz
                 </Text>
               </View>
@@ -386,14 +386,15 @@ export default function MultiDayViewScreen() {
           <RNAnimated.View style={[
             styles.undoSnackbar,
             {
+              backgroundColor: theme.modalBackground,
               opacity: undoAnim,
               transform: [{ translateY: undoAnim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }],
             },
           ]}>
-            <Text style={styles.undoText} numberOfLines={1}>{deletedTask.title} silindi</Text>
+            <Text style={[styles.undoText, { color: theme.text }]} numberOfLines={1}>{deletedTask.title} silindi</Text>
             <TouchableOpacity onPress={handleUndoDelete} activeOpacity={0.7}>
               <LinearGradient
-                colors={['#667eea', '#764ba2']}
+                colors={theme.accentGradient}
                 style={styles.undoButtonGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -451,12 +452,10 @@ const styles = StyleSheet.create({
     paddingTop: 80,
   },
   emptyStateCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 24,
     padding: 32,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
   emptyStateIcon: {
     fontSize: 72,
@@ -465,13 +464,11 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#fff',
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyStateSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -480,7 +477,6 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(30, 30, 50, 0.95)',
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -494,7 +490,6 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   undoText: {
-    color: '#fff',
     fontSize: 14,
     flex: 1,
     marginRight: 12,

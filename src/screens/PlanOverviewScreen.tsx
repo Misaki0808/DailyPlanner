@@ -9,26 +9,15 @@ export default function PlanOverviewScreen() {
   const { width, height } = useWindowDimensions();
   const [centerDate, setCenterDate] = useState(getToday());
 
-  // Görüntülenecek 4 günü seç
   const surroundingDays = useMemo(() => {
     const allDates = Object.keys(plans).filter(date => date !== centerDate && plans[date].length > 0);
-
-    const futureDates = allDates
-      .filter(date => date > centerDate)
-      .sort();
-
-    const pastDates = allDates
-      .filter(date => date < centerDate)
-      .sort((a, b) => b.localeCompare(a));
-
+    const futureDates = allDates.filter(date => date > centerDate).sort();
+    const pastDates = allDates.filter(date => date < centerDate).sort((a, b) => b.localeCompare(a));
     let selected = [...futureDates];
-
     if (selected.length < 4) {
       const needed = 4 - selected.length;
       selected = [...selected, ...pastDates.slice(0, needed)];
     }
-
-    // Kronolojik siraya gore sirala (eski -> yeni)
     return selected.slice(0, 4).sort();
   }, [plans, centerDate]);
 
@@ -41,24 +30,21 @@ export default function PlanOverviewScreen() {
 
   const renderTaskPreview = (date: string, limit: number) => {
     const tasks = plans[date] || [];
-    if (tasks.length === 0) return <Text style={styles.emptyText}>Plan yok</Text>;
-
-    // Önceliğe göre sırala
+    if (tasks.length === 0) return <Text style={[styles.emptyText, { color: theme.textMuted }]}>Plan yok</Text>;
     const sortedTasks = [...tasks].sort((a, b) => getPriorityWeight(b.priority) - getPriorityWeight(a.priority));
-
     return (
       <View>
-        {sortedTasks.slice(0, limit).map((task, index) => (
+        {sortedTasks.slice(0, limit).map((task) => (
           <View key={task.id} style={styles.taskRow}>
             <View style={[
               styles.dot,
               { backgroundColor: task.priority === 'high' ? theme.priorityHigh : task.priority === 'medium' ? theme.priorityMedium : theme.priorityLow }
             ]} />
-            <Text style={styles.taskText} numberOfLines={1}>{task.title}</Text>
+            <Text style={[styles.taskText, { color: theme.textSecondary }]} numberOfLines={1}>{task.title}</Text>
           </View>
         ))}
         {tasks.length > limit && (
-          <Text style={styles.moreText}>+ {tasks.length - limit} daha...</Text>
+          <Text style={[styles.moreText, { color: theme.textMuted }]}>+ {tasks.length - limit} daha...</Text>
         )}
       </View>
     );
@@ -66,42 +52,37 @@ export default function PlanOverviewScreen() {
 
   return (
     <LinearGradient
-      colors={settings.darkMode ? theme.primaryGradient : ['#1a2a6c', '#b21f1f', '#fdbb2d']}
+      colors={theme.primaryGradient}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
-      {/* Çevresel Nodlar (Arka planda) */}
       {surroundingDays.map((date, index) => {
-        const posStyle: ViewStyle = index === 0 ? { top: '12%', left: 20 } :
-          index === 1 ? { top: '12%', right: 20 } :
-            index === 2 ? { bottom: '12%', left: 20 } :
-              { bottom: '12%', right: 20 };
+        const posStyle: ViewStyle = index === 0 ? { top: '8%', left: 10 } :
+          index === 1 ? { top: '8%', right: 10 } :
+            index === 2 ? { bottom: '8%', left: 10 } :
+              { bottom: '8%', right: 10 };
 
         return (
           <TouchableOpacity
             key={date}
-            style={[styles.surroundingNode, { width: width * 0.4, height: height * 0.2 }, posStyle]}
+            style={[styles.surroundingNode, { width: Math.min(width * 0.38, 160), height: Math.min(height * 0.2, 160), borderColor: theme.border }, posStyle]}
             onPress={() => setCenterDate(date)}
             activeOpacity={0.8}
           >
-            <LinearGradient
-              colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.4)']}
-              style={styles.nodeGradient}
-            >
-              <Text style={styles.nodeDate}>{formatDateDisplay(date)}</Text>
-              <View style={styles.nodeDivider} />
-              {renderTaskPreview(date, 3)}
-            </LinearGradient>
+            <View style={[styles.nodeGradient, { backgroundColor: theme.cardBackground }]}>
+              <Text style={[styles.nodeDate, { color: theme.text }]}>{formatDateDisplay(date)}</Text>
+              <View style={[styles.nodeDivider, { backgroundColor: theme.border }]} />
+              {renderTaskPreview(date, 2)}
+            </View>
           </TouchableOpacity>
         );
       })}
 
-      {/* Merkez (Seçili Gün) - En üstte */}
       <View style={styles.centerNodeContainer}>
-        <View style={[styles.centerNode, { width: width * 0.5, height: height * 0.32 }]}>
+        <View style={[styles.centerNode, { width: Math.min(width * 0.55, 260), height: Math.min(height * 0.35, 280), borderColor: theme.border }]}>
           <LinearGradient
-            colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+            colors={theme.accentGradient}
             style={styles.centerGradient}
           >
             <Text style={styles.centerTitle}>
@@ -137,11 +118,10 @@ const styles = StyleSheet.create({
   centerNode: {
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.4,
     shadowRadius: 20,
     elevation: 10,
     pointerEvents: 'auto',
@@ -175,7 +155,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
     overflow: 'hidden',
     zIndex: 1,
   },
@@ -186,14 +165,12 @@ const styles = StyleSheet.create({
   nodeDate: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
     textAlign: 'center',
   },
   nodeDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     marginBottom: 8,
   },
   taskRow: {
@@ -208,18 +185,15 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   taskText: {
-    color: 'rgba(255,255,255,0.9)',
     fontSize: 12,
     flex: 1,
   },
   moreText: {
-    color: 'rgba(255,255,255,0.6)',
     fontSize: 10,
     fontStyle: 'italic',
     marginTop: 4,
   },
   emptyText: {
-    color: 'rgba(255,255,255,0.5)',
     fontSize: 12,
     fontStyle: 'italic',
     textAlign: 'center',

@@ -1,65 +1,100 @@
 import { StyleSheet } from 'react-native';
+import { Theme } from './theme';
 
 /**
- * Uygulama genelinde tekrar eden ortak stiller.
- * Bileşenlerde `import { sharedStyles } from '../utils/sharedStyles'` ile kullanılır.
+ * Tema-duyarlı ortak stiller oluşturur.
+ * `import { createSharedStyles } from '../utils/sharedStyles'`
+ * Kullanım: `const styles = createSharedStyles(theme);`
+ */
+export const createSharedStyles = (theme: Theme) =>
+  StyleSheet.create({
+    glassCard: {
+      backgroundColor: theme.cardBackground,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: 'hidden',
+    },
+
+    glassCardPadded: {
+      backgroundColor: theme.cardBackground,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: 'hidden',
+      padding: 16,
+    },
+
+    sectionTitle: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: theme.text,
+      marginBottom: 16,
+    },
+
+    label: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.text,
+      marginBottom: 12,
+    },
+
+    glassCardNoBorder: {
+      backgroundColor: theme.cardBackground,
+      borderRadius: 20,
+      padding: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+
+    taskCard: {
+      backgroundColor: theme.taskCardBackground,
+      borderRadius: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 5,
+    },
+  });
+
+/**
+ * Statik fallback — tema bilgisi olmadan kullanılacak bileşenler için.
+ * Mümkünse createSharedStyles(theme) tercih edin.
  */
 export const sharedStyles = StyleSheet.create({
-  /**
-   * Glass-morphism kart stili.
-   * Yarı saydam beyaz arka plan, yuvarlak köşeler, ince kenarlık.
-   */
   glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(22, 27, 34, 0.9)',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(48, 54, 61, 0.8)',
     overflow: 'hidden',
   },
-
-  /**
-   * glassCard içinde padding'li versiyon (iç içerik olan kartlar için).
-   */
   glassCardPadded: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(22, 27, 34, 0.9)',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(48, 54, 61, 0.8)',
     overflow: 'hidden',
     padding: 16,
   },
-
-  /**
-   * Bölüm başlığı — "📊 İstatistikler", "🔁 Tekrarlayan Görevler" vb.
-   */
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#fff',
+    color: '#E6EDF3',
     marginBottom: 16,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
-
-  /**
-   * Alt başlık / label stili — "📅 Tarih Seçin", "✏️ Manuel Görev Ekle" vb.
-   */
   label: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: '#E6EDF3',
     marginBottom: 12,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
-
-  /**
-   * Glass-morphism border'siz kart (CreatePlan paragraf input gibi).
-   */
   glassCardNoBorder: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(22, 27, 34, 0.9)',
     borderRadius: 20,
     padding: 16,
     shadowColor: '#000',
@@ -68,17 +103,12 @@ export const sharedStyles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-
-  /**
-   * Görev kartı — AnimatedTaskItem'da kullanılan opak kart.
-   * Yarı saydam değil, gölgeli.
-   */
   taskCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: '#161B22',
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 5,
   },

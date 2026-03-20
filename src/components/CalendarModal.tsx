@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useApp } from '../context/AppContext';
 
 interface CalendarModalProps {
   visible: boolean;
@@ -22,15 +23,15 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
   selectedDate,
   onSelectDate,
 }) => {
-  // Seçili tarihi parse et
+  const { theme } = useApp();
+
   const parseDate = (dateStr: string) => {
     if (!dateStr || dateStr === '') {
-      // Eğer tarih boşsa bugünün tarihini kullan
       const today = new Date();
-      return { 
-        year: today.getFullYear(), 
-        month: today.getMonth() + 1, 
-        day: today.getDate() 
+      return {
+        year: today.getFullYear(),
+        month: today.getMonth() + 1,
+        day: today.getDate()
       };
     }
     const [year, month, day] = dateStr.split('-').map(Number);
@@ -38,25 +39,22 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
   };
 
   const { year: initialYear, month: initialMonth, day: initialDay } = parseDate(selectedDate);
-  
+
   const [selectedYear, setSelectedYear] = useState(initialYear);
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [selectedDay, setSelectedDay] = useState(initialDay);
 
-  // Ay isimleri
   const monthNames = [
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
     'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
   ];
 
-  // Ayın kaç gün olduğunu hesapla
   const getDaysInMonth = (year: number, month: number): number => {
     return new Date(year, month, 0).getDate();
   };
 
   const maxDay = getDaysInMonth(selectedYear, selectedMonth);
 
-  // Yıl artır/azalt
   const changeYear = (increment: number) => {
     const newYear = selectedYear + increment;
     if (newYear >= 2025 && newYear <= 2030) {
@@ -64,7 +62,6 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
     }
   };
 
-  // Ay artır/azalt
   const changeMonth = (increment: number) => {
     let newMonth = selectedMonth + increment;
     let newYear = selectedYear;
@@ -72,40 +69,25 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
     if (newMonth > 12) {
       newMonth = 1;
       newYear++;
-      if (newYear <= 2030) {
-        setSelectedYear(newYear);
-      } else {
-        return;
-      }
+      if (newYear <= 2030) { setSelectedYear(newYear); } else { return; }
     } else if (newMonth < 1) {
       newMonth = 12;
       newYear--;
-      if (newYear >= 2025) {
-        setSelectedYear(newYear);
-      } else {
-        return;
-      }
+      if (newYear >= 2025) { setSelectedYear(newYear); } else { return; }
     }
 
     setSelectedMonth(newMonth);
-    
-    // Gün ayarla (yeni ayda bu gün yoksa son güne ayarla)
     const newMaxDay = getDaysInMonth(newYear, newMonth);
-    if (selectedDay > newMaxDay) {
-      setSelectedDay(newMaxDay);
-    }
+    if (selectedDay > newMaxDay) { setSelectedDay(newMaxDay); }
   };
 
-  // Gün artır/azalt
   const changeDay = (increment: number) => {
     const newDay = selectedDay + increment;
-    
+
     if (increment > 0 && newDay > maxDay) {
-      // İleri basıldı ve max günü aştı -> Bir sonraki ayın 1. gününe geç
       setSelectedDay(1);
       changeMonth(1);
     } else if (increment < 0 && newDay < 1) {
-      // Geri basıldı ve 1'in altına indi -> Önceki ayın son gününe geç
       const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
       const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
       const prevMaxDay = getDaysInMonth(prevYear, prevMonth);
@@ -116,7 +98,6 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
     }
   };
 
-  // Tarihi kaydet
   const handleSave = () => {
     const month = String(selectedMonth).padStart(2, '0');
     const day = String(selectedDay).padStart(2, '0');
@@ -126,21 +107,15 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           <LinearGradient
-            colors={['#667eea', '#764ba2']}
+            colors={theme.accentGradient}
             style={styles.gradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            {/* Başlık */}
             <View style={styles.header}>
               <Text style={styles.title}>📅 Tarih Seçin</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -148,73 +123,55 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
               </TouchableOpacity>
             </View>
 
-            {/* Yıl Seçici */}
+            {/* Yıl */}
             <View style={styles.pickerSection}>
               <Text style={styles.label}>YIL</Text>
               <View style={styles.pickerRow}>
-                <TouchableOpacity 
-                  style={styles.arrowButton} 
-                  onPress={() => changeYear(-1)}
-                >
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeYear(-1)}>
                   <Text style={styles.arrowText}>◀</Text>
                 </TouchableOpacity>
                 <View style={styles.valueBox}>
                   <Text style={styles.valueText}>{selectedYear}</Text>
                 </View>
-                <TouchableOpacity 
-                  style={styles.arrowButton} 
-                  onPress={() => changeYear(1)}
-                >
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeYear(1)}>
                   <Text style={styles.arrowText}>▶</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Ay Seçici */}
+            {/* Ay */}
             <View style={styles.pickerSection}>
               <Text style={styles.label}>AY</Text>
               <View style={styles.pickerRow}>
-                <TouchableOpacity 
-                  style={styles.arrowButton} 
-                  onPress={() => changeMonth(-1)}
-                >
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeMonth(-1)}>
                   <Text style={styles.arrowText}>◀</Text>
                 </TouchableOpacity>
                 <View style={styles.valueBox}>
                   <Text style={styles.valueText}>{monthNames[selectedMonth - 1]}</Text>
                 </View>
-                <TouchableOpacity 
-                  style={styles.arrowButton} 
-                  onPress={() => changeMonth(1)}
-                >
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeMonth(1)}>
                   <Text style={styles.arrowText}>▶</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Gün Seçici */}
+            {/* Gün */}
             <View style={styles.pickerSection}>
               <Text style={styles.label}>GÜN</Text>
               <View style={styles.pickerRow}>
-                <TouchableOpacity 
-                  style={styles.arrowButton} 
-                  onPress={() => changeDay(-1)}
-                >
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeDay(-1)}>
                   <Text style={styles.arrowText}>◀</Text>
                 </TouchableOpacity>
                 <View style={styles.valueBox}>
                   <Text style={styles.valueText}>{selectedDay}</Text>
                 </View>
-                <TouchableOpacity 
-                  style={styles.arrowButton} 
-                  onPress={() => changeDay(1)}
-                >
+                <TouchableOpacity style={styles.arrowButton} onPress={() => changeDay(1)}>
                   <Text style={styles.arrowText}>▶</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Seçilen Tarih Önizleme */}
+            {/* Önizleme */}
             <View style={styles.previewSection}>
               <Text style={styles.previewLabel}>Seçilen Tarih:</Text>
               <Text style={styles.previewDate}>
@@ -222,7 +179,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
               </Text>
             </View>
 
-            {/* Kaydet Butonu */}
+            {/* Kaydet */}
             <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
               <Text style={styles.saveButtonText}>✓ Tarihi Seç</Text>
             </TouchableOpacity>

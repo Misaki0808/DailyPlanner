@@ -76,7 +76,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const theme = getTheme(settings?.darkMode || false);
+  const theme = getTheme(settings?.darkMode ?? true);
 
   return (
     <AppContext.Provider

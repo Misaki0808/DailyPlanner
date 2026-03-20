@@ -10,6 +10,7 @@ import {
     Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useApp } from '../context/AppContext';
 
 interface NoteEditModalProps {
     visible: boolean;
@@ -28,6 +29,7 @@ export default function NoteEditModal({
     onDelete,
     onClose,
 }: NoteEditModalProps) {
+    const { theme } = useApp();
     const [noteText, setNoteText] = useState(currentNote);
 
     useEffect(() => {
@@ -54,16 +56,16 @@ export default function NoteEditModal({
                 style={styles.overlay}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
-                <View style={styles.container}>
-                    <Text style={styles.title}>
+                <View style={[styles.container, { backgroundColor: theme.modalBackground, borderColor: theme.border }]}>
+                    <Text style={[styles.title, { color: theme.text }]}>
                         {currentNote ? '📝 Notu Düzenle' : '📝 Not Ekle'}
                     </Text>
-                    <Text style={styles.subtitle} numberOfLines={1}>{taskTitle}</Text>
+                    <Text style={[styles.subtitle, { color: theme.textSecondary }]} numberOfLines={1}>{taskTitle}</Text>
 
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, { backgroundColor: theme.accentLight, color: theme.text, borderColor: theme.border }]}
                         placeholder="Notunuzu yazın..."
-                        placeholderTextColor="rgba(255,255,255,0.4)"
+                        placeholderTextColor={theme.textMuted}
                         value={noteText}
                         onChangeText={setNoteText}
                         multiline
@@ -74,15 +76,15 @@ export default function NoteEditModal({
                     <View style={styles.actions}>
                         {currentNote ? (
                             <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-                                <Text style={styles.deleteBtnText}>🗑 Sil</Text>
+                                <Text style={[styles.deleteBtnText, { color: theme.error }]}>🗑 Sil</Text>
                             </TouchableOpacity>
                         ) : null}
                         <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-                            <Text style={styles.cancelBtnText}>İptal</Text>
+                            <Text style={[styles.cancelBtnText, { color: theme.textSecondary }]}>İptal</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
                             <LinearGradient
-                                colors={['#667eea', '#764ba2']}
+                                colors={theme.accentGradient}
                                 style={styles.saveBtnGradient}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
@@ -108,34 +110,27 @@ const styles = StyleSheet.create({
     container: {
         width: '100%',
         maxWidth: 400,
-        backgroundColor: '#2a2d5a',
         borderRadius: 20,
         padding: 24,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.15)',
     },
     title: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#fff',
         marginBottom: 4,
     },
     subtitle: {
         fontSize: 14,
-        color: 'rgba(255,255,255,0.5)',
         marginBottom: 16,
     },
     input: {
-        backgroundColor: 'rgba(255,255,255,0.12)',
         borderRadius: 14,
         paddingHorizontal: 16,
         paddingVertical: 12,
         fontSize: 15,
-        color: '#fff',
         minHeight: 80,
         textAlignVertical: 'top',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
     },
     actions: {
         flexDirection: 'row',
@@ -150,7 +145,6 @@ const styles = StyleSheet.create({
         marginRight: 'auto',
     },
     deleteBtnText: {
-        color: '#ff6b6b',
         fontSize: 14,
         fontWeight: '600',
     },
@@ -159,7 +153,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     cancelBtnText: {
-        color: 'rgba(255,255,255,0.6)',
         fontSize: 14,
         fontWeight: '600',
     },

@@ -176,7 +176,7 @@ export const getSettings = async (): Promise<Settings> => {
       // Varsayılan ayarlar
       return {
         askBeforeDeleteAll: true, // Default: Sor
-        darkMode: false, // Default: Light mode
+        darkMode: true, // Default: Dark mode
         notificationsEnabled: true, // Default: Bildirimler açık
         notificationTime: '08:00', // Default: Sabah 8
       };
@@ -186,7 +186,7 @@ export const getSettings = async (): Promise<Settings> => {
     console.error('Ayarlar okunurken hata:', error);
     return {
       askBeforeDeleteAll: true,
-      darkMode: false,
+      darkMode: true,
       notificationsEnabled: true,
       notificationTime: '08:00',
     };

@@ -22,16 +22,24 @@ type MenuItemProps = {
     targetScreen: string;
     onPress: () => void;
     isActive: boolean;
+    theme: import('../utils/theme').Theme;
 };
 
-function MenuItem({ label, icon, onPress, isActive }: MenuItemProps) {
+function MenuItem({ label, icon, onPress, isActive, theme }: MenuItemProps) {
     return (
         <TouchableOpacity
-            style={[styles.menuItem, isActive && styles.menuItemActive]}
+            style={[
+                styles.menuItem,
+                isActive && { backgroundColor: theme.accentLight },
+            ]}
             onPress={onPress}
         >
             <Text style={styles.menuItemIcon}>{icon}</Text>
-            <Text style={[styles.menuItemText, isActive && styles.menuItemTextActive]}>
+            <Text style={[
+                styles.menuItemText,
+                { color: theme.textSecondary },
+                isActive && { color: theme.text, fontWeight: '700' },
+            ]}>
                 {label}
             </Text>
         </TouchableOpacity>
@@ -40,7 +48,7 @@ function MenuItem({ label, icon, onPress, isActive }: MenuItemProps) {
 
 export default function JSDrawer({ children }: { children: React.ReactNode }) {
     const { isDrawerOpen, closeDrawer } = useDrawer();
-    const { username, gender } = useApp();
+    const { username, gender, theme } = useApp();
     const { width: screenWidth } = useWindowDimensions();
 
     // Animasyon değeri: 0 (kapalı) -> 1 (açık)
@@ -84,7 +92,7 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
         return unsubscribe;
     }, []);
 
-    const navigateTo = (screenName: string) => {
+    const navigateTo = (screenName: keyof import('../types').RootTabParamList) => {
         if (navigationRef.isReady()) {
             navigationRef.navigate(screenName);
             closeDrawer();
@@ -110,23 +118,24 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
 
             {/* Kayar Menü */}
             <Animated.View
-                style={[styles.drawer, { transform: [{ translateX }] }]}
+                style={[
+                    styles.drawer,
+                    {
+                        transform: [{ translateX }],
+                        backgroundColor: theme.background,
+                    },
+                ]}
             >
                 <LinearGradient
-                    colors={['#667eea', '#764ba2']}
+                    colors={theme.accentGradient}
                     style={styles.header}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                 >
                     <View style={styles.avatarContainer}>
-                        <LinearGradient
-                            colors={['#f093fb', '#f5576c']}
-                            style={styles.avatar}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                        >
+                        <View style={[styles.avatar, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
                             <Text style={styles.avatarIcon}>{getAvatarContent()}</Text>
-                        </LinearGradient>
+                        </View>
                     </View>
                     <Text style={styles.userName}>{username || 'Kullanıcı'}</Text>
                     <Text style={styles.userSubtitle}>DailyPlanner</Text>
@@ -139,6 +148,7 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
                         targetScreen="CreatePlan"
                         isActive={activeRouteName === 'CreatePlan'}
                         onPress={() => navigateTo('CreatePlan')}
+                        theme={theme}
                     />
                     <MenuItem
                         label="Planlarım"
@@ -146,6 +156,7 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
                         targetScreen="MultiDayView"
                         isActive={activeRouteName === 'MultiDayView'}
                         onPress={() => navigateTo('MultiDayView')}
+                        theme={theme}
                     />
                     <MenuItem
                         label="Genel Bakış"
@@ -153,6 +164,7 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
                         targetScreen="PlanOverview"
                         isActive={activeRouteName === 'PlanOverview'}
                         onPress={() => navigateTo('PlanOverview')}
+                        theme={theme}
                     />
                     <MenuItem
                         label="Ayarlar"
@@ -160,11 +172,12 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
                         targetScreen="Settings"
                         isActive={activeRouteName === 'Settings'}
                         onPress={() => navigateTo('Settings')}
+                        theme={theme}
                     />
                 </ScrollView>
 
-                <View style={styles.footer}>
-                    <Text style={styles.version}>v1.0.0 (JS Drawer)</Text>
+                <View style={[styles.footer, { borderTopColor: theme.border }]}>
+                    <Text style={[styles.version, { color: theme.textMuted }]}>v1.0.0</Text>
                 </View>
             </Animated.View>
         </View>
@@ -185,7 +198,6 @@ const styles = StyleSheet.create({
     drawer: {
         ...StyleSheet.absoluteFillObject,
         width: DRAWER_WIDTH,
-        backgroundColor: '#1a1a2e',
         zIndex: 2,
         elevation: 5,
         shadowColor: '#000',
@@ -235,29 +247,20 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         marginBottom: 8,
     },
-    menuItemActive: {
-        backgroundColor: 'rgba(102, 126, 234, 0.2)',
-    },
     menuItemIcon: {
         fontSize: 20,
         marginRight: 16,
     },
     menuItemText: {
         fontSize: 16,
-        color: 'rgba(255, 255, 255, 0.6)',
         fontWeight: '600',
-    },
-    menuItemTextActive: {
-        color: '#fff',
     },
     footer: {
         padding: 20,
         alignItems: 'center',
         borderTopWidth: 1,
-        borderTopColor: 'rgba(255, 255, 255, 0.1)',
     },
     version: {
         fontSize: 12,
-        color: 'rgba(255, 255, 255, 0.4)',
     },
 });

@@ -47,7 +47,7 @@ export interface Settings {
 // Navigation için tip tanımları
 export type RootTabParamList = {
   CreatePlan: undefined;
-  MultiDay: undefined;
+  MultiDayView: undefined;
   PlanOverview: undefined;
   Settings: undefined;
 };

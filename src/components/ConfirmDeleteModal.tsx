@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useApp } from '../context/AppContext';
 
 interface ConfirmDeleteModalProps {
   visible: boolean;
@@ -17,58 +18,36 @@ interface ConfirmDeleteModalProps {
   message: string;
 }
 
-export default function ConfirmDeleteModal({
-  visible,
-  onClose,
-  onConfirm,
-  title,
-  message,
-}: ConfirmDeleteModalProps) {
+export default function ConfirmDeleteModal({ visible, onClose, onConfirm, title, message }: ConfirmDeleteModalProps) {
+  const { theme } = useApp();
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
             <View style={styles.modalContainer}>
-              <View style={styles.glassCard}>
-                {/* İkon */}
-                <View style={styles.iconContainer}>
+              <View style={[styles.glassCard, { backgroundColor: theme.modalBackground, borderColor: theme.border }]}>
+                <View style={[styles.iconContainer, { backgroundColor: `${theme.error}20` }]}>
                   <Text style={styles.icon}>⚠️</Text>
                 </View>
-
-                {/* Başlık */}
-                <Text style={styles.title}>{title}</Text>
-
-                {/* Mesaj */}
-                <Text style={styles.message}>{message}</Text>
-
-                {/* Butonlar */}
+                <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+                <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text>
                 <View style={styles.buttonContainer}>
-                  {/* İptal */}
                   <TouchableOpacity
-                    style={styles.cancelButton}
+                    style={[styles.cancelButton, { backgroundColor: theme.accentLight }]}
                     onPress={onClose}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.cancelButtonText}>İptal</Text>
+                    <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>İptal</Text>
                   </TouchableOpacity>
-
-                  {/* Sil */}
                   <TouchableOpacity
                     style={styles.deleteButton}
-                    onPress={() => {
-                      onConfirm();
-                      onClose();
-                    }}
+                    onPress={() => { onConfirm(); onClose(); }}
                     activeOpacity={0.8}
                   >
                     <LinearGradient
-                      colors={['#ff6b6b', '#ee5a6f']}
+                      colors={[theme.error, theme.error]}
                       style={styles.deleteButtonGradient}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
@@ -98,10 +77,10 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 24,
     padding: 24,
     alignItems: 'center',
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
@@ -112,7 +91,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255, 107, 107, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -123,13 +101,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#333',
     marginBottom: 12,
     textAlign: 'center',
   },
   message: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,
@@ -143,13 +119,11 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#666',
   },
   deleteButton: {
     flex: 1,

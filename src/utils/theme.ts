@@ -1,91 +1,101 @@
 // Tema renkleri ve stiller
 
 export const lightTheme = {
-  // Gradient'ler (LinearGradient colors prop'u için)
-  primaryGradient: ['#667eea', '#764ba2', '#f093fb'] as readonly [string, string, ...string[]],
-  secondaryGradient: ['#4facfe', '#00f2fe', '#43e97b'] as readonly [string, string, ...string[]],
-  accentGradient: ['#f093fb', '#f5576c'] as readonly [string, string, ...string[]],
-  warningGradient: ['#ff6b6b', '#ee5a6f'] as readonly [string, string, ...string[]],
-  successGradient: ['#43e97b', '#38f9d7'] as readonly [string, string, ...string[]],
-  purpleGradient: ['#667eea', '#764ba2'] as readonly [string, string, ...string[]],
-  blueGradient: ['#4facfe', '#00f2fe'] as readonly [string, string, ...string[]],
-  pinkGradient: ['#fa709a', '#fee140'] as readonly [string, string, ...string[]],
-  settingsGradient: ['#fa709a', '#fee140', '#30cfd0'] as readonly [string, string, ...string[]],
+  // ── Gradient'ler (Soft purple/lavender tones – vibrant but not blinding) ──
+  primaryGradient: ['#C9B8E8', '#E0D4F5', '#D6CCF0'] as readonly [string, string, ...string[]],
+  secondaryGradient: ['#B8A9E0', '#D4C6EF'] as readonly [string, string, ...string[]],
+  accentGradient: ['#7C5CBF', '#9B7FD4'] as readonly [string, string, ...string[]],
+  warningGradient: ['#E8A838', '#F0C060'] as readonly [string, string, ...string[]],
+  successGradient: ['#4CAF7D', '#6BC89B'] as readonly [string, string, ...string[]],
+  purpleGradient: ['#8B6FC0', '#A88DD4'] as readonly [string, string, ...string[]],
+  blueGradient: ['#5B8DEF', '#7DA6F5'] as readonly [string, string, ...string[]],
+  pinkGradient: ['#D4689A', '#E088B0'] as readonly [string, string, ...string[]],
+  settingsGradient: ['#C9B8E8', '#D6CCF0', '#E0D4F5'] as readonly [string, string, ...string[]],
 
-  // Solid renkler
-  background: '#f5f5f5',
-  cardBackground: 'rgba(255, 255, 255, 0.25)',
-  taskCardBackground: 'rgba(255, 255, 255, 0.9)',
-  text: '#333',
-  textSecondary: '#666',
-  textMuted: '#999',
-  textOnGradient: '#fff',
-  border: 'rgba(255, 255, 255, 0.3)',
+  // ── Solid renkler ──
+  background: '#EDE5F7',
+  cardBackground: 'rgba(255, 255, 255, 0.85)',
+  taskCardBackground: '#FFFFFF',
+  text: '#2D2040',
+  textSecondary: '#6B5C80',
+  textMuted: '#A99BBE',
+  textOnGradient: '#FFFFFF',
+  border: 'rgba(124, 92, 191, 0.15)',
 
-  // Modal renkleri
-  modalBackground: 'rgba(255, 255, 255, 0.95)',
-  overlayBackground: 'rgba(0, 0, 0, 0.6)',
+  // ── Header & accent ──
+  headerBackground: '#7C5CBF',
+  accent: '#7C5CBF',
+  accentLight: 'rgba(124, 92, 191, 0.15)',
 
-  // Durum renkleri
-  success: '#43e97b',
-  warning: '#feca57',
-  error: '#ff6b6b',
-  info: '#4facfe',
+  // ── Modal renkleri ──
+  modalBackground: '#FFFFFF',
+  overlayBackground: 'rgba(45, 32, 64, 0.45)',
 
-  // Priority renkleri
-  priorityHigh: '#F44336',
-  priorityMedium: '#FFC107',
-  priorityLow: '#4CAF50',
+  // ── Durum renkleri ──
+  success: '#4CAF7D',
+  warning: '#E8A838',
+  error: '#D94F4F',
+  info: '#5B8DEF',
 
-  // Switch renkleri
-  switchTrackOn: 'rgba(67, 233, 123, 0.7)',
-  switchTrackOff: 'rgba(255, 255, 255, 0.3)',
-  switchThumbOn: '#43e97b',
-  switchThumbOff: '#f4f3f4',
+  // ── Priority renkleri ──
+  priorityHigh: '#D94F4F',
+  priorityMedium: '#E8A838',
+  priorityLow: '#4CAF7D',
+
+  // ── Switch renkleri ──
+  switchTrackOn: 'rgba(76, 175, 125, 0.7)',
+  switchTrackOff: 'rgba(0, 0, 0, 0.08)',
+  switchThumbOn: '#4CAF7D',
+  switchThumbOff: '#F0EAF8',
 };
 
 export const darkTheme: Theme = {
-  // Gradient'ler (koyu versiyonlar)
-  primaryGradient: ['#2a2d5a', '#1a1a2e', '#0f0f1e'],
-  secondaryGradient: ['#1a3a52', '#0d2438', '#0a1929'],
-  accentGradient: ['#7d3c98', '#6c3483'],
-  warningGradient: ['#a93226', '#922b21'],
-  successGradient: ['#1a7a42', '#145e33'],
-  purpleGradient: ['#3a3d7a', '#2a2d5a'],
-  blueGradient: ['#1a5a8a', '#0d3a5a'],
-  pinkGradient: ['#8a3a5a', '#6a2a4a'],
-  settingsGradient: ['#2a2d5a', '#1a1a2e', '#0f0f1e'],
+  // ── Gradient'ler (Deep navy-charcoal tones) ──
+  primaryGradient: ['#0D1117', '#161B22', '#1C2333'],
+  secondaryGradient: ['#111820', '#161B22'],
+  accentGradient: ['#1D4ED8', '#1E40AF'],
+  warningGradient: ['#D29922', '#B8861E'],
+  successGradient: ['#3FB950', '#2EA043'],
+  purpleGradient: ['#8957E5', '#6E40C9'],
+  blueGradient: ['#2563EB', '#1D4ED8'],
+  pinkGradient: ['#DB61A2', '#BF4B8A'],
+  settingsGradient: ['#0D1117', '#161B22', '#1C2333'],
 
-  // Solid renkler
-  background: '#0f0f1e',
-  cardBackground: 'rgba(42, 45, 90, 0.6)',
-  taskCardBackground: 'rgba(50, 50, 70, 0.95)',
-  text: '#e0e0e0',
-  textSecondary: '#b0b0b0',
-  textMuted: '#777',
-  textOnGradient: '#fff',
-  border: 'rgba(255, 255, 255, 0.1)',
+  // ── Solid renkler ──
+  background: '#0D1117',
+  cardBackground: 'rgba(22, 27, 34, 0.9)',
+  taskCardBackground: '#161B22',
+  text: '#E6EDF3',
+  textSecondary: '#8B949E',
+  textMuted: '#484F58',
+  textOnGradient: '#FFFFFF',
+  border: 'rgba(48, 54, 61, 0.8)',
 
-  // Modal renkleri
-  modalBackground: 'rgba(30, 30, 50, 0.95)',
-  overlayBackground: 'rgba(0, 0, 0, 0.8)',
+  // ── Header & accent ──
+  headerBackground: '#161B22',
+  accent: '#1D4ED8',
+  accentLight: 'rgba(29, 78, 216, 0.25)',
 
-  // Durum renkleri (biraz daha koyu)
-  success: '#2ecc71',
-  warning: '#f39c12',
-  error: '#e74c3c',
-  info: '#3498db',
+  // ── Modal renkleri ──
+  modalBackground: '#1C2333',
+  overlayBackground: 'rgba(0, 0, 0, 0.75)',
 
-  // Priority renkleri
-  priorityHigh: '#e74c3c',
-  priorityMedium: '#f39c12',
-  priorityLow: '#2ecc71',
+  // ── Durum renkleri ──
+  success: '#3FB950',
+  warning: '#D29922',
+  error: '#F85149',
+  info: '#2563EB',
 
-  // Switch renkleri
-  switchTrackOn: 'rgba(46, 204, 113, 0.7)',
-  switchTrackOff: 'rgba(255, 255, 255, 0.15)',
-  switchThumbOn: '#2ecc71',
-  switchThumbOff: '#888',
+  // ── Priority renkleri ──
+  priorityHigh: '#F85149',
+  priorityMedium: '#D29922',
+  priorityLow: '#3FB950',
+
+  // ── Switch renkleri ──
+  switchTrackOn: 'rgba(63, 185, 80, 0.7)',
+  switchTrackOff: 'rgba(255, 255, 255, 0.1)',
+  switchThumbOn: '#3FB950',
+  switchThumbOff: '#484F58',
 };
 
 export type Theme = typeof lightTheme;

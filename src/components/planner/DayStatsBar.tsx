@@ -5,7 +5,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { sharedStyles } from '../../utils/sharedStyles';
+import { useApp } from '../../context/AppContext';
 
 interface DayStatsBarProps {
   completedCount: number;
@@ -20,13 +20,14 @@ export default function DayStatsBar({
   percentage,
   allCompleted,
 }: DayStatsBarProps) {
+  const { theme } = useApp();
   if (totalCount === 0) return null;
 
   return (
     <View style={styles.statsSection}>
-      <View style={sharedStyles.glassCard}>
+      <View style={[styles.card, { borderColor: theme.border }]}>
         <LinearGradient
-          colors={allCompleted ? ['#4facfe', '#00f2fe'] : ['#f093fb', '#f5576c']}
+          colors={allCompleted ? (theme.successGradient as [string, string]) : (theme.accentGradient as [string, string])}
           style={styles.statsGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -49,7 +50,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-
+  card: {
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
   statsGradient: {
     padding: 12,
     borderRadius: 16,

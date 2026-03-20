@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { formatDateDisplay, getToday } from '../../utils/dateUtils';
-import { sharedStyles } from '../../utils/sharedStyles';
+import { useApp } from '../../context/AppContext';
 
 interface DateNavigationProps {
   selectedDate: string;
@@ -17,30 +17,32 @@ export default function DateNavigation({
   selectedDate,
   onChangeDate,
 }: DateNavigationProps) {
+  const { theme } = useApp();
+
   return (
-    <View style={sharedStyles.glassCard}>
+    <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
       <View style={styles.navigationContent}>
         <TouchableOpacity
-          style={styles.navButton}
+          style={[styles.navButton, { backgroundColor: theme.accentLight }]}
           onPress={() => onChangeDate(-1)}
         >
-          <Text style={styles.navButtonText}>←</Text>
+          <Text style={[styles.navButtonText, { color: theme.text }]}>←</Text>
         </TouchableOpacity>
 
         <View style={styles.currentDateContainer}>
-          <Text style={styles.currentDate}>{formatDateDisplay(selectedDate)}</Text>
+          <Text style={[styles.currentDate, { color: theme.text }]}>{formatDateDisplay(selectedDate)}</Text>
           {selectedDate === getToday() && (
-            <View style={styles.todayBadge}>
+            <View style={[styles.todayBadge, { backgroundColor: theme.success }]}>
               <Text style={styles.todayBadgeText}>BUGÜN</Text>
             </View>
           )}
         </View>
 
         <TouchableOpacity
-          style={styles.navButton}
+          style={[styles.navButton, { backgroundColor: theme.accentLight }]}
           onPress={() => onChangeDate(1)}
         >
-          <Text style={styles.navButtonText}>→</Text>
+          <Text style={[styles.navButtonText, { color: theme.text }]}>→</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -48,7 +50,11 @@ export default function DateNavigation({
 }
 
 const styles = StyleSheet.create({
-
+  card: {
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
   navigationContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -59,13 +65,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   navButtonText: {
     fontSize: 24,
-    color: '#fff',
     fontWeight: '700',
   },
   currentDateContainer: {
@@ -75,11 +79,9 @@ const styles = StyleSheet.create({
   currentDate: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
     marginBottom: 4,
   },
   todayBadge: {
-    backgroundColor: 'rgba(67, 233, 123, 0.9)',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,

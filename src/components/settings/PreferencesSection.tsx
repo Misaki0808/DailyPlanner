@@ -140,7 +140,7 @@ export default function PreferencesSection({
           </View>
 
           {/* Bildirim Saati */}
-          {settings.notificationsEnabled && (
+          {settings.notificationsEnabled ? (
             <View style={styles.timePickerContainer}>
               <Text style={styles.timePickerLabel}>Bildirim Saati:</Text>
               <View style={styles.timeInputRow}>
@@ -176,6 +176,12 @@ export default function PreferencesSection({
                   <Text style={styles.saveTimeButtonText}>✓</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+          ) : (
+            <View style={[styles.timePickerContainer, { opacity: 0.6 }]}>
+              <Text style={{ color: '#fff', fontSize: 13, fontStyle: 'italic', textAlign: 'center' }}>
+                Bildirimler kapalı. Günlük planlarınız için hatırlatıcı almayacaksınız.
+              </Text>
             </View>
           )}
         </View>
