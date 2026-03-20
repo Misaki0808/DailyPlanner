@@ -23,7 +23,7 @@ import { sharedStyles } from '../utils/sharedStyles';
 import NoteEditModal from '../components/NoteEditModal';
 
 export default function CreatePlanScreen() {
-  const { plans, savePlan, refreshPlans, settings, theme, recurringTasks } = useApp();
+  const { plans, savePlan, settings, theme, recurringTasks } = useApp();
 
   // State'ler
   const [selectedDate, setSelectedDate] = useState('');

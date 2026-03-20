@@ -34,7 +34,7 @@ if (Platform.OS !== 'web') {
 }
 
 export default function MultiDayViewScreen() {
-  const { plans, updateTask, refreshPlans, savePlan, deletePlan, settings, theme, recurringTasks } = useApp();
+  const { plans, updateTask, savePlan, deletePlan, settings, theme, recurringTasks } = useApp();
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -83,7 +83,7 @@ export default function MultiDayViewScreen() {
   const toggleTaskDone = async (taskId: string, currentDone: boolean) => {
     try {
       await updateTask(selectedDate, taskId, !currentDone);
-      await refreshPlans();
+  
     } catch (error) {
       console.error('Görev güncellenirken hata:', error);
     }
@@ -94,7 +94,7 @@ export default function MultiDayViewScreen() {
     const taskToDelete = currentTasks.find(task => task.id === taskId);
     const updatedTasks = currentTasks.filter(task => task.id !== taskId);
     await savePlan(selectedDate, updatedTasks);
-    await refreshPlans();
+
     if (taskToDelete) {
       setDeletedTask(taskToDelete);
       if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
@@ -113,7 +113,7 @@ export default function MultiDayViewScreen() {
     if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
     const restoredTasks = [...currentTasks, deletedTask];
     await savePlan(selectedDate, restoredTasks);
-    await refreshPlans();
+
     RNAnimated.timing(undoAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
     setDeletedTask(null);
   };
@@ -130,7 +130,7 @@ export default function MultiDayViewScreen() {
     };
     const updatedTasks = [...currentTasks, newTask];
     await savePlan(selectedDate, updatedTasks);
-    await refreshPlans();
+
     setQuickAddText('');
   };
 
@@ -144,7 +144,7 @@ export default function MultiDayViewScreen() {
     };
     const updatedTasks = [...currentTasks, newTask];
     await savePlan(selectedDate, updatedTasks);
-    await refreshPlans();
+
   };
 
   // Priority değiştir
@@ -159,7 +159,7 @@ export default function MultiDayViewScreen() {
       return task;
     });
     await savePlan(selectedDate, updatedTasks);
-    await refreshPlans();
+
   };
 
   // Not düzenle/sil
@@ -168,7 +168,7 @@ export default function MultiDayViewScreen() {
       task.id === taskId ? { ...task, note } : task
     );
     await savePlan(selectedDate, updatedTasks);
-    await refreshPlans();
+
   };
 
   // Tüm günü sil
@@ -243,7 +243,7 @@ export default function MultiDayViewScreen() {
     }));
     const allTasks = [...existingTasks, ...newTasks];
     await savePlan(targetDate, allTasks);
-    await refreshPlans();
+
     Alert.alert('Başarılı', `${selectedTasks.length} görev ${targetDate} tarihine kopyalandı.`, [{ text: 'Tamam' }]);
   };
 

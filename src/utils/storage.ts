@@ -87,15 +87,17 @@ export const deletePlan = async (date: string) => {
  */
 export const updateTask = async (date: string, taskId: string, updates: Partial<Task>) => {
   try {
-    const tasks = await getPlanByDate(date);
+    const allPlans = await getAllPlans();
+    const tasks = allPlans[date] || [];
     const updatedTasks = tasks.map((task: Task) =>
       task.id === taskId ? { ...task, ...updates } : task
     );
-    await savePlan(date, updatedTasks);
-    return true;
+    allPlans[date] = updatedTasks;
+    await AsyncStorage.setItem(STORAGE_KEYS.PLANS, JSON.stringify(allPlans));
+    return updatedTasks;
   } catch (error) {
     console.error('Görev güncellenirken hata:', error);
-    return false;
+    return null;
   }
 };
 
@@ -240,6 +242,42 @@ export const clearAllData = async () => {
     return true;
   } catch (error) {
     console.error('Veriler silinirken hata:', error);
+    return false;
+  }
+};
+
+/**
+ * ESKİ PLANLARI TEMİZLE
+ * Verilen gün sayısından daha eski planları otomatik siler (Varsayılan: 90 gün)
+ */
+export const cleanOldPlans = async (daysThreshold: number = 90) => {
+  try {
+    const allPlans = await getAllPlans();
+    let hasChanges = false;
+    
+    // Bugünün başlangıcı
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    Object.keys(allPlans).forEach(date => {
+      const [year, month, day] = date.split('-').map(Number);
+      const planDate = new Date(year, month - 1, day);
+      
+      const diffTime = now.getTime() - planDate.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > daysThreshold) {
+        delete allPlans[date];
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      await AsyncStorage.setItem(STORAGE_KEYS.PLANS, JSON.stringify(allPlans));
+    }
+    return hasChanges;
+  } catch (error) {
+    console.error('Eski planlar temizlenirken hata:', error);
     return false;
   }
 };

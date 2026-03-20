@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Gender } from '../../context/AppContext';
+import { Gender } from '../../types';
 import { sharedStyles } from '../../utils/sharedStyles';
 
 interface ProfileSectionProps {

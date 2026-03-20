@@ -1,3 +1,6 @@
+// Gender tipi
+export type Gender = 'male' | 'female';
+
 // Task (Görev) tipi
 export interface Task {
   id: string;
