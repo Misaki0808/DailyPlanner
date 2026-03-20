@@ -19,10 +19,11 @@ import { convertParagraphToTasks, checkApiKey } from '../utils/aiService';
 import CalendarModal from '../components/CalendarModal';
 import SuccessModal from '../components/SuccessModal';
 import VoiceInputButton from '../components/VoiceInputButton';
+import { sharedStyles } from '../utils/sharedStyles';
 import NoteEditModal from '../components/NoteEditModal';
 
 export default function CreatePlanScreen() {
-  const { plans, savePlan, settings } = useApp();
+  const { plans, savePlan, refreshPlans, settings, theme, recurringTasks } = useApp();
 
   // State'ler
   const [selectedDate, setSelectedDate] = useState('');
@@ -190,7 +191,7 @@ export default function CreatePlanScreen() {
 
   return (
     <LinearGradient
-      colors={settings.darkMode ? ['#2a2d5a', '#1a1a2e', '#0f0f1e'] : ['#667eea', '#764ba2', '#f093fb']}
+      colors={theme.primaryGradient}
       style={styles.gradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -219,7 +220,7 @@ export default function CreatePlanScreen() {
           {
             <View style={styles.aiSection}>
               <Text style={styles.label}>✨ Planınızı Yazın</Text>
-              <View style={[styles.glassCard, { borderWidth: 0 }]}>
+              <View style={[sharedStyles.glassCardNoBorder, { borderWidth: 0 }]}>
                 <TextInput
                   style={styles.paragraphInput}
                   placeholder="Örn: Sabah 7'de kalkıp kahvaltı yapacağım..."
@@ -319,7 +320,7 @@ export default function CreatePlanScreen() {
             </View>
 
             <View style={styles.inputRow}>
-              <View style={[styles.glassCard, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+              <View style={[sharedStyles.glassCardNoBorder, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
                 <TextInput
                   style={styles.input}
                   placeholder="Örn: Alışverişe git"
@@ -359,7 +360,7 @@ export default function CreatePlanScreen() {
 
                 return (
                   <View key={task.id} style={styles.taskItem}>
-                    <View style={[styles.glassCard, { borderLeftWidth: 4, borderLeftColor: priorityColor }]}>
+                    <View style={[sharedStyles.glassCardNoBorder, { borderLeftWidth: 4, borderLeftColor: priorityColor }]}>
                       <View style={styles.taskContent}>
                         <TouchableOpacity
                           style={[styles.taskNumberBadge, { backgroundColor: priorityColor }]}
@@ -522,16 +523,7 @@ const styles = StyleSheet.create({
   aiSection: {
     marginBottom: 20,
   },
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
+
   paragraphInput: {
     fontSize: 16,
     color: '#fff',

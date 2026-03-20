@@ -99,7 +99,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       } else if (rt.frequency === 'weekly') {
         if (rt.weekDays && rt.weekDays.includes(dayOfWeek)) {
           shouldAdd = true;
-        } else if ((rt as any).weekDay !== undefined && (rt as any).weekDay === dayOfWeek) {
+        } else if (rt.weekDay !== undefined && rt.weekDay === dayOfWeek) {
           // Backward compatibility
           shouldAdd = true;
         }

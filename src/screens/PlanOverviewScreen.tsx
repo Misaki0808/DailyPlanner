@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 import { getToday, formatDateDisplay } from '../utils/dateUtils';
 
 export default function PlanOverviewScreen() {
-  const { plans } = useApp();
+  const { plans, settings, theme } = useApp();
   const { width, height } = useWindowDimensions();
   const [centerDate, setCenterDate] = useState(getToday());
 
@@ -52,7 +52,7 @@ export default function PlanOverviewScreen() {
           <View key={task.id} style={styles.taskRow}>
             <View style={[
               styles.dot,
-              { backgroundColor: task.priority === 'high' ? '#ff6b6b' : task.priority === 'medium' ? '#feca57' : '#4CAF50' }
+              { backgroundColor: task.priority === 'high' ? theme.priorityHigh : task.priority === 'medium' ? theme.priorityMedium : theme.priorityLow }
             ]} />
             <Text style={styles.taskText} numberOfLines={1}>{task.title}</Text>
           </View>
@@ -66,7 +66,7 @@ export default function PlanOverviewScreen() {
 
   return (
     <LinearGradient
-      colors={['#1a2a6c', '#b21f1f', '#fdbb2d']}
+      colors={settings.darkMode ? theme.primaryGradient : ['#1a2a6c', '#b21f1f', '#fdbb2d']}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}

@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Task } from '../types';
 import { useApp } from '../context/AppContext';
 import NoteEditModal from './NoteEditModal';
+import { sharedStyles } from '../utils/sharedStyles';
 
 interface AnimatedTaskItemProps {
   task: Task;
@@ -34,7 +35,7 @@ export default function AnimatedTaskItem({
   onRemove,
   onNoteEdit,
 }: AnimatedTaskItemProps) {
-  const { settings } = useApp();
+  const { settings, theme } = useApp();
   const [showNoteModal, setShowNoteModal] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -62,16 +63,13 @@ export default function AnimatedTaskItem({
   }, [task.id]);
 
   const priorityColor =
-    task.priority === 'high' ? '#F44336' :
-      task.priority === 'medium' ? '#FFC107' :
-        '#4CAF50';
+    task.priority === 'high' ? theme.priorityHigh :
+      task.priority === 'medium' ? theme.priorityMedium :
+        theme.priorityLow;
 
-  const cardBackgroundColor = settings.darkMode
-    ? 'rgba(50, 50, 70, 0.95)'
-    : 'rgba(255, 255, 255, 0.9)';
-
-  const textColor = settings.darkMode ? '#fff' : '#333';
-  const doneTextColor = settings.darkMode ? '#999' : '#999';
+  const cardBackgroundColor = theme.taskCardBackground;
+  const textColor = theme.text;
+  const doneTextColor = theme.textMuted;
 
   const triggerRemoveAnimation = () => {
     Animated.parallel([
@@ -181,7 +179,7 @@ export default function AnimatedTaskItem({
 
   const taskContent = (
     <View style={[
-      styles.glassCard,
+      sharedStyles.taskCard,
       {
         borderLeftWidth: 4,
         borderLeftColor: priorityColor,
@@ -285,15 +283,7 @@ const styles = StyleSheet.create({
   taskItemWrapper: {
     marginBottom: 12,
   },
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
+
   taskItem: {
     flexDirection: 'row',
     alignItems: 'center',

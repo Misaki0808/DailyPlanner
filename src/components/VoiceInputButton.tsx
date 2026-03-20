@@ -11,7 +11,39 @@ import {
 } from 'react-native';
 import { correctVoiceTranscript, convertToSingleTask, checkApiKey } from '../utils/aiService';
 
-let ExpoSpeechRecognitionModule: any = null;
+// Web Speech API tip tanımları
+interface SpeechRecognitionEvent {
+    resultIndex: number;
+    results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent {
+    error: string;
+    message?: string;
+}
+
+interface SpeechRecognitionInstance {
+    interimResults: boolean;
+    continuous: boolean;
+    maxAlternatives: number;
+    lang?: string;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+    onend: (() => void) | null;
+    start: () => void;
+    stop: () => void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+
+// Web window üzerinde SpeechRecognition erişimi
+const getWebSpeechRecognition = (): SpeechRecognitionConstructor | null => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
+    const win = window as unknown as Record<string, unknown>;
+    return (win.SpeechRecognition || win.webkitSpeechRecognition) as SpeechRecognitionConstructor | null;
+};
+
+let ExpoSpeechRecognitionModule: { addListener: (event: string, cb: (event: { results: Array<{ transcript: string }>; isFinal: boolean; error?: string; message?: string }) => void) => { remove: () => void }; requestPermissionsAsync: () => Promise<{ status: string }>; start: (opts: { lang: string; interimResults: boolean; maxAlternatives: number }) => void; stop: () => void } | null = null;
 if (Platform.OS !== 'web') {
     try {
         ExpoSpeechRecognitionModule = require('expo-speech-recognition').ExpoSpeechRecognitionModule;
@@ -30,15 +62,14 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
     const [isListening, setIsListening] = useState(false);
     const [isCorrecting, setIsCorrecting] = useState(false);
     const [isSupported, setIsSupported] = useState(false);
-    const recognitionRef = useRef<any>(null);
+    const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
     const finalTranscriptRef = useRef('');
     const pulseAnim = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
         if (Platform.OS === 'web') {
-            const SpeechRecognition =
-                (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            setIsSupported(!!SpeechRecognition);
+            const SR = getWebSpeechRecognition();
+            setIsSupported(!!SR);
         } else {
             // Native is supported via expo-speech-recognition
             setIsSupported(true);
@@ -49,7 +80,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
     useEffect(() => {
         if (Platform.OS === 'web' || !ExpoSpeechRecognitionModule) return;
 
-        const resultSub = ExpoSpeechRecognitionModule.addListener('result', (event: any) => {
+        const resultSub = ExpoSpeechRecognitionModule.addListener('result', (event) => {
             const transcript = event.results[0]?.transcript || '';
             onTranscript(transcript, event.isFinal);
 
@@ -66,7 +97,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
             }
         });
 
-        const errorSub = ExpoSpeechRecognitionModule.addListener('error', (event: any) => {
+        const errorSub = ExpoSpeechRecognitionModule.addListener('error', (event) => {
             setIsListening(false);
             if (event.error === 'not-allowed') {
                 Alert.alert('İzin Gerekli', 'Mikrofon izni verilmedi.');
@@ -100,18 +131,17 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
     const startListening = () => {
         if (Platform.OS !== 'web') return;
 
-        const SpeechRecognition =
-            (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) return;
+        const SR = getWebSpeechRecognition();
+        if (!SR) return;
 
-        const recognition = new SpeechRecognition();
+        const recognition = new SR();
         recognition.interimResults = true;
         recognition.continuous = true;
         recognition.maxAlternatives = 1;
 
         let finalTranscript = '';
 
-        recognition.onresult = (event: any) => {
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
             let interimTranscript = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const transcript = event.results[i][0].transcript;
@@ -125,7 +155,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
             onTranscript(finalTranscript + interimTranscript, false);
         };
 
-        recognition.onerror = (event: any) => {
+        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
             setIsListening(false);
             if (event.error === 'not-allowed') {
                 Alert.alert('İzin Gerekli', 'Mikrofon erişimine izin vermeniz gerekiyor.');

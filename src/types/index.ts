@@ -14,6 +14,8 @@ export interface RecurringTask {
   priority: 'low' | 'medium' | 'high';
   frequency: 'daily' | 'weekly' | 'monthly' | 'flexible';
   weekDays?: number[];   // weekly: [1, 3, 5] (Pzt, Çar, Cum)
+  /** @deprecated Eski format — yeni kayıtlar weekDays kullanır */
+  weekDay?: number;      // Eski format backward compat (tek gün)
   monthDay?: number;     // monthly: 1-31
   flexibleTarget?: number; // flexible: haftada kaç kez? (örneğin 2)
   isActive: boolean;
@@ -43,5 +45,6 @@ export interface Settings {
 export type RootTabParamList = {
   CreatePlan: undefined;
   MultiDay: undefined;
+  PlanOverview: undefined;
   Settings: undefined;
 };
