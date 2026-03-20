@@ -9,7 +9,8 @@ import {
   Switch,
 } from 'react-native';
 import { Settings } from '../../types';
-import { sharedStyles } from '../../utils/sharedStyles';
+import { createSharedStyles } from '../../utils/sharedStyles';
+import { useApp } from '../../context/AppContext';
 import {
   scheduleDailyNotification,
   cancelAllNotifications,
@@ -25,6 +26,8 @@ export default function PreferencesSection({
   settings,
   onUpdateSettings,
 }: PreferencesSectionProps) {
+  const { theme } = useApp();
+  const themed = createSharedStyles(theme);
   const [notificationHour, setNotificationHour] = useState('08');
   const [notificationMinute, setNotificationMinute] = useState('00');
   const [isInitialized, setIsInitialized] = useState(false);
@@ -86,12 +89,12 @@ export default function PreferencesSection({
     <View>
       {/* Hakkında */}
       <View style={styles.aboutSection}>
-        <Text style={sharedStyles.sectionTitle}>ℹ️ Hakkında</Text>
-        <View style={sharedStyles.glassCard}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>ℹ️ Hakkında</Text>
+        <View style={themed.glassCard}>
           <View style={styles.infoCard}>
-            <Text style={styles.appName}>DailyPlanner</Text>
-            <Text style={styles.appVersion}>Versiyon 1.0.0</Text>
-            <Text style={styles.appDescription}>
+            <Text style={[styles.appName, { color: theme.text }]}>DailyPlanner</Text>
+            <Text style={[styles.appVersion, { color: theme.textSecondary }]}>Versiyon 1.0.0</Text>
+            <Text style={[styles.appDescription, { color: theme.text }]}>
               Günlük planlarınızı oluşturun, yönetin ve takip edin.
             </Text>
           </View>
@@ -100,77 +103,75 @@ export default function PreferencesSection({
 
       {/* Tercihler */}
       <View style={styles.preferencesSection}>
-        <Text style={sharedStyles.sectionTitle}>⚙️ Tercihler</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>⚙️ Tercihler</Text>
 
         {/* Dark Mode */}
-        <View style={sharedStyles.glassCard}>
+        <View style={themed.glassCard}>
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceTextContainer}>
-              <Text style={styles.preferenceTitle}>🌙 Karanlık Tema</Text>
-              <Text style={styles.preferenceDescription}>
+              <Text style={[styles.preferenceTitle, { color: theme.text }]}>🌙 Karanlık Tema</Text>
+              <Text style={[styles.preferenceDescription, { color: theme.textSecondary }]}>
                 Gözlerinizi yormayan karanlık tema
               </Text>
             </View>
             <Switch
               value={settings.darkMode}
               onValueChange={(value) => onUpdateSettings({ darkMode: value })}
-              trackColor={{ false: 'rgba(255, 255, 255, 0.3)', true: 'rgba(67, 233, 123, 0.7)' }}
-              thumbColor={settings.darkMode ? '#43e97b' : '#f4f3f4'}
-              ios_backgroundColor="rgba(255, 255, 255, 0.3)"
+              trackColor={{ false: theme.switchTrackOff, true: theme.switchTrackOn }}
+              thumbColor={settings.darkMode ? theme.switchThumbOn : theme.switchThumbOff}
             />
           </View>
         </View>
 
         {/* Bildirimler */}
-        <View style={[sharedStyles.glassCard, { marginTop: 12 }]}>
+        <View style={[themed.glassCard, { marginTop: 12 }]}>
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceTextContainer}>
-              <Text style={styles.preferenceTitle}>🔔 Günlük Bildirimler</Text>
-              <Text style={styles.preferenceDescription}>
+              <Text style={[styles.preferenceTitle, { color: theme.text }]}>🔔 Günlük Bildirimler</Text>
+              <Text style={[styles.preferenceDescription, { color: theme.textSecondary }]}>
                 Her gün belirlediğiniz saatte bildirim alın
               </Text>
             </View>
             <Switch
               value={settings.notificationsEnabled}
               onValueChange={handleToggleNotifications}
-              trackColor={{ false: 'rgba(255, 255, 255, 0.3)', true: 'rgba(67, 233, 123, 0.7)' }}
-              thumbColor={settings.notificationsEnabled ? '#43e97b' : '#f4f3f4'}
-              ios_backgroundColor="rgba(255, 255, 255, 0.3)"
+              trackColor={{ false: theme.switchTrackOff, true: theme.switchTrackOn }}
+              thumbColor={settings.notificationsEnabled ? theme.switchThumbOn : theme.switchThumbOff}
             />
           </View>
 
           {/* Bildirim Saati */}
           {settings.notificationsEnabled ? (
-            <View style={styles.timePickerContainer}>
-              <Text style={styles.timePickerLabel}>Bildirim Saati:</Text>
+            <View style={[styles.timePickerContainer, { borderTopColor: theme.border }]}>
+              <Text style={[styles.timePickerLabel, { color: theme.text }]}>Bildirim Saati:</Text>
               <View style={styles.timeInputRow}>
                 <View style={styles.timeInputWrapper}>
                   <TextInput
-                    style={styles.timeInput}
+                    style={[styles.timeInput, { backgroundColor: theme.accentLight, color: theme.text }]}
                     value={notificationHour}
                     onChangeText={setNotificationHour}
                     keyboardType="number-pad"
                     maxLength={2}
                     placeholder="08"
-                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                    placeholderTextColor={theme.textMuted}
                   />
-                  <Text style={styles.timeInputLabel}>Saat</Text>
+                  <Text style={[styles.timeInputLabel, { color: theme.textSecondary }]}>Saat</Text>
                 </View>
-                <Text style={styles.timeSeparator}>:</Text>
+                <Text style={[styles.timeSeparator, { color: theme.text }]}>:</Text>
                 <View style={styles.timeInputWrapper}>
                   <TextInput
-                    style={styles.timeInput}
+                    style={[styles.timeInput, { backgroundColor: theme.accentLight, color: theme.text }]}
                     value={notificationMinute}
                     onChangeText={setNotificationMinute}
                     keyboardType="number-pad"
                     maxLength={2}
                     placeholder="00"
-                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                    placeholderTextColor={theme.textMuted}
                   />
-                  <Text style={styles.timeInputLabel}>Dakika</Text>
+                  <Text style={[styles.timeInputLabel, { color: theme.textSecondary }]}>Dakika</Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.saveTimeButton}
+                  style={[styles.saveTimeButton, { backgroundColor: theme.success }]}
                   onPress={handleSaveNotificationTime}
                 >
                   <Text style={styles.saveTimeButtonText}>✓</Text>
@@ -178,8 +179,8 @@ export default function PreferencesSection({
               </View>
             </View>
           ) : (
-            <View style={[styles.timePickerContainer, { opacity: 0.6 }]}>
-              <Text style={{ color: '#fff', fontSize: 13, fontStyle: 'italic', textAlign: 'center' }}>
+            <View style={[styles.timePickerContainer, { borderTopColor: theme.border, opacity: 0.6 }]}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13, fontStyle: 'italic', textAlign: 'center' }}>
                 Bildirimler kapalı. Günlük planlarınız için hatırlatıcı almayacaksınız.
               </Text>
             </View>
@@ -187,20 +188,19 @@ export default function PreferencesSection({
         </View>
 
         {/* Diğer Tercihler */}
-        <View style={[sharedStyles.glassCard, { marginTop: 12 }]}>
+        <View style={[themed.glassCard, { marginTop: 12 }]}>
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceTextContainer}>
-              <Text style={styles.preferenceTitle}>Tüm planları silerken daima sor</Text>
-              <Text style={styles.preferenceDescription}>
+              <Text style={[styles.preferenceTitle, { color: theme.text }]}>Tüm planları silerken daima sor</Text>
+              <Text style={[styles.preferenceDescription, { color: theme.textSecondary }]}>
                 Bir günün tüm görevlerini silmeden önce onay istenir
               </Text>
             </View>
             <Switch
               value={settings.askBeforeDeleteAll}
               onValueChange={(value) => onUpdateSettings({ askBeforeDeleteAll: value })}
-              trackColor={{ false: 'rgba(255, 255, 255, 0.3)', true: 'rgba(67, 233, 123, 0.7)' }}
-              thumbColor={settings.askBeforeDeleteAll ? '#43e97b' : '#f4f3f4'}
-              ios_backgroundColor="rgba(255, 255, 255, 0.3)"
+              trackColor={{ false: theme.switchTrackOff, true: theme.switchTrackOn }}
+              thumbColor={settings.askBeforeDeleteAll ? theme.switchThumbOn : theme.switchThumbOff}
             />
           </View>
         </View>
@@ -210,7 +210,11 @@ export default function PreferencesSection({
 }
 
 const styles = StyleSheet.create({
-
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
   aboutSection: {
     marginBottom: 24,
   },
@@ -221,17 +225,14 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#fff',
     marginBottom: 8,
   },
   appVersion: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
     marginBottom: 16,
   },
   appDescription: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -251,12 +252,10 @@ const styles = StyleSheet.create({
   preferenceTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 4,
   },
   preferenceDescription: {
     fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
     lineHeight: 18,
   },
   timePickerContainer: {
@@ -264,12 +263,10 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 20,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
   },
   timePickerLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 12,
   },
   timeInputRow: {
@@ -281,28 +278,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timeInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 12,
     width: 60,
     height: 60,
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
     textAlign: 'center',
     marginBottom: 4,
   },
   timeInputLabel: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.8)',
   },
   timeSeparator: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#fff',
     marginBottom: 20,
   },
   saveTimeButton: {
-    backgroundColor: 'rgba(67, 233, 123, 0.8)',
     width: 50,
     height: 50,
     borderRadius: 25,

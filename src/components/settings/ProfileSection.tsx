@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Gender } from '../../types';
-import { sharedStyles } from '../../utils/sharedStyles';
+import { createSharedStyles } from '../../utils/sharedStyles';
+import { useApp } from '../../context/AppContext';
 
 interface ProfileSectionProps {
   username: string | null;
@@ -24,6 +25,8 @@ export default function ProfileSection({
   onSaveUsername,
   onChangeGender,
 }: ProfileSectionProps) {
+  const { theme } = useApp();
+  const themed = createSharedStyles(theme);
   const [nameInput, setNameInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
@@ -50,9 +53,9 @@ export default function ProfileSection({
 
   return (
     <View style={styles.profileSection}>
-      <View style={sharedStyles.glassCard}>
+      <View style={themed.glassCard}>
         <LinearGradient
-          colors={['#fa709a', '#fee140']}
+          colors={theme.accentGradient}
           style={styles.avatarGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -64,53 +67,55 @@ export default function ProfileSection({
 
         {/* Gender Seçici */}
         <View style={styles.genderSelector}>
-          <Text style={styles.genderLabel}>Profil Resmi:</Text>
+          <Text style={[styles.genderLabel, { color: theme.text }]}>Profil Resmi:</Text>
           <View style={styles.genderButtons}>
             <TouchableOpacity
               style={[
                 styles.genderButton,
-                gender === 'male' && styles.genderButtonActive,
+                { backgroundColor: theme.accentLight },
+                gender === 'male' && { borderColor: theme.accent, backgroundColor: `${theme.accent}30` },
               ]}
               onPress={() => onChangeGender('male')}
             >
               <Text style={styles.genderIcon}>👨‍💼</Text>
-              <Text style={styles.genderText}>Erkek</Text>
+              <Text style={[styles.genderText, { color: theme.text }]}>Erkek</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[
                 styles.genderButton,
-                gender === 'female' && styles.genderButtonActive,
+                { backgroundColor: theme.accentLight },
+                gender === 'female' && { borderColor: theme.accent, backgroundColor: `${theme.accent}30` },
               ]}
               onPress={() => onChangeGender('female')}
             >
               <Text style={styles.genderIcon}>👩‍💼</Text>
-              <Text style={styles.genderText}>Kadın</Text>
+              <Text style={[styles.genderText, { color: theme.text }]}>Kadın</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {!isEditing ? (
           <View style={styles.nameDisplay}>
-            <Text style={styles.greeting}>Merhaba,</Text>
-            <Text style={styles.userName}>{username || 'Kullanıcı'}</Text>
+            <Text style={[styles.greeting, { color: theme.textSecondary }]}>Merhaba,</Text>
+            <Text style={[styles.userName, { color: theme.text }]}>{username || 'Kullanıcı'}</Text>
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => setIsEditing(true)}
             >
-              <View style={styles.editButtonInner}>
-                <Text style={styles.editButtonText}>✏️ İsmi Değiştir</Text>
+              <View style={[styles.editButtonInner, { backgroundColor: theme.accentLight }]}>
+                <Text style={[styles.editButtonText, { color: theme.text }]}>✏️ İsmi Değiştir</Text>
               </View>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.nameEdit}>
-            <Text style={styles.label}>İsminiz:</Text>
-            <View style={styles.inputContainer}>
+            <Text style={[styles.label, { color: theme.text }]}>İsminiz:</Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.accentLight }]}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { color: theme.text }]}
                 placeholder="İsminizi girin"
-                placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                placeholderTextColor={theme.textMuted}
                 value={nameInput}
                 onChangeText={setNameInput}
                 autoFocus
@@ -118,7 +123,7 @@ export default function ProfileSection({
             </View>
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveName}>
               <LinearGradient
-                colors={['#4facfe', '#00f2fe']}
+                colors={theme.successGradient}
                 style={styles.saveButtonGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -137,7 +142,6 @@ const styles = StyleSheet.create({
   profileSection: {
     marginBottom: 24,
   },
-
   avatarGradient: {
     width: 100,
     height: 100,
@@ -166,7 +170,6 @@ const styles = StyleSheet.create({
   genderLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.9)',
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -177,16 +180,11 @@ const styles = StyleSheet.create({
   },
   genderButton: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
-  },
-  genderButtonActive: {
-    backgroundColor: 'rgba(102, 126, 234, 0.3)',
-    borderColor: 'rgba(255, 255, 255, 0.5)',
   },
   genderIcon: {
     fontSize: 40,
@@ -195,7 +193,6 @@ const styles = StyleSheet.create({
   genderText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
   },
   nameDisplay: {
     alignItems: 'center',
@@ -204,13 +201,11 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
     marginBottom: 4,
   },
   userName: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#fff',
     marginBottom: 20,
   },
   editButton: {
@@ -218,13 +213,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   editButtonInner: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     paddingHorizontal: 24,
     paddingVertical: 12,
   },
   editButtonText: {
     fontSize: 16,
-    color: '#fff',
     fontWeight: '700',
   },
   nameEdit: {
@@ -234,18 +227,15 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
     marginBottom: 12,
   },
   inputContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 16,
     marginBottom: 16,
   },
   input: {
     padding: 16,
     fontSize: 16,
-    color: '#fff',
   },
   saveButton: {
     borderRadius: 20,
