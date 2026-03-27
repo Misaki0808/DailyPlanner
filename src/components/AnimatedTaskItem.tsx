@@ -188,7 +188,7 @@ export default function AnimatedTaskItem({
     ]}>
       <TouchableOpacity
         style={styles.taskItem}
-        onPress={() => !isEditMode && onToggleDone()}
+        onPress={() => {}}
         activeOpacity={0.7}
       >
         {/* Görev Numarası ve Başlığı */}
