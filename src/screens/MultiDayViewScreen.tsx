@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   Share,
+  TextInput,
   Animated as RNAnimated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +23,8 @@ import DateNavigation from '../components/planner/DateNavigation';
 import FlexibleTaskPool from '../components/planner/FlexibleTaskPool';
 import ActionButtonsBar from '../components/planner/ActionButtonsBar';
 import DayStatsBar from '../components/planner/DayStatsBar';
+import { getCategoryEmoji, getCategoryLabel, getCategoryColor } from '../utils/categories';
+import { formatDateDisplay as formatDisplay } from '../utils/dateUtils';
 
 // Sadece native platformlarda import et
 let RNShare: any = null;
@@ -45,6 +48,8 @@ export default function MultiDayViewScreen() {
   const [quickAddText, setQuickAddText] = useState('');
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const undoAnim = useRef(new RNAnimated.Value(0)).current;
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Seçilen tarih değiştiğinde görevleri güncelle
   useEffect(() => {
@@ -322,19 +327,107 @@ export default function MultiDayViewScreen() {
       <View style={styles.container}>
         {/* Tarih Navigasyonu */}
         <View style={styles.dateNavigation}>
-          <DateNavigation
-            selectedDate={selectedDate}
-            onChangeDate={changeDate}
-          />
+          <View style={styles.dateNavWithSearch}>
+            <View style={{ flex: 1 }}>
+              <DateNavigation
+                selectedDate={selectedDate}
+                onChangeDate={changeDate}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.searchToggle, isSearchMode && { backgroundColor: theme.accent + '30' }]}
+              onPress={() => { setIsSearchMode(!isSearchMode); setSearchQuery(''); }}
+            >
+              <Text style={styles.searchToggleIcon}>{isSearchMode ? '✕' : '🔍'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Arama Çubuğu */}
+          {isSearchMode && (
+            <View style={[styles.searchBar, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
+              <Text style={styles.searchBarIcon}>🔍</Text>
+              <TextInput
+                style={[styles.searchInput, { color: theme.text }]}
+                placeholder="Görev ara..."
+                placeholderTextColor={theme.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Text style={[styles.searchClear, { color: theme.textMuted }]}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Arama Sonuçları */}
+          {isSearchMode && searchQuery.length > 1 && (() => {
+            const query = searchQuery.toLowerCase();
+            const results: { date: string; task: Task }[] = [];
+            Object.entries(plans).forEach(([date, tasks]) => {
+              tasks.forEach(task => {
+                if (task.title.toLowerCase().includes(query) || task.note?.toLowerCase().includes(query)) {
+                  results.push({ date, task });
+                }
+              });
+            });
+            // En yeni tarih önce
+            results.sort((a, b) => b.date.localeCompare(a.date));
+
+            if (results.length === 0) {
+              return (
+                <View style={[styles.searchResults, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+                  <Text style={[styles.searchNoResult, { color: theme.textMuted }]}>Sonuç bulunamadı</Text>
+                </View>
+              );
+            }
+
+            return (
+              <ScrollView style={[styles.searchResults, { backgroundColor: theme.cardBackground, borderColor: theme.border }]} nestedScrollEnabled>
+                {results.slice(0, 20).map((r, i) => (
+                  <TouchableOpacity
+                    key={`${r.date}-${r.task.id}-${i}`}
+                    style={[styles.searchResultItem, { borderBottomColor: theme.border }]}
+                    onPress={() => {
+                      setSelectedDate(r.date);
+                      setIsSearchMode(false);
+                      setSearchQuery('');
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.searchResultTitle, { color: theme.text }]}>
+                        {r.task.done ? '✅ ' : '⬜ '}{r.task.title}
+                      </Text>
+                      <View style={styles.searchResultMeta}>
+                        <Text style={[styles.searchResultDate, { color: theme.textSecondary }]}>
+                          📅 {formatDisplay(r.date)}
+                        </Text>
+                        {r.task.category && (
+                          <Text style={[styles.searchResultCat, { color: getCategoryColor(r.task.category) }]}>
+                            {getCategoryEmoji(r.task.category)} {getCategoryLabel(r.task.category)}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <Text style={[styles.searchResultArrow, { color: theme.textMuted }]}>›</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            );
+          })()}
 
           {/* Esnek Görev Havuzu */}
-          <FlexibleTaskPool
-            flexibleProgress={flexibleProgress}
-            onAddFlexibleTask={handleAddFlexibleTask}
-          />
+          {!isSearchMode && (
+            <FlexibleTaskPool
+              flexibleProgress={flexibleProgress}
+              onAddFlexibleTask={handleAddFlexibleTask}
+            />
+          )}
 
           {/* Buton Grubu */}
-          {totalCount > 0 && (
+          {!isSearchMode && totalCount > 0 && (
             <ActionButtonsBar
               isEditMode={isEditMode}
               quickAddText={quickAddText}
@@ -507,5 +600,81 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+  dateNavWithSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchToggleIcon: {
+    fontSize: 18,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    marginTop: 10,
+    borderWidth: 1,
+  },
+  searchBarIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 42,
+    fontSize: 15,
+  },
+  searchClear: {
+    fontSize: 18,
+    padding: 4,
+  },
+  searchResults: {
+    marginTop: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    maxHeight: 250,
+    overflow: 'hidden',
+  },
+  searchNoResult: {
+    padding: 20,
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  searchResultTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  searchResultMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 3,
+  },
+  searchResultDate: {
+    fontSize: 11,
+  },
+  searchResultCat: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  searchResultArrow: {
+    fontSize: 24,
+    marginLeft: 8,
   },
 });
