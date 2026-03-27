@@ -11,8 +11,9 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Task } from '../types';
 import { useApp } from '../context/AppContext';
-import NoteEditModal from './NoteEditModal';
+import TaskEditModal from './TaskEditModal';
 import { sharedStyles } from '../utils/sharedStyles';
+import { getCategoryEmoji, getCategoryLabel, getCategoryColor } from '../utils/categories';
 
 interface AnimatedTaskItemProps {
   task: Task;
@@ -22,7 +23,7 @@ interface AnimatedTaskItemProps {
   onToggleDone: () => void;
   onChangePriority: () => void;
   onRemove: () => void;
-  onNoteEdit?: (taskId: string, note: string | undefined) => void;
+  onNoteEdit?: (taskId: string, note: string | undefined, title?: string, category?: string) => void;
 }
 
 export default function AnimatedTaskItem({
@@ -208,15 +209,32 @@ export default function AnimatedTaskItem({
             ]}>
               {task.title}
             </Text>
+            {task.category && (
+              <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(task.category) + '25' }]}>
+                <Text style={[styles.categoryText, { color: getCategoryColor(task.category) }]}>
+                  {getCategoryEmoji(task.category)} {getCategoryLabel(task.category)}
+                </Text>
+              </View>
+            )}
           </View>
 
-          {/* Not İkonu — her zaman görünür (not varsa dolu, yoksa soluk) */}
-          {(task.note || isEditMode) && (
+          {/* Düzenle İkonu (Edit Mode) */}
+          {isEditMode && (
             <TouchableOpacity
               style={styles.noteIconContainer}
               onPress={() => setShowNoteModal(true)}
             >
-              <Text style={[styles.noteIcon, !task.note && { opacity: 0.3 }]}>📝</Text>
+              <Text style={styles.noteIcon}>✏️</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Not göster (normal mod) */}
+          {!isEditMode && task.note && (
+            <TouchableOpacity
+              style={styles.noteIconContainer}
+              onPress={() => setShowNoteModal(true)}
+            >
+              <Text style={styles.noteIcon}>📝</Text>
             </TouchableOpacity>
           )}
 
@@ -262,16 +280,15 @@ export default function AnimatedTaskItem({
         )}
       </Animated.View>
 
-      {/* Not Düzenleme Modalı */}
-      <NoteEditModal
+      {/* Görev Düzenleme Modalı */}
+      <TaskEditModal
         visible={showNoteModal}
-        taskTitle={task.title}
-        currentNote={task.note || ''}
-        onSave={(note) => {
-          if (onNoteEdit) onNoteEdit(task.id, note);
-        }}
-        onDelete={() => {
-          if (onNoteEdit) onNoteEdit(task.id, undefined);
+        task={task}
+        onSave={(updates) => {
+          if (onNoteEdit) {
+            // Pass all updates through onNoteEdit which we'll enhance
+            onNoteEdit(task.id, updates.note, updates.title, updates.category);
+          }
         }}
         onClose={() => setShowNoteModal(false)}
       />
@@ -414,5 +431,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  categoryText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

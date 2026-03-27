@@ -163,10 +163,14 @@ export default function MultiDayViewScreen() {
   };
 
   // Not düzenle/sil
-  const handleNoteEdit = async (taskId: string, note: string | undefined) => {
-    const updatedTasks = currentTasks.map(task =>
-      task.id === taskId ? { ...task, note } : task
-    );
+  const handleNoteEdit = async (taskId: string, note: string | undefined, title?: string, category?: string) => {
+    const updatedTasks = currentTasks.map(task => {
+      if (task.id !== taskId) return task;
+      const updated = { ...task, note };
+      if (title !== undefined) updated.title = title;
+      if (category !== undefined) updated.category = category;
+      return updated;
+    });
     await savePlan(selectedDate, updatedTasks);
 
   };

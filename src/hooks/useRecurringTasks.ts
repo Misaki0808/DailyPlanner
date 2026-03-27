@@ -47,6 +47,7 @@ export const useRecurringTasks = (
           title: rt.title,
           done: false,
           priority: rt.priority,
+          category: 'diger',
         });
       }
     }

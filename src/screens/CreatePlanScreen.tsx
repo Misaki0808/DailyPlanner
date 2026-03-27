@@ -75,6 +75,7 @@ export default function CreatePlanScreen() {
       title: taskInput.trim(),
       done: false,
       priority: selectedPriority,
+      category: 'diger',
     };
 
     setTasks([...tasks, newTask]);
@@ -171,12 +172,13 @@ export default function CreatePlanScreen() {
     try {
       const aiTasks = await convertParagraphToTasks(paragraphInput);
 
-      // AI'dan gelen görevleri Task formatına çevir
-      const newTasks: Task[] = aiTasks.map((title) => ({
+      // AI'dan gelen görevleri Task formatına çevir (kategori atamalı)
+      const newTasks: Task[] = aiTasks.map((item) => ({
         id: Date.now().toString() + Math.random().toString(),
-        title,
+        title: item.title,
         done: false,
         priority: 'low' as const,
+        category: item.category,
       }));
 
       setTasks([...tasks, ...newTasks]);
@@ -360,7 +362,7 @@ export default function CreatePlanScreen() {
             <View style={styles.taskListSection}>
               <Text style={[styles.label, { color: theme.text }]}>📝 Görevler ({tasks.length})</Text>
               {tasks.map((task, index) => {
-                const priorityColor = priorityColors[task.priority];
+                const priorityColor = priorityColors[task.priority || 'low'];
 
                 return (
                   <View key={task.id} style={styles.taskItem}>

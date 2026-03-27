@@ -8,6 +8,7 @@ export interface Task {
   done: boolean;
   priority?: 'low' | 'medium' | 'high';
   note?: string;
+  category?: string; // Kategori id'si (ör: 'is', 'okul', 'spor')
 }
 
 // Tekrarlayan görev tipi

@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { Task } from '../types';
+import { TASK_CATEGORIES } from './categories';
 
 // .env'den API key'i al (EXPO_PUBLIC_ prefix otomatik çalışır)
 const GEMINI_API_KEY =
@@ -9,12 +10,15 @@ const GEMINI_API_KEY =
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
+// Kategori listesini prompt'a eklemek için
+const categoryListForPrompt = TASK_CATEGORIES.map(c => `"${c.id}" (${c.label})`).join(', ');
+
 /**
- * AI ile paragrafı görev listesine çevir
+ * AI ile paragrafı görev listesine çevir (kategori atamalı)
  * @param paragraph - Kullanıcının yazdığı paragraf
- * @returns Task listesi veya hata
+ * @returns Task bilgileri (title + category)
  */
-export const convertParagraphToTasks = async (paragraph: string): Promise<string[]> => {
+export const convertParagraphToTasks = async (paragraph: string): Promise<{ title: string; category: string }[]> => {
   // API key kontrolü
   if (!GEMINI_API_KEY) {
     throw new Error('API key bulunamadı. Lütfen .env dosyasını kontrol edin.');
@@ -22,14 +26,18 @@ export const convertParagraphToTasks = async (paragraph: string): Promise<string
 
   // Prompt oluştur (Türkçe, açık talimatlar)
   const prompt = `
-Sen bir görev planlama asistanısın. Kullanıcının yazdığı paragrafı analiz edip, madde madde görev listesine dönüştür.
+Sen bir görev planlama asistanısın. Kullanıcının yazdığı paragrafı analiz edip, madde madde görev listesine dönüştür ve her göreve uygun bir kategori ata.
+
+KATEGORİLER: ${categoryListForPrompt}
 
 KURALLAR:
 1. Her görev kısa ve net olmalı (maksimum 50 karakter)
 2. Sadece görev başlıklarını ver, açıklama ekleme
 3. En az 2, en fazla 10 görev üret
-4. JSON formatında döndür: ["görev 1", "görev 2", ...]
-5. Sadece JSON array döndür, başka bir şey yazma
+4. Her göreve yukarıdaki kategorilerden en uygun olanını ata
+5. Eğer hiçbir kategori uymuyorsa "diger" ata
+6. JSON formatında döndür: [{"title": "görev", "category": "kategori_id"}, ...]
+7. Sadece JSON array döndür, başka bir şey yazma
 
 Paragraf: "${paragraph}"
 
@@ -87,11 +95,22 @@ Görev listesi (sadece JSON array):`;
       throw new Error('Geçersiz görev listesi');
     }
 
-    // Görevleri temizle ve limitele
+    // Validasyonlu dönüşüm — hem eski format (string[]) hem yeni format desteklenir
+    const validCategoryIds = TASK_CATEGORIES.map(c => c.id);
     return tasks
-      .filter((task: any) => typeof task === 'string' && task.trim().length > 0)
-      .map((task: string) => task.trim().substring(0, 100))
-      .slice(0, 10); // Max 10 görev
+      .map((task: any) => {
+        if (typeof task === 'string') {
+          // Eski format backward compat
+          return { title: task.trim(), category: 'diger' };
+        }
+        if (task && typeof task.title === 'string') {
+          const cat = validCategoryIds.includes(task.category) ? task.category : 'diger';
+          return { title: task.title.trim().substring(0, 100), category: cat };
+        }
+        return null;
+      })
+      .filter((t: any): t is { title: string; category: string } => t !== null && t.title.length > 0)
+      .slice(0, 10);
 
   } catch (error: any) {
     console.error('AI Servis Hatası:', error);
