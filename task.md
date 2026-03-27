@@ -19,13 +19,13 @@
 - [x] **Dark mode tutarlılığı** — Tüm ekranlarda dark mode desteği sağlandı ve Light Mode için çok daha soft, profesyonel pastel tonlar tanımlandı ✅
 
 ## 4. Yeni Özellikler
-- [ ] Görev düzenleme (başlık edit)
+- [x] Görev düzenleme (başlık edit, kategori, not)
 - [ ] Görev sıralama (drag & drop veya yukarı/aşağı butonlar)
-- [ ] Arama / filtreleme
-- [ ] Görev kategorileri
-- [ ] Onboarding ekranı
+- [x] Arama / filtreleme (büyük-küçük harf duyarsız, kategori seçimi)
+- [x] Görev kategorileri (AI ile oto-atama, manuel düzenleme)
+- [x] Onboarding ekranı (isim alma ve gender seçimi animasyonlu ekran)
 - [ ] Haftalık/aylık takvim görünümü
-- [ ] Veri yedekleme / dışa aktarma
+- [x] Veri yedekleme / dışa aktarma (JSON/CSV İndir, Dashboard Resmi Paylaş)
 - [ ] Widget desteği
 
 ## 5. Teknik Borç
