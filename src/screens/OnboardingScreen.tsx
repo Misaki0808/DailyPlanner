@@ -26,7 +26,7 @@ const SLIDES = [
   {
     emoji: '🤖',
     title: 'Yapay Zeka Destekli',
-    description: 'Görevlerini paragraf olarak yaz, AI otomatik olarak madde madde listeye ve kategorilere dönüştürsün.',
+    description: 'Görevlerini sesli kaydet veya paragraf olarak yaz, AI otomatik olarak madde madde listeye ve kategorilere dönüştürsün.',
   },
   {
     emoji: '📊',
@@ -40,16 +40,18 @@ interface OnboardingScreenProps {
 }
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
-  const { setUsername, setGender, theme } = useApp();
+  const { setUsername, setGender, theme, saveAboutMe } = useApp();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [name, setName] = useState('');
   const [selectedGender, setSelectedGender] = useState<Gender>('male');
+  const [aboutMe, setAboutMe] = useState('');
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const isSlidePhase = currentSlide < SLIDES.length;
   const isNamePhase = currentSlide === SLIDES.length;
   const isGenderPhase = currentSlide === SLIDES.length + 1;
+  const isAboutMePhase = currentSlide === SLIDES.length + 2;
 
   const animateTransition = (nextSlide: number) => {
     Animated.sequence([
@@ -68,6 +70,8 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       if (name.trim().length < 2) return;
       animateTransition(currentSlide + 1);
     } else if (isGenderPhase) {
+      animateTransition(currentSlide + 1);
+    } else if (isAboutMePhase) {
       handleComplete();
     }
   };
@@ -79,6 +83,9 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const handleComplete = async () => {
     await setUsername(name.trim());
     await setGender(selectedGender);
+    if (aboutMe.trim().length > 0) {
+      await saveAboutMe(aboutMe.trim());
+    }
     onComplete();
   };
 
@@ -151,9 +158,29 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     </View>
   );
 
-  const canProceed = isSlidePhase || (isNamePhase && name.trim().length >= 2) || isGenderPhase;
-  const totalSteps = SLIDES.length + 2;
-  const buttonText = isGenderPhase ? '🚀 Başla!' : 'Devam →';
+  const renderAboutMeInput = () => (
+    <View style={styles.slideContainer}>
+      <Text style={styles.slideEmoji}>🧠</Text>
+      <Text style={[styles.slideTitle, { color: theme.text }]}>Kendinden Bahset!</Text>
+      <Text style={[styles.slideDesc, { color: theme.textSecondary }]}>
+        Görevlerini daha doğru kategorize etmemizi istersen bizi bilgilendir. (Bölümün, derslerin, ilgi alanların vs.)
+      </Text>
+      <TextInput
+        style={[styles.aboutMeInput, { color: theme.text, backgroundColor: theme.accentLight, borderColor: theme.border }]}
+        placeholder={'Örnek:\n• Bilgisayar Mühendisliği öğrencisiyim\n• Derslerim: Mobil Uygulama Geliştirme, Algoritma\n• Freelance web geliştirme yapıyorum'}
+        placeholderTextColor={theme.textMuted}
+        value={aboutMe}
+        onChangeText={setAboutMe}
+        multiline
+        numberOfLines={5}
+        textAlignVertical="top"
+      />
+    </View>
+  );
+
+  const canProceed = isSlidePhase || (isNamePhase && name.trim().length >= 2) || isGenderPhase || isAboutMePhase;
+  const totalSteps = SLIDES.length + 3;
+  const buttonText = isAboutMePhase ? '🚀 Başla!' : 'Devam →';
 
   return (
     <LinearGradient
@@ -178,6 +205,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           {isSlidePhase && renderSlide()}
           {isNamePhase && renderNameInput()}
           {isGenderPhase && renderGenderSelect()}
+          {isAboutMePhase && renderAboutMeInput()}
         </Animated.View>
 
         {/* İlerleme noktaları */}
@@ -320,5 +348,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+  },
+  aboutMeInput: {
+    width: '100%',
+    minWidth: 320,
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 24,
+    borderWidth: 1,
+    minHeight: 120,
   },
 });
