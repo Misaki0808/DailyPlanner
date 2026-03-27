@@ -23,7 +23,7 @@ import DateNavigation from '../components/planner/DateNavigation';
 import FlexibleTaskPool from '../components/planner/FlexibleTaskPool';
 import ActionButtonsBar from '../components/planner/ActionButtonsBar';
 import DayStatsBar from '../components/planner/DayStatsBar';
-import { getCategoryEmoji, getCategoryLabel, getCategoryColor } from '../utils/categories';
+import { getCategoryEmoji, getCategoryLabel, getCategoryColor, TASK_CATEGORIES } from '../utils/categories';
 import { formatDateDisplay as formatDisplay } from '../utils/dateUtils';
 
 // Sadece native platformlarda import et
@@ -50,6 +50,8 @@ export default function MultiDayViewScreen() {
   const undoAnim = useRef(new RNAnimated.Value(0)).current;
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilterCats, setSelectedFilterCats] = useState<string[]>([]);
+  const [showCatFilter, setShowCatFilter] = useState(false);
 
   // Seçilen tarih değiştiğinde görevleri güncelle
   useEffect(() => {
@@ -348,7 +350,7 @@ export default function MultiDayViewScreen() {
               <Text style={styles.searchBarIcon}>🔍</Text>
               <TextInput
                 style={[styles.searchInput, { color: theme.text }]}
-                placeholder="Görev ara..."
+                placeholder="Görev veya kategori ara..."
                 placeholderTextColor={theme.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -359,16 +361,68 @@ export default function MultiDayViewScreen() {
                   <Text style={[styles.searchClear, { color: theme.textMuted }]}>✕</Text>
                 </TouchableOpacity>
               )}
+              <TouchableOpacity
+                style={[styles.filterToggle, showCatFilter && { backgroundColor: theme.accent + '30' }]}
+                onPress={() => setShowCatFilter(!showCatFilter)}
+              >
+                <Text style={styles.filterToggleIcon}>⚙️</Text>
+              </TouchableOpacity>
             </View>
           )}
 
+          {/* Kategori Filtreleri */}
+          {isSearchMode && showCatFilter && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catFilterRow}>
+              {TASK_CATEGORIES.map(cat => {
+                const isActive = selectedFilterCats.includes(cat.id);
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.catFilterChip,
+                      { borderColor: cat.color + '60', backgroundColor: isActive ? cat.color + '30' : theme.accentLight },
+                      isActive && { borderColor: cat.color },
+                    ]}
+                    onPress={() => {
+                      setSelectedFilterCats(prev =>
+                        prev.includes(cat.id)
+                          ? prev.filter(c => c !== cat.id)
+                          : [...prev, cat.id]
+                      );
+                    }}
+                  >
+                    <Text style={styles.catFilterEmoji}>{cat.emoji}</Text>
+                    <Text style={[styles.catFilterLabel, { color: isActive ? cat.color : theme.textSecondary }]}>{cat.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+
           {/* Arama Sonuçları */}
-          {isSearchMode && searchQuery.length > 1 && (() => {
-            const query = searchQuery.toLowerCase();
+          {isSearchMode && (searchQuery.length > 1 || selectedFilterCats.length > 0) && (() => {
+            const query = searchQuery.toLowerCase().trim();
             const results: { date: string; task: Task }[] = [];
             Object.entries(plans).forEach(([date, tasks]) => {
               tasks.forEach(task => {
-                if (task.title.toLowerCase().includes(query) || task.note?.toLowerCase().includes(query)) {
+                // Kategori filtresi aktifse önce kontrol et
+                if (selectedFilterCats.length > 0 && !selectedFilterCats.includes(task.category || 'diger')) {
+                  return;
+                }
+
+                // Metin araması (boş query + aktif filtre = tüm filtrelenen görevleri göster)
+                if (query.length <= 1) {
+                  results.push({ date, task });
+                  return;
+                }
+
+                // Büyük/küçük harf duyarsız arama + kategori label eşleşmesi
+                const catLabel = getCategoryLabel(task.category).toLowerCase();
+                if (
+                  task.title.toLowerCase().includes(query) ||
+                  task.note?.toLowerCase().includes(query) ||
+                  catLabel.includes(query)
+                ) {
                   results.push({ date, task });
                 }
               });
@@ -386,7 +440,7 @@ export default function MultiDayViewScreen() {
 
             return (
               <ScrollView style={[styles.searchResults, { backgroundColor: theme.cardBackground, borderColor: theme.border }]} nestedScrollEnabled>
-                {results.slice(0, 20).map((r, i) => (
+                {results.slice(0, 30).map((r, i) => (
                   <TouchableOpacity
                     key={`${r.date}-${r.task.id}-${i}`}
                     style={[styles.searchResultItem, { borderBottomColor: theme.border }]}
@@ -394,6 +448,8 @@ export default function MultiDayViewScreen() {
                       setSelectedDate(r.date);
                       setIsSearchMode(false);
                       setSearchQuery('');
+                      setSelectedFilterCats([]);
+                      setShowCatFilter(false);
                     }}
                   >
                     <View style={{ flex: 1 }}>
@@ -676,5 +732,36 @@ const styles = StyleSheet.create({
   searchResultArrow: {
     fontSize: 24,
     marginLeft: 8,
+  },
+  filterToggle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  filterToggleIcon: {
+    fontSize: 16,
+  },
+  catFilterRow: {
+    gap: 8,
+    paddingVertical: 10,
+  },
+  catFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 2,
+    gap: 4,
+  },
+  catFilterEmoji: {
+    fontSize: 13,
+  },
+  catFilterLabel: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
