@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,10 @@ import WeeklyStatsChart from '../WeeklyStatsChart';
 import { generateWeeklySummary, checkApiKey } from '../../utils/aiService';
 import { getToday, addDays } from '../../utils/dateUtils';
 import { useApp } from '../../context/AppContext';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import { getCategoryLabel } from '../../utils/categories';
 
 interface StatsSectionProps {
   plans: Plans;
@@ -24,6 +28,7 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
   const themed = createSharedStyles(theme);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const dashboardRef = useRef<View>(null);
 
   const calculateStats = () => {
     const planDates = Object.keys(plans);
@@ -60,47 +65,99 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
     }
   };
 
+  const handleShareDashboard = async () => {
+    try {
+      if (dashboardRef.current) {
+        const uri = await captureRef(dashboardRef, {
+          format: 'png',
+          quality: 0.9,
+        });
+        await Sharing.shareAsync(uri, { dialogTitle: 'DailyPlanner İstatistiklerim' });
+      }
+    } catch (error) {
+      Alert.alert('Hata', 'Dashboard resmi oluşturulurken bir hata oluştu');
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      // CSV Header
+      let csvString = 'Tarih,Gorev Basligi,Oncelik,Kategori,Durum,Not\n';
+      
+      const dates = Object.keys(plans).sort((a, b) => b.localeCompare(a));
+      
+      dates.forEach(date => {
+        const tasks = plans[date];
+        tasks.forEach(task => {
+          // Virgülden kaynaklanacak sorunları çözmek için başlığı vb tırnak içine alıyoruz
+          const safeTitle = `"${(task.title || '').replace(/"/g, '""')}"`;
+          const priority = task.priority || 'low';
+          const category = getCategoryLabel(task.category || 'diger');
+          const isDone = task.done ? 'Tamamlandi' : 'Bekliyor';
+          const safeNote = `"${(task.note || '').replace(/"/g, '""')}"`;
+          
+          csvString += `${date},${safeTitle},${priority},${category},${isDone},${safeNote}\n`;
+        });
+      });
+
+      const fileName = `DailyPlanner_DisaAktarim_${getToday()}.csv`;
+      const FS = FileSystem as any; // TS hata çözüm için type cast
+      const fileUri = `${FS.cacheDirectory || FS.documentDirectory}${fileName}`;
+      await FS.writeAsStringAsync(fileUri, csvString, { encoding: FS.EncodingType.UTF8 });
+      
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'text/csv',
+        dialogTitle: 'Planları Excel (CSV) Olarak Aktar',
+        UTI: 'public.comma-separated-values-text'
+      });
+    } catch (error) {
+      Alert.alert('Hata', 'Excel (CSV) dosyası oluşturulurken hata meydan geldi');
+    }
+  };
+
   const stats = calculateStats();
 
   return (
     <View style={styles.statsSection}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>📊 İstatistikler</Text>
 
-      <View style={styles.statsGrid}>
-        <View style={styles.statCardWrapper}>
-          <LinearGradient colors={theme.accentGradient} style={styles.statCardGradient}>
-            <Text style={styles.statValue}>{stats.totalPlans}</Text>
-            <Text style={styles.statLabel}>Toplam Plan</Text>
-          </LinearGradient>
-        </View>
-
-        <View style={styles.statCardWrapper}>
-          <LinearGradient colors={theme.pinkGradient} style={styles.statCardGradient}>
-            <Text style={styles.statValue}>{stats.totalTasks}</Text>
-            <Text style={styles.statLabel}>Toplam Görev</Text>
-          </LinearGradient>
-        </View>
-
-        <View style={styles.statCardWrapper}>
-          <LinearGradient colors={theme.blueGradient} style={styles.statCardGradient}>
-            <Text style={styles.statValue}>{stats.completedTasks}</Text>
-            <Text style={styles.statLabel}>Tamamlanan</Text>
-          </LinearGradient>
-        </View>
-
-        {stats.totalTasks > 0 && (
+      <View collapsable={false} ref={dashboardRef} style={{ backgroundColor: theme.background, paddingVertical: 10, borderRadius: 16 }}>
+        <View style={styles.statsGrid}>
           <View style={styles.statCardWrapper}>
-            <LinearGradient colors={theme.successGradient} style={styles.statCardGradient}>
-              <Text style={styles.statValue}>
-                {Math.round((stats.completedTasks / stats.totalTasks) * 100)}%
-              </Text>
-              <Text style={styles.statLabel}>Başarı Oranı</Text>
+            <LinearGradient colors={theme.accentGradient} style={styles.statCardGradient}>
+              <Text style={styles.statValue}>{stats.totalPlans}</Text>
+              <Text style={styles.statLabel}>Toplam Plan</Text>
             </LinearGradient>
           </View>
-        )}
-      </View>
 
-      <WeeklyStatsChart plans={plans} />
+          <View style={styles.statCardWrapper}>
+            <LinearGradient colors={theme.pinkGradient} style={styles.statCardGradient}>
+              <Text style={styles.statValue}>{stats.totalTasks}</Text>
+              <Text style={styles.statLabel}>Toplam Görev</Text>
+            </LinearGradient>
+          </View>
+
+          <View style={styles.statCardWrapper}>
+            <LinearGradient colors={theme.blueGradient} style={styles.statCardGradient}>
+              <Text style={styles.statValue}>{stats.completedTasks}</Text>
+              <Text style={styles.statLabel}>Tamamlanan</Text>
+            </LinearGradient>
+          </View>
+
+          {stats.totalTasks > 0 && (
+            <View style={styles.statCardWrapper}>
+              <LinearGradient colors={theme.successGradient} style={styles.statCardGradient}>
+                <Text style={styles.statValue}>
+                  {Math.round((stats.completedTasks / stats.totalTasks) * 100)}%
+                </Text>
+                <Text style={styles.statLabel}>Başarı Oranı</Text>
+              </LinearGradient>
+            </View>
+          )}
+        </View>
+
+        <WeeklyStatsChart plans={plans} />
+      </View>
 
       {/* AI Analiz */}
       <View style={{ marginTop: 24 }}>
@@ -138,6 +195,34 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
               </TouchableOpacity>
             </View>
           )}
+        </View>
+      </View>
+
+      {/* Dışa Aktarım Butonları */}
+      <View style={styles.exportSection}>
+        <Text style={[styles.sectionTitle, { color: theme.text, marginTop: 20 }]}>📤 Veriyi Dışa Aktar</Text>
+        <View style={styles.exportRow}>
+          <TouchableOpacity onPress={handleShareDashboard} style={styles.exportButtonContainer}>
+            <LinearGradient
+              colors={theme.blueGradient}
+              style={styles.exportButtonGradient}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.exportButtonIcon}>📸</Text>
+              <Text style={styles.exportButtonText}>Dashboard'u Paylaş</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleExportCSV} style={styles.exportButtonContainer}>
+            <LinearGradient
+              colors={theme.successGradient}
+              style={styles.exportButtonGradient}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.exportButtonIcon}>📊</Text>
+              <Text style={styles.exportButtonText}>Excel Olarak İndir</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -178,6 +263,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  exportSection: {
+    marginTop: 10,
+  },
+  exportRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  exportButtonContainer: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  exportButtonGradient: {
+    padding: 16,
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  exportButtonIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  exportButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
     textAlign: 'center',
   },
 });
