@@ -16,7 +16,7 @@ import { useApp } from '../../context/AppContext';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
-import { getCategoryLabel } from '../../utils/categories';
+import { getCategoryLabel, TASK_CATEGORIES, getCategoryColor, getCategoryEmoji } from '../../utils/categories';
 
 interface StatsSectionProps {
   plans: Plans;
@@ -35,12 +35,24 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
     const totalPlans = planDates.length;
     let totalTasks = 0;
     let completedTasks = 0;
+    const categoryCounts: Record<string, { total: number; completed: number }> = {};
+
     planDates.forEach(date => {
       const tasks = plans[date] || [];
-      totalTasks += tasks.length;
-      completedTasks += tasks.filter(task => task.done).length;
+      tasks.forEach(task => {
+        totalTasks++;
+        if (task.done) completedTasks++;
+
+        // Kategori dağılımını hesaplama
+        const cat = task.category || 'diger';
+        if (!categoryCounts[cat]) {
+          categoryCounts[cat] = { total: 0, completed: 0 };
+        }
+        categoryCounts[cat].total++;
+        if (task.done) categoryCounts[cat].completed++;
+      });
     });
-    return { totalPlans, totalTasks, completedTasks };
+    return { totalPlans, totalTasks, completedTasks, categoryCounts };
   };
 
   const handleAnalyzeWeek = async () => {
@@ -155,6 +167,36 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
             </View>
           )}
         </View>
+
+        {/* Kategorilere Göre Dağılım */}
+        {stats.totalTasks > 0 && Object.keys(stats.categoryCounts).length > 0 && (
+          <View style={[styles.categoryDistributionContainer, { borderColor: theme.border, backgroundColor: theme.cardBackground }]}>
+            <Text style={[styles.categoryDistributionTitle, { color: theme.text }]}>🏷️ Kategori Dağılımı</Text>
+            <View style={styles.categoryList}>
+              {Object.entries(stats.categoryCounts)
+                .sort((a, b) => b[1].total - a[1].total)
+                .map(([catId, counts]) => {
+                  const catDef = TASK_CATEGORIES.find(c => c.id === catId);
+                  if (!catDef) return null;
+                  const percent = Math.round((counts.completed / counts.total) * 100) || 0;
+                  return (
+                    <View key={catId} style={styles.categoryItem}>
+                      <View style={styles.categoryItemHeader}>
+                        <Text style={[styles.categoryItemLabel, { color: theme.text }]}>
+                          {catDef.emoji} {catDef.label} <Text style={{ color: theme.textSecondary, fontSize: 12 }}>({counts.total})</Text>
+                        </Text>
+                        <Text style={[styles.categoryItemPercent, { color: catDef.color }]}>{percent}% <Text style={{ color: theme.textSecondary, fontSize: 11 }}>tamamlandı</Text></Text>
+                      </View>
+                      <View style={[styles.progressBarBg, { backgroundColor: catDef.color + '20' }]}>
+                        <View style={[styles.progressBarFill, { width: `${percent}%`, backgroundColor: catDef.color }]} />
+                      </View>
+                    </View>
+                  );
+                })
+              }
+            </View>
+          </View>
+        )}
 
         <WeeklyStatsChart plans={plans} />
       </View>
@@ -291,5 +333,46 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  categoryDistributionContainer: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  categoryDistributionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  categoryList: {
+    gap: 12,
+  },
+  categoryItem: {
+    width: '100%',
+  },
+  categoryItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  categoryItemLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  categoryItemPercent: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  progressBarBg: {
+    height: 6,
+    borderRadius: 3,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 });
