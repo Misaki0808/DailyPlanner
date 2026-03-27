@@ -7,7 +7,8 @@ import { AppProvider, useApp } from './src/context/AppContext';
 import { DrawerProvider, useDrawer } from './src/context/DrawerContext';
 import JSDrawer from './src/components/JSDrawer';
 import Svg, { Line } from 'react-native-svg';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 
 // Ekranlar
 import CreatePlanScreen from './src/screens/CreatePlanScreen';
@@ -37,7 +38,8 @@ import { navigationRef } from './src/utils/navigationRef';
 
 // Ana uygulama içeriği
 function AppContent() {
-  const { isLoading, theme, settings } = useApp();
+  const { isLoading, theme, settings, username } = useApp();
+  const [onboardingDone, setOnboardingDone] = useState(false);
 
   // Web için global stil ayarı
   useEffect(() => {
@@ -83,6 +85,13 @@ function AppContent() {
     },
     headerLeft: () => <MenuButton />, // Her ekranda menü butonu
   };
+
+  // Onboarding: username yoksa ilk kullanım
+  if (!username && !onboardingDone) {
+    return (
+      <OnboardingScreen onComplete={() => setOnboardingDone(true)} />
+    );
+  }
 
   return (
     <NavigationContainer ref={navigationRef}>
