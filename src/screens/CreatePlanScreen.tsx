@@ -20,10 +20,11 @@ import CalendarModal from '../components/CalendarModal';
 import SuccessModal from '../components/SuccessModal';
 import VoiceInputButton from '../components/VoiceInputButton';
 import { createSharedStyles } from '../utils/sharedStyles';
-import NoteEditModal from '../components/NoteEditModal';
+import TaskEditModal from '../components/TaskEditModal';
+import { getCategoryEmoji, getCategoryLabel, getCategoryColor } from '../utils/categories';
 
 export default function CreatePlanScreen() {
-  const { plans, savePlan, settings, theme, recurringTasks } = useApp();
+  const { plans, savePlan, settings, theme, recurringTasks, aboutMe } = useApp();
   const themed = createSharedStyles(theme);
 
   // State'ler
@@ -170,7 +171,7 @@ export default function CreatePlanScreen() {
     setIsAiLoading(true);
 
     try {
-      const aiTasks = await convertParagraphToTasks(paragraphInput);
+      const aiTasks = await convertParagraphToTasks(paragraphInput, aboutMe || undefined);
 
       // AI'dan gelen görevleri Task formatına çevir (kategori atamalı)
       const newTasks: Task[] = aiTasks.map((item) => ({
@@ -379,6 +380,13 @@ export default function CreatePlanScreen() {
                           onPress={() => setEditingNoteTaskId(task.id)}
                         >
                           <Text style={[styles.taskTitle, { color: theme.text }]}>{task.title}</Text>
+                          {task.category && (
+                            <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(task.category) + '25' }]}>
+                              <Text style={[styles.categoryBadgeText, { color: getCategoryColor(task.category) }]}>
+                                {getCategoryEmoji(task.category)} {getCategoryLabel(task.category)}
+                              </Text>
+                            </View>
+                          )}
                           {task.note && <Text style={[styles.taskNoteHint, { color: theme.textMuted }]}>📝 {task.note}</Text>}
                         </TouchableOpacity>
 
@@ -396,19 +404,20 @@ export default function CreatePlanScreen() {
             </View>
           )}
 
-          {/* Not Düzenleme Modalı */}
-          <NoteEditModal
+          {/* Görev Düzenleme Modalı */}
+          <TaskEditModal
             visible={editingNoteTaskId !== null}
-            taskTitle={tasks.find(t => t.id === editingNoteTaskId)?.title || ''}
-            currentNote={tasks.find(t => t.id === editingNoteTaskId)?.note || ''}
-            onSave={(note) => {
+            task={tasks.find(t => t.id === editingNoteTaskId) || { id: '', title: '', done: false }}
+            onSave={(updates) => {
               if (editingNoteTaskId) {
-                setTasks(prev => prev.map(t => t.id === editingNoteTaskId ? { ...t, note } : t));
-              }
-            }}
-            onDelete={() => {
-              if (editingNoteTaskId) {
-                setTasks(prev => prev.map(t => t.id === editingNoteTaskId ? { ...t, note: undefined } : t));
+                setTasks(prev => prev.map(t => {
+                  if (t.id !== editingNoteTaskId) return t;
+                  const updated = { ...t };
+                  if (updates.title) updated.title = updates.title;
+                  if (updates.note !== undefined) updated.note = updates.note;
+                  if (updates.category) updated.category = updates.category;
+                  return updated;
+                }));
               }
             }}
             onClose={() => setEditingNoteTaskId(null)}
@@ -658,5 +667,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
     fontStyle: 'italic',
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  categoryBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

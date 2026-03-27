@@ -11,6 +11,7 @@ import ProfileSection from '../components/settings/ProfileSection';
 import StatsSection from '../components/settings/StatsSection';
 import RecurringTasksSection from '../components/settings/RecurringTasksSection';
 import PreferencesSection from '../components/settings/PreferencesSection';
+import AboutMeSection from '../components/settings/AboutMeSection';
 
 export default function SettingsScreen() {
   const {
@@ -57,6 +58,8 @@ export default function SettingsScreen() {
             onSaveUsername={setUsername}
             onChangeGender={handleGenderChange}
           />
+
+          <AboutMeSection />
 
           <StatsSection
             plans={plans}

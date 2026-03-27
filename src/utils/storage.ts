@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   SETTINGS: '@daily_planner_settings',
   RECURRING_TASKS: '@daily_planner_recurring_tasks',
   LAST_RECURRING_SYNC: '@daily_planner_last_recurring_sync',
+  ABOUT_ME: '@daily_planner_about_me',
 };
 
 /**
@@ -279,5 +280,27 @@ export const cleanOldPlans = async (daysThreshold: number = 90) => {
   } catch (error) {
     console.error('Eski planlar temizlenirken hata:', error);
     return false;
+  }
+};
+
+// "Hakkımda" metnini kaydet
+export const saveAboutMe = async (text: string): Promise<boolean> => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.ABOUT_ME, text);
+    return true;
+  } catch (error) {
+    console.error('Hakkımda kaydedilirken hata:', error);
+    return false;
+  }
+};
+
+// "Hakkımda" metnini getir
+export const getAboutMe = async (): Promise<string> => {
+  try {
+    const text = await AsyncStorage.getItem(STORAGE_KEYS.ABOUT_ME);
+    return text || '';
+  } catch (error) {
+    console.error('Hakkımda okunurken hata:', error);
+    return '';
   }
 };

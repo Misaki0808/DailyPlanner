@@ -16,18 +16,24 @@ const categoryListForPrompt = TASK_CATEGORIES.map(c => `"${c.id}" (${c.label})`)
 /**
  * AI ile paragrafı görev listesine çevir (kategori atamalı)
  * @param paragraph - Kullanıcının yazdığı paragraf
+ * @param aboutMe - Kullanıcının "Hakkımda" bilgisi (opsiyonel)
  * @returns Task bilgileri (title + category)
  */
-export const convertParagraphToTasks = async (paragraph: string): Promise<{ title: string; category: string }[]> => {
+export const convertParagraphToTasks = async (paragraph: string, aboutMe?: string): Promise<{ title: string; category: string }[]> => {
   // API key kontrolü
   if (!GEMINI_API_KEY) {
     throw new Error('API key bulunamadı. Lütfen .env dosyasını kontrol edin.');
   }
 
+  // Kullanıcı bağlamı
+  const userContext = aboutMe
+    ? `\nKULLANICI HAKKINDA BİLGİ:\n${aboutMe}\nBu bilgiyi görevlerin kategorisini belirlerken dikkate al. Örneğin kullanıcı ders isimleri paylaştıysa, o derslerle ilgili görevleri "okul" kategorisine ata.\n`
+    : '';
+
   // Prompt oluştur (Türkçe, açık talimatlar)
   const prompt = `
 Sen bir görev planlama asistanısın. Kullanıcının yazdığı paragrafı analiz edip, madde madde görev listesine dönüştür ve her göreve uygun bir kategori ata.
-
+${userContext}
 KATEGORİLER: ${categoryListForPrompt}
 
 KURALLAR:

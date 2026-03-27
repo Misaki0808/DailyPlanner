@@ -16,6 +16,7 @@ export interface AppContextType {
   theme: Theme;
   isLoading: boolean;
   recurringTasks: RecurringTask[];
+  aboutMe: string;
   savePlan: (date: string, tasks: Task[]) => Promise<void>;
   deletePlan: (date: string) => Promise<void>;
   updateTask: (date: string, taskId: string, done: boolean) => Promise<void>;
@@ -26,6 +27,7 @@ export interface AppContextType {
   addRecurringTask: (task: Omit<RecurringTask, 'id' | 'createdAt'>) => Promise<void>;
   removeRecurringTask: (id: string) => Promise<void>;
   toggleRecurringTask: (id: string) => Promise<void>;
+  saveAboutMe: (text: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -44,6 +46,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   } = useRecurringTasks(setPlans);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [aboutMe, setAboutMeState] = useState('');
 
   useEffect(() => {
     loadData();
@@ -54,12 +57,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       // 90 günden eski planları otomatik temizle (uygulama boyutunu korumak için)
       await storage.cleanOldPlans(90);
 
-      const [savedPlans, savedUsername, savedGender, savedSettings, savedRecurring] = await Promise.all([
+      const [savedPlans, savedUsername, savedGender, savedSettings, savedRecurring, savedAboutMe] = await Promise.all([
         storage.getAllPlans(),
         storage.getUserName(),
         storage.getGender(),
         storage.getSettings(),
         storage.getRecurringTasks(),
+        storage.getAboutMe(),
       ]);
 
       setPlans(savedPlans);
@@ -67,6 +71,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setGenderState((savedGender as Gender) || 'male');
       if (savedSettings) setSettings(savedSettings);
       setRecurringTasks(savedRecurring);
+      setAboutMeState(savedAboutMe);
 
       await syncRecurringTasks(getToday(), savedRecurring, savedPlans);
     } catch (error) {
@@ -78,6 +83,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const theme = getTheme(settings?.darkMode ?? true);
 
+  const handleSaveAboutMe = async (text: string) => {
+    setAboutMeState(text);
+    await storage.saveAboutMe(text);
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -88,6 +98,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         theme,
         isLoading,
         recurringTasks,
+        aboutMe,
         savePlan,
         deletePlan,
         updateTask,
@@ -98,6 +109,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         addRecurringTask,
         removeRecurringTask,
         toggleRecurringTask,
+        saveAboutMe: handleSaveAboutMe,
       }}
     >
       {children}
