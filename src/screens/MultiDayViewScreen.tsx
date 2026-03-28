@@ -89,7 +89,7 @@ export default function MultiDayViewScreen() {
   // Görev durumunu değiştir
   const toggleTaskDone = async (taskId: string, currentDone: boolean) => {
     try {
-      await updateTask(selectedDate, taskId, !currentDone);
+      await updateTask(selectedDate, taskId, { done: !currentDone });
   
     } catch (error) {
       console.error('Görev güncellenirken hata:', error);

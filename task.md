@@ -24,7 +24,7 @@
 - [x] Arama / filtreleme (büyük-küçük harf duyarsız, kategori seçimi)
 - [x] Görev kategorileri (AI ile oto-atama, manuel düzenleme)
 - [x] Onboarding ekranı (isim alma ve gender seçimi animasyonlu ekran)
-- [ ] Haftalık/aylık takvim görünümü
+- [x] Haftalık/aylık takvim görünümü
 - [x] Veri yedekleme / dışa aktarma (JSON/CSV İndir, Dashboard Resmi Paylaş)
 - [ ] Widget desteği
 

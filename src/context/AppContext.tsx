@@ -19,7 +19,7 @@ export interface AppContextType {
   aboutMe: string;
   savePlan: (date: string, tasks: Task[]) => Promise<void>;
   deletePlan: (date: string) => Promise<void>;
-  updateTask: (date: string, taskId: string, done: boolean) => Promise<void>;
+  updateTask: (date: string, taskId: string, updates: Partial<Task>) => Promise<void>;
   setUsername: (name: string) => Promise<void>;
   setGender: (gender: Gender) => Promise<void>;
   updateSettings: (settings: Partial<Settings>) => Promise<void>;

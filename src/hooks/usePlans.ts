@@ -38,9 +38,9 @@ export const usePlans = () => {
     }
   };
 
-  const updateTask = async (date: string, taskId: string, done: boolean) => {
+  const updateTask = async (date: string, taskId: string, updates: Partial<Task>) => {
     try {
-      const updatedTasks = await storage.updateTask(date, taskId, { done });
+      const updatedTasks = await storage.updateTask(date, taskId, updates);
       if (updatedTasks) {
         setPlans(prev => ({ ...prev, [date]: updatedTasks }));
       }

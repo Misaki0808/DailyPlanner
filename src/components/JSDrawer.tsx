@@ -159,6 +159,14 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
                         theme={theme}
                     />
                     <MenuItem
+                        label="Aylık Takvim"
+                        icon="🗓️"
+                        targetScreen="Calendar"
+                        isActive={activeRouteName === 'Calendar'}
+                        onPress={() => navigateTo('Calendar')}
+                        theme={theme}
+                    />
+                    <MenuItem
                         label="Genel Bakış"
                         icon="🔍"
                         targetScreen="PlanOverview"

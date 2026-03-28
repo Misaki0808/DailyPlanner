@@ -11,6 +11,7 @@ import {
 import { Settings } from '../../types';
 import { createSharedStyles } from '../../utils/sharedStyles';
 import { useApp } from '../../context/AppContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   scheduleDailyNotification,
   cancelAllNotifications,
@@ -83,6 +84,29 @@ export default function PreferencesSection({
     } else {
       Alert.alert('Başarılı', 'Bildirim saati kaydedildi. Bildirimleri açtığınızda bu saat kullanılacak.');
     }
+  };
+
+  // Tüm Verileri Sıfırla
+  const handleClearData = () => {
+    Alert.alert(
+      '⚠️ Tüm Verileri Sıfırla',
+      'Emin misin? Girdiğin görevler, ismin, sistem kayıtları ve istatistikler kalıcı olarak silinecek. (Test etmek için bu işlemi yapıyorsan Onaylaya bas).',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        { 
+          text: 'Evet, Sıfırla', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.clear();
+              Alert.alert('Sıfırlandı!', 'Lütfen uygulamayı yeniden başlatın (Terminalde r tuşuna basabilirsin).');
+            } catch (error) {
+              Alert.alert('Hata', 'Veriler sıfırlanırken hata oluştu.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -204,6 +228,26 @@ export default function PreferencesSection({
             />
           </View>
         </View>
+
+        {/* --- TEHLİKELİ ALAN --- */}
+        <View style={{ marginTop: 32, marginBottom: 20 }}>
+          <Text style={[styles.sectionTitle, { color: '#ef4444', fontSize: 18 }]}>🚨 Veri Yönetimi</Text>
+          <TouchableOpacity 
+            style={[themed.glassCard, { backgroundColor: '#ef444420', borderColor: '#ef444450' }]} 
+            onPress={handleClearData}
+          >
+            <View style={styles.preferenceItem}>
+              <View style={styles.preferenceTextContainer}>
+                <Text style={[styles.preferenceTitle, { color: '#ef4444' }]}>Tüm Verileri Sıfırla</Text>
+                <Text style={[styles.preferenceDescription, { color: theme.textSecondary }]}>
+                  İsim, ayarlar, görevler silinir. Onboarding'i tekrar görmek için tıkla.
+                </Text>
+              </View>
+              <Text style={{ fontSize: 24 }}>🗑️</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
       </View>
     </View>
   );
