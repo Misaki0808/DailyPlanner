@@ -11,11 +11,13 @@ import { useApp } from '../../context/AppContext';
 interface DateNavigationProps {
   selectedDate: string;
   onChangeDate: (days: number) => void;
+  onOpenCalendar?: () => void;
 }
 
 export default function DateNavigation({
   selectedDate,
   onChangeDate,
+  onOpenCalendar,
 }: DateNavigationProps) {
   const { theme } = useApp();
 
@@ -29,14 +31,18 @@ export default function DateNavigation({
           <Text style={[styles.navButtonText, { color: theme.text }]}>←</Text>
         </TouchableOpacity>
 
-        <View style={styles.currentDateContainer}>
+        <TouchableOpacity
+          style={styles.currentDateContainer}
+          activeOpacity={0.7}
+          onPress={onOpenCalendar}
+        >
           <Text style={[styles.currentDate, { color: theme.text }]}>{formatDateDisplay(selectedDate)}</Text>
           {selectedDate === getToday() && (
             <View style={[styles.todayBadge, { backgroundColor: theme.success }]}>
               <Text style={styles.todayBadgeText}>BUGÜN</Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.navButton, { backgroundColor: theme.accentLight }]}

@@ -13,7 +13,6 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 // Ekranlar
 import CreatePlanScreen from './src/screens/CreatePlanScreen';
 import MultiDayViewScreen from './src/screens/MultiDayViewScreen';
-import CalendarScreen from './src/screens/CalendarScreen';
 import PlanOverviewScreen from './src/screens/PlanOverviewScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { RootTabParamList } from './src/types';
@@ -107,11 +106,6 @@ function AppContent() {
             name="MultiDayView"
             component={MultiDayViewScreen}
             options={{ title: '📅 Planlarım' }}
-          />
-          <Stack.Screen
-            name="Calendar"
-            component={CalendarScreen}
-            options={{ title: '🗓️ Aylık Takvim' }}
           />
           <Stack.Screen
             name="PlanOverview"

@@ -49,7 +49,6 @@ export interface Settings {
 export type RootTabParamList = {
   CreatePlan: undefined;
   MultiDayView: undefined;
-  Calendar: undefined;
   PlanOverview: undefined;
   Settings: undefined;
 };

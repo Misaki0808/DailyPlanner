@@ -20,6 +20,7 @@ import ShareModal from '../components/ShareModal';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import AnimatedTaskItem from '../components/AnimatedTaskItem';
 import DateNavigation from '../components/planner/DateNavigation';
+import MonthlyCalendarModal from '../components/planner/MonthlyCalendarModal';
 import FlexibleTaskPool from '../components/planner/FlexibleTaskPool';
 import ActionButtonsBar from '../components/planner/ActionButtonsBar';
 import DayStatsBar from '../components/planner/DayStatsBar';
@@ -49,6 +50,7 @@ export default function MultiDayViewScreen() {
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const undoAnim = useRef(new RNAnimated.Value(0)).current;
   const [isSearchMode, setIsSearchMode] = useState(false);
+  const [isCalendarVisible, setIsCalendarVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilterCats, setSelectedFilterCats] = useState<string[]>([]);
   const [showCatFilter, setShowCatFilter] = useState(false);
@@ -334,6 +336,7 @@ export default function MultiDayViewScreen() {
               <DateNavigation
                 selectedDate={selectedDate}
                 onChangeDate={changeDate}
+                onOpenCalendar={() => setIsCalendarVisible(true)}
               />
             </View>
             <TouchableOpacity
@@ -565,6 +568,12 @@ export default function MultiDayViewScreen() {
           sourceTasks={currentTasks}
           sourceDate={formatDateDisplay(selectedDate)}
           onCopy={handleCopyPlan}
+        />
+        <MonthlyCalendarModal
+          visible={isCalendarVisible}
+          onClose={() => setIsCalendarVisible(false)}
+          selectedDate={selectedDate}
+          onSelectDate={(newDate) => { setSelectedDate(newDate); setIsCalendarVisible(false); }}
         />
         <ShareModal
           visible={isShareModalVisible}
