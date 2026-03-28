@@ -247,10 +247,10 @@ export default function MultiDayViewScreen() {
     return flexibleTasks.map(rt => {
       let currentCount = 0;
       let isAddedToday = false;
-      const titleLower = rt.title.toLowerCase();
+      const titleLower = rt.title.toLocaleLowerCase('tr-TR');
       weekDates.forEach(date => {
         const dayTasks = plans[date] || [];
-        if (dayTasks.some(t => t.title.toLowerCase() === titleLower)) {
+        if (dayTasks.some(t => t.title.toLocaleLowerCase('tr-TR') === titleLower)) {
           currentCount++;
           if (date === selectedDate) isAddedToday = true;
         }
@@ -367,7 +367,7 @@ export default function MultiDayViewScreen() {
 
           {/* Arama Sonuçları */}
           {isFiltering && (() => {
-            const query = searchQuery.toLowerCase().trim();
+            const query = searchQuery.toLocaleLowerCase('tr-TR').trim();
             const results: { date: string; task: Task }[] = [];
             Object.entries(plans).forEach(([date, tasks]) => {
               tasks.forEach(task => {
@@ -383,10 +383,10 @@ export default function MultiDayViewScreen() {
                 }
 
                 // Büyük/küçük harf duyarsız arama + kategori label eşleşmesi
-                const catLabel = getCategoryLabel(task.category).toLowerCase();
+                const catLabel = getCategoryLabel(task.category).toLocaleLowerCase('tr-TR');
                 if (
-                  task.title.toLowerCase().includes(query) ||
-                  task.note?.toLowerCase().includes(query) ||
+                  task.title.toLocaleLowerCase('tr-TR').includes(query) ||
+                  task.note?.toLocaleLowerCase('tr-TR').includes(query) ||
                   catLabel.includes(query)
                 ) {
                   results.push({ date, task });
