@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
+import { useNavigation } from '@react-navigation/native';
 import { formatDateDisplay, getToday, addDays } from '../utils/dateUtils';
 import { Task } from '../types';
 import CopyPlanModal from '../components/CopyPlanModal';
@@ -24,6 +25,7 @@ import MonthlyCalendarModal from '../components/planner/MonthlyCalendarModal';
 import FlexibleTaskPool from '../components/planner/FlexibleTaskPool';
 import ActionButtonsBar from '../components/planner/ActionButtonsBar';
 import DayStatsBar from '../components/planner/DayStatsBar';
+import SearchFilterModal from '../components/planner/SearchFilterModal';
 import { getCategoryEmoji, getCategoryLabel, getCategoryColor, TASK_CATEGORIES } from '../utils/categories';
 import { formatDateDisplay as formatDisplay } from '../utils/dateUtils';
 
@@ -49,11 +51,24 @@ export default function MultiDayViewScreen() {
   const [quickAddText, setQuickAddText] = useState('');
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const undoAnim = useRef(new RNAnimated.Value(0)).current;
-  const [isSearchMode, setIsSearchMode] = useState(false);
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
+  const [isSearchFilterOpen, setIsSearchFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilterCats, setSelectedFilterCats] = useState<string[]>([]);
-  const [showCatFilter, setShowCatFilter] = useState(false);
+  
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity style={{ padding: 8, marginRight: 12 }} onPress={() => setIsSearchFilterOpen(true)} activeOpacity={0.7}>
+          <Text style={{ fontSize: 20 }}>🔍</Text>
+        </TouchableOpacity>
+      )
+    });
+  }, [navigation]);
+
+  const isFiltering = searchQuery.trim().length > 0 || selectedFilterCats.length > 0;
 
   // Seçilen tarih değiştiğinde görevleri güncelle
   useEffect(() => {
@@ -339,71 +354,19 @@ export default function MultiDayViewScreen() {
                 onOpenCalendar={() => setIsCalendarVisible(true)}
               />
             </View>
-            <TouchableOpacity
-              style={[styles.searchToggle, isSearchMode && { backgroundColor: theme.accent + '30' }]}
-              onPress={() => { setIsSearchMode(!isSearchMode); setSearchQuery(''); }}
-            >
-              <Text style={styles.searchToggleIcon}>{isSearchMode ? '✕' : '🔍'}</Text>
-            </TouchableOpacity>
           </View>
 
-          {/* Arama Çubuğu */}
-          {isSearchMode && (
-            <View style={[styles.searchBar, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
-              <Text style={styles.searchBarIcon}>🔍</Text>
-              <TextInput
-                style={[styles.searchInput, { color: theme.text }]}
-                placeholder="Görev veya kategori ara..."
-                placeholderTextColor={theme.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoFocus
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Text style={[styles.searchClear, { color: theme.textMuted }]}>✕</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={[styles.filterToggle, showCatFilter && { backgroundColor: theme.accent + '30' }]}
-                onPress={() => setShowCatFilter(!showCatFilter)}
-              >
-                <Text style={styles.filterToggleIcon}>⚙️</Text>
+          {isFiltering && (
+            <View style={[styles.filterBanner, { backgroundColor: theme.accentLight, borderColor: theme.accent }]}>
+              <Text style={[styles.filterBannerTitle, { color: theme.accent }]}>🔍 Filtreler Aktif</Text>
+              <TouchableOpacity onPress={() => { setSearchQuery(''); setSelectedFilterCats([]); }}>
+                <Text style={{ color: theme.accent, fontWeight: '700' }}>Temizle ✕</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Kategori Filtreleri */}
-          {isSearchMode && showCatFilter && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catFilterRow}>
-              {TASK_CATEGORIES.map(cat => {
-                const isActive = selectedFilterCats.includes(cat.id);
-                return (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      styles.catFilterChip,
-                      { borderColor: cat.color + '60', backgroundColor: isActive ? cat.color + '30' : theme.accentLight },
-                      isActive && { borderColor: cat.color },
-                    ]}
-                    onPress={() => {
-                      setSelectedFilterCats(prev =>
-                        prev.includes(cat.id)
-                          ? prev.filter(c => c !== cat.id)
-                          : [...prev, cat.id]
-                      );
-                    }}
-                  >
-                    <Text style={styles.catFilterEmoji}>{cat.emoji}</Text>
-                    <Text style={[styles.catFilterLabel, { color: isActive ? cat.color : theme.textSecondary }]}>{cat.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
-
           {/* Arama Sonuçları */}
-          {isSearchMode && (searchQuery.length > 1 || selectedFilterCats.length > 0) && (() => {
+          {isFiltering && (() => {
             const query = searchQuery.toLowerCase().trim();
             const results: { date: string; task: Task }[] = [];
             Object.entries(plans).forEach(([date, tasks]) => {
@@ -449,10 +412,8 @@ export default function MultiDayViewScreen() {
                     style={[styles.searchResultItem, { borderBottomColor: theme.border }]}
                     onPress={() => {
                       setSelectedDate(r.date);
-                      setIsSearchMode(false);
                       setSearchQuery('');
                       setSelectedFilterCats([]);
-                      setShowCatFilter(false);
                     }}
                   >
                     <View style={{ flex: 1 }}>
@@ -478,7 +439,7 @@ export default function MultiDayViewScreen() {
           })()}
 
           {/* Esnek Görev Havuzu */}
-          {!isSearchMode && (
+          {!isFiltering && (
             <FlexibleTaskPool
               flexibleProgress={flexibleProgress}
               onAddFlexibleTask={handleAddFlexibleTask}
@@ -486,7 +447,7 @@ export default function MultiDayViewScreen() {
           )}
 
           {/* Buton Grubu */}
-          {!isSearchMode && totalCount > 0 && (
+          {!isFiltering && totalCount > 0 && (
             <ActionButtonsBar
               isEditMode={isEditMode}
               quickAddText={quickAddText}
@@ -501,41 +462,45 @@ export default function MultiDayViewScreen() {
         </View>
 
         {/* İstatistik */}
-        <DayStatsBar
-          completedCount={completedCount}
-          totalCount={totalCount}
-          percentage={percentage}
-          allCompleted={allCompleted}
-        />
+        {!isFiltering && (
+          <DayStatsBar
+            completedCount={completedCount}
+            totalCount={totalCount}
+            percentage={percentage}
+            allCompleted={allCompleted}
+          />
+        )}
 
         {/* Görev Listesi */}
-        <ScrollView style={styles.taskList}>
-          {currentTasks.length === 0 ? (
-            <View style={styles.emptyState}>
-              <View style={[styles.emptyStateCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-                <Text style={styles.emptyStateIcon}>📭</Text>
-                <Text style={[styles.emptyStateTitle, { color: theme.text }]}>Bu gün için plan yok</Text>
-                <Text style={[styles.emptyStateSubtitle, { color: theme.textSecondary }]}>
-                  "Plan Oluştur" sekmesinden yeni plan ekleyebilirsiniz
-                </Text>
+        {!isFiltering && (
+          <ScrollView style={styles.taskList}>
+            {currentTasks.length === 0 ? (
+              <View style={styles.emptyState}>
+                <View style={[styles.emptyStateCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+                  <Text style={styles.emptyStateIcon}>📭</Text>
+                  <Text style={[styles.emptyStateTitle, { color: theme.text }]}>Bu gün için plan yok</Text>
+                  <Text style={[styles.emptyStateSubtitle, { color: theme.textSecondary }]}>
+                    "Plan Oluştur" sekmesinden yeni plan ekleyebilirsiniz
+                  </Text>
+                </View>
               </View>
-            </View>
-          ) : (
-            currentTasks.map((task, index) => (
-              <AnimatedTaskItem
-                key={task.id}
-                task={task}
-                index={index}
-                totalCount={currentTasks.length}
-                isEditMode={isEditMode}
-                onToggleDone={() => toggleTaskDone(task.id, task.done)}
-                onChangePriority={() => handleChangePriority(task.id)}
-                onRemove={() => handleRemoveTask(task.id)}
-                onNoteEdit={handleNoteEdit}
-              />
-            ))
-          )}
-        </ScrollView>
+            ) : (
+              currentTasks.map((task, index) => (
+                <AnimatedTaskItem
+                  key={task.id}
+                  task={task}
+                  index={index}
+                  totalCount={currentTasks.length}
+                  isEditMode={isEditMode}
+                  onToggleDone={() => toggleTaskDone(task.id, task.done)}
+                  onChangePriority={() => handleChangePriority(task.id)}
+                  onRemove={() => handleRemoveTask(task.id)}
+                  onNoteEdit={handleNoteEdit}
+                />
+              ))
+            )}
+          </ScrollView>
+        )}
 
         {/* Geri Al Snackbar */}
         {deletedTask && (
@@ -580,6 +545,16 @@ export default function MultiDayViewScreen() {
           onClose={() => setIsShareModalVisible(false)}
           onWhatsApp={shareViaWhatsApp}
           onCopy={copyToClipboard}
+        />
+        <SearchFilterModal
+          visible={isSearchFilterOpen}
+          onClose={() => setIsSearchFilterOpen(false)}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedFilterCats={selectedFilterCats}
+          setSelectedFilterCats={setSelectedFilterCats}
+          onApply={() => setIsSearchFilterOpen(false)}
+          onClear={() => { setSearchQuery(''); setSelectedFilterCats([]); }}
         />
         <ConfirmDeleteModal
           visible={isDeleteModalVisible}
@@ -671,36 +646,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  searchToggle: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchToggleIcon: {
-    fontSize: 18,
-  },
-  searchBar: {
+  filterBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    marginTop: 10,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
     borderWidth: 1,
+    marginTop: 12,
   },
-  searchBarIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 42,
-    fontSize: 15,
-  },
-  searchClear: {
-    fontSize: 18,
-    padding: 4,
+  filterBannerTitle: {
+    fontWeight: '700',
+    fontSize: 14,
   },
   searchResults: {
     marginTop: 10,
@@ -741,21 +699,6 @@ const styles = StyleSheet.create({
   searchResultArrow: {
     fontSize: 24,
     marginLeft: 8,
-  },
-  filterToggle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 4,
-  },
-  filterToggleIcon: {
-    fontSize: 16,
-  },
-  catFilterRow: {
-    gap: 8,
-    paddingVertical: 10,
   },
   catFilterChip: {
     flexDirection: 'row',
