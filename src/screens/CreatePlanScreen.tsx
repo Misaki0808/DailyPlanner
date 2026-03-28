@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
-import { formatDateDisplay, getToday, addDays } from '../utils/dateUtils';
+import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
 import { Task } from '../types';
 import { convertParagraphToTasks, checkApiKey } from '../utils/aiService';
 import CalendarModal from '../components/CalendarModal';
@@ -72,7 +72,7 @@ export default function CreatePlanScreen() {
     }
 
     const newTask: Task = {
-      id: Date.now().toString(),
+      id: generateId(),
       title: taskInput.trim(),
       done: false,
       priority: selectedPriority,
@@ -175,7 +175,7 @@ export default function CreatePlanScreen() {
 
       // AI'dan gelen görevleri Task formatına çevir (kategori atamalı)
       const newTasks: Task[] = aiTasks.map((item) => ({
-        id: Date.now().toString() + Math.random().toString(),
+        id: generateId(),
         title: item.title,
         done: false,
         priority: 'low' as const,

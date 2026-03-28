@@ -43,7 +43,7 @@ const getWebSpeechRecognition = (): SpeechRecognitionConstructor | null => {
     return (win.SpeechRecognition || win.webkitSpeechRecognition) as SpeechRecognitionConstructor | null;
 };
 
-let ExpoSpeechRecognitionModule: { addListener: (event: string, cb: (event: { results: Array<{ transcript: string }>; isFinal: boolean; error?: string; message?: string }) => void) => { remove: () => void }; requestPermissionsAsync: () => Promise<{ status: string }>; start: (opts: { lang: string; interimResults: boolean; maxAlternatives: number }) => void; stop: () => void } | null = null;
+let ExpoSpeechRecognitionModule: { addListener: (event: string, cb: (event: { results: { transcript: string }[]; isFinal: boolean; error?: string; message?: string }) => void) => { remove: () => void }; requestPermissionsAsync: () => Promise<{ status: string }>; start: (opts: { lang: string; interimResults: boolean; maxAlternatives: number }) => void; stop: () => void } | null = null;
 if (Platform.OS !== 'web') {
     try {
         ExpoSpeechRecognitionModule = require('expo-speech-recognition').ExpoSpeechRecognitionModule;

@@ -20,7 +20,7 @@
 
 ## 4. Yeni Özellikler
 - [x] Görev düzenleme (başlık edit, kategori, not)
-- [ ] Görev sıralama (drag & drop veya yukarı/aşağı butonlar)
+- [~] Görev sıralama (İptal edildi)
 - [x] Arama / filtreleme (büyük-küçük harf duyarsız, kategori seçimi)
 - [x] Görev kategorileri (AI ile oto-atama, manuel düzenleme)
 - [x] Onboarding ekranı (isim alma ve gender seçimi animasyonlu ekran)
@@ -29,9 +29,9 @@
 - [ ] Widget desteği
 
 ## 5. Teknik Borç
-- [ ] Error boundary ekle
-- [ ] [generateId()](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/utils/dateUtils.ts#71-77) → uuid v4'e geçiş
+- [x] Error boundary ekle (ErrorBoundary component'ı ile sarıldı)
+- [x] generateId() → uuid v4'e geçiş yapıldı
 - [ ] Unused imports temizliği
 - [ ] ESLint / Prettier konfigürasyonu
 - [ ] Unit test ekleme
-- [ ] API key backend proxy
+- [x] API key backend proxy

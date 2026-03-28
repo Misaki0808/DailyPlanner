@@ -1,6 +1,8 @@
 /**
  * Tarihi YYYY-MM-DD formatına çevirir
  */
+import uuid from 'react-native-uuid';
+
 export const formatDate = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -72,5 +74,5 @@ export const isToday = (dateString: string): boolean => {
  * Benzersiz ID üretir
  */
 export const generateId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  return uuid.v4() as string;
 };

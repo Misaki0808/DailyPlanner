@@ -5,6 +5,7 @@ import { createStackNavigator, StackNavigationOptions } from '@react-navigation/
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { DrawerProvider, useDrawer } from './src/context/DrawerContext';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import JSDrawer from './src/components/JSDrawer';
 import Svg, { Line } from 'react-native-svg';
 import { useEffect, useState } from 'react';
@@ -16,6 +17,8 @@ import MultiDayViewScreen from './src/screens/MultiDayViewScreen';
 import PlanOverviewScreen from './src/screens/PlanOverviewScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { RootTabParamList } from './src/types';
+
+import { navigationRef } from './src/utils/navigationRef';
 
 const Stack = createStackNavigator<RootTabParamList>();
 
@@ -33,8 +36,6 @@ function MenuButton() {
     </TouchableOpacity>
   );
 }
-
-import { navigationRef } from './src/utils/navigationRef';
 
 // Ana uygulama içeriği
 function AppContent() {
@@ -127,13 +128,15 @@ function AppContent() {
 // Context Provider ile sarmalanmış ana component
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppProvider>
-        <DrawerProvider>
-          <AppContent />
-        </DrawerProvider>
-      </AppProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AppProvider>
+          <DrawerProvider>
+            <AppContent />
+          </DrawerProvider>
+        </AppProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
 

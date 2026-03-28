@@ -14,7 +14,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 import { useNavigation } from '@react-navigation/native';
-import { formatDateDisplay, getToday, addDays } from '../utils/dateUtils';
+import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
 import { Task } from '../types';
 import CopyPlanModal from '../components/CopyPlanModal';
 import ShareModal from '../components/ShareModal';
@@ -147,7 +147,7 @@ export default function MultiDayViewScreen() {
     const title = quickAddText.trim();
     if (!title) return;
     const newTask: Task = {
-      id: Date.now().toString() + Math.random().toString(),
+      id: generateId(),
       title,
       done: false,
       priority: 'low',
@@ -161,7 +161,7 @@ export default function MultiDayViewScreen() {
   // Esnek görev havuzundan bugüne ekle
   const handleAddFlexibleTask = async (title: string, priority: 'low' | 'medium' | 'high') => {
     const newTask: Task = {
-      id: Date.now().toString() + Math.random().toString(),
+      id: generateId(),
       title,
       done: false,
       priority,
@@ -266,7 +266,7 @@ export default function MultiDayViewScreen() {
     const existingTasks = plans[targetDate] || [];
     const newTasks = selectedTasks.map(task => ({
       ...task,
-      id: Date.now().toString() + Math.random().toString(),
+      id: generateId(),
       done: false,
     }));
     const allTasks = [...existingTasks, ...newTasks];
