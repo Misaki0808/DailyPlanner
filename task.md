@@ -1,37 +1,12 @@
-# DailyPlanner İyileştirme Görevleri
+# DailyPlanner V3 Görev Panosu
 
-## 1. Mimari / Kod Kalitesi
-- [x] **SettingsScreen bölünmesi** — 1257 → ~100 satır. [ProfileSection](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/components/settings/ProfileSection.tsx#21-135), [StatsSection](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/components/settings/StatsSection.tsx#21-173), [RecurringTasksSection](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/components/settings/RecurringTasksSection.tsx#27-273), [PreferencesSection](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/components/settings/PreferencesSection.tsx#24-211) oluşturuldu ✅
-- [x] **MultiDayViewScreen bölünmesi** — 1087 → ~350 satır. [DateNavigation](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/components/planner/DateNavigation.tsx#16-49), [FlexibleTaskPool](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/components/planner/FlexibleTaskPool.tsx#22-68), [ActionButtonsBar](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/components/planner/ActionButtonsBar.tsx#24-153), [DayStatsBar](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/components/planner/DayStatsBar.tsx#17-46) oluşturuldu ✅
-- [x] **Ortak stiller** — [sharedStyles.ts](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/utils/sharedStyles.ts) oluşturuldu (`glassCard`, `glassCardPadded`, `sectionTitle`, `label`, `glassCardNoBorder`, `taskCard`). 9 dosya güncellendi, ~120 satır tekrar kaldırıldı ✅
-- [x] **Tema tutarlılığı** — [theme.ts](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/utils/theme.ts) genişletildi (13 gradient, 15+ renk token). 5 dosya güncellendi, [PlanOverviewScreen](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/screens/PlanOverviewScreen.tsx#7-121) artık dark mode destekliyor ✅
-- [x] **`any` tiplerini düzelt** — 5 `as any` kullanımı kaldırıldı (RecurringTask tipi, Web Speech API tipleri, outlineStyle). Kodda sıfır `as any` kaldı ✅
+## 1. Bağımsız Pomodoro Ekranı 🍅
+- [ ] Sol menüye (JSDrawer) Pomodoro sekmesi eklenmesi
+- [ ] Dairesel SVG tabanlı zamanlayıcı tasarımı (25dk odak, 5dk mola)
+- [ ] Play, Pause ve Sesli/Sessiz kontrol butonları
+- [ ] Animasyonlu geri sayım ve bildirim entegrasyonu
 
-## 2. Veri Yönetimi
-- [x] **Storage optimizasyonu** — [updateTask](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/utils/storage.ts#81-103) çift okuma sorununu düzeltildi, [refreshPlans](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/hooks/usePlans.ts#8-16) gereksiz çağrıları temizlendi ✅
-- [x] **AppContext bölünmesi** — Context [usePlans](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/hooks/usePlans.ts#5-55), [useSettings](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/hooks/useSettings.ts#5-26), [useUser](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/hooks/useUser.ts#5-31), [useRecurringTasks](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/hooks/useRecurringTasks.ts#6-104) custom hook'larına bölündü. Context 280 → ~90 satıra düştü ✅
-- [x] **Eski plan temizliği** — 90 günden eski planları otomatik temizle fonksiyonu eklendi ve startup aşamasına bağlandı ✅
-
-## 3. UX / Kullanıcı Deneyimi
-- [x] **Navigation tip tanımları** — [RootTabParamList](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/types/index.ts#48-54)'i tamamlandı, tüm navigasyon (`createStackNavigator`, [navigate](file:///Users/efe_baydemir/Okul/MobileAPP%20Development%20Final%20Project/Daily%20Planner%20Antigravity/DailyPlanner/src/utils/navigationRef.ts#6-15)) type-safe hale getirildi ✅
-- [x] **Bildirim ayarı** — Devre dışıysa bildirim saati ayarı gizlenip yerine durumu açıklayan metin gösterildi ✅
-- [x] **PlanOverview responsive** — Merkez ve çevresel nodların boyutları `Math.min` ile sınırlandırıldı, çakışma önlendi ✅
-- [x] **Dark mode tutarlılığı** — Tüm ekranlarda dark mode desteği sağlandı ve Light Mode için çok daha soft, profesyonel pastel tonlar tanımlandı ✅
-
-## 4. Yeni Özellikler
-- [x] Görev düzenleme (başlık edit, kategori, not)
-- [~] Görev sıralama (İptal edildi)
-- [x] Arama / filtreleme (büyük-küçük harf duyarsız, kategori seçimi)
-- [x] Görev kategorileri (AI ile oto-atama, manuel düzenleme)
-- [x] Onboarding ekranı (isim alma ve gender seçimi animasyonlu ekran)
-- [x] Haftalık/aylık takvim görünümü
-- [x] Veri yedekleme / dışa aktarma (JSON/CSV İndir, Dashboard Resmi Paylaş)
-- [ ] Widget desteği
-
-## 5. Teknik Borç
-- [x] Error boundary ekle (ErrorBoundary component'ı ile sarıldı)
-- [x] generateId() → uuid v4'e geçiş yapıldı
-- [ ] Unused imports temizliği
-- [ ] ESLint / Prettier konfigürasyonu
-- [ ] Unit test ekleme
-- [x] API key backend proxy
+## 2. Ana Ekran Widget (Hedeflendi)
+- [ ] iOS/Android native kod köprülemesi (Expo Plugins)
+- [ ] Widget arayüzü tasarımı (Günün özeti ve görevler)
+- [ ] App ile Widget arası veri senkronizasyonu

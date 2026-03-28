@@ -50,5 +50,6 @@ export type RootTabParamList = {
   CreatePlan: undefined;
   MultiDayView: undefined;
   PlanOverview: undefined;
+  Pomodoro: undefined;
   Settings: undefined;
 };

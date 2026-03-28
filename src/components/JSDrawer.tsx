@@ -167,6 +167,14 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
                         theme={theme}
                     />
                     <MenuItem
+                        label="Pomodoro"
+                        icon="🍅"
+                        targetScreen="Pomodoro"
+                        isActive={activeRouteName === 'Pomodoro'}
+                        onPress={() => navigateTo('Pomodoro')}
+                        theme={theme}
+                    />
+                    <MenuItem
                         label="Ayarlar"
                         icon="⚙️"
                         targetScreen="Settings"
