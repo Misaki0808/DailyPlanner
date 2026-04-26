@@ -3,10 +3,12 @@ import { Plans, Task, Settings, RecurringTask, Gender } from '../types';
 import * as storage from '../utils/storage';
 import { getTheme, Theme } from '../utils/theme';
 import { getToday } from '../utils/dateUtils';
+import { requestNotificationPermissions, scheduleDailySummaryNotification } from '../utils/notificationService';
 import { usePlans } from '../hooks/usePlans';
 import { useSettings } from '../hooks/useSettings';
 import { useUser } from '../hooks/useUser';
 import { useRecurringTasks } from '../hooks/useRecurringTasks';
+import { usePomodoroStats } from '../hooks/usePomodoroStats';
 
 export interface AppContextType {
   plans: Plans;
@@ -28,6 +30,8 @@ export interface AppContextType {
   removeRecurringTask: (id: string) => Promise<void>;
   toggleRecurringTask: (id: string) => Promise<void>;
   saveAboutMe: (text: string) => Promise<void>;
+  pomodoroStats: Record<string, number>;
+  addPomodoroSession: (date?: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -44,6 +48,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     removeRecurringTask,
     toggleRecurringTask,
   } = useRecurringTasks(setPlans);
+  const { pomodoroStats, loadPomodoroStats, addPomodoroSession } = usePomodoroStats();
 
   const [isLoading, setIsLoading] = useState(true);
   const [aboutMe, setAboutMeState] = useState('');
@@ -64,6 +69,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         storage.getSettings(),
         storage.getRecurringTasks(),
         storage.getAboutMe(),
+        loadPomodoroStats(),
       ]);
 
       setPlans(savedPlans);
@@ -74,6 +80,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setAboutMeState(savedAboutMe);
 
       await syncRecurringTasks(getToday(), savedRecurring, savedPlans);
+
+      // Günlük bildirim kur (bildirimler açıksa)
+      if (savedSettings?.notificationsEnabled) {
+        const hasPermission = await requestNotificationPermissions();
+        if (hasPermission) {
+          const [h, m] = (savedSettings.notificationTime || '20:00').split(':').map(Number);
+          await scheduleDailySummaryNotification(h, m);
+        }
+      }
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
     } finally {
@@ -110,6 +125,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         removeRecurringTask,
         toggleRecurringTask,
         saveAboutMe: handleSaveAboutMe,
+        pomodoroStats,
+        addPomodoroSession,
       }}
     >
       {children}

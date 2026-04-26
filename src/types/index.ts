@@ -9,6 +9,7 @@ export interface Task {
   priority?: 'low' | 'medium' | 'high';
   note?: string;
   category?: string; // Kategori id'si (ör: 'is', 'okul', 'spor')
+  pomodoroCount?: number; // Bu göreve bağlı tamamlanan pomodoro sayısı
 }
 
 // Tekrarlayan görev tipi
@@ -43,6 +44,10 @@ export interface Settings {
   darkMode: boolean; // Karanlık tema
   notificationsEnabled: boolean; // Bildirimler aktif mi
   notificationTime: string; // Bildirim saati (HH:MM formatında)
+  pomodoroFocusTime?: number; // dk cinsinden
+  pomodoroShortBreak?: number; // dk cinsinden
+  pomodoroLongBreak?: number; // dk cinsinden
+  pomodoroSoundEnabled?: boolean; // Süre bitince bildirim sesi çal
 }
 
 // Navigation için tip tanımları

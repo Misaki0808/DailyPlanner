@@ -117,7 +117,7 @@ function AppContent() {
           <Stack.Screen
             name="Pomodoro"
             component={PomodoroScreen}
-            options={{ title: '🍅 Pomodoro' }}
+            options={{ title: '⏱️ Pomodoro' }}
           />
           <Stack.Screen
             name="Settings"

@@ -168,7 +168,7 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
                     />
                     <MenuItem
                         label="Pomodoro"
-                        icon="🍅"
+                        icon="⏱️"
                         targetScreen="Pomodoro"
                         isActive={activeRouteName === 'Pomodoro'}
                         onPress={() => navigateTo('Pomodoro')}

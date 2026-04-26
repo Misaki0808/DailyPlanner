@@ -323,3 +323,63 @@ KURALLAR:
     throw new Error('Analiz oluşturulurken bir hata meydana geldi.');
   }
 };
+
+/**
+ * Metinden saat referanslarını çıkar (alarm için)
+ * Ör: "Sabah 8'de kalkacağım, 14:30'da toplantı var" → [{hour:8, minute:0, label:"Kalk"}, {hour:14, minute:30, label:"Toplantı"}]
+ */
+export const extractTimesFromText = async (paragraph: string): Promise<{ hour: number; minute: number; label: string }[]> => {
+  if (!GEMINI_API_KEY) return [];
+
+  const prompt = `
+Aşağıdaki Türkçe metinde zaman/saat referansları var mı analiz et.
+Eğer varsa, her biri için saat, dakika ve kısa etiket (ne yapılacak) çıkar.
+
+ÖRNEKLER:
+"Sabah 8'de kalkacağım" → [{"hour":8,"minute":0,"label":"Kalk"}]
+"14:30'da toplantı var" → [{"hour":14,"minute":30,"label":"Toplantı"}]
+"Akşam 7'de spor" → [{"hour":19,"minute":0,"label":"Spor"}]
+"Gece 11'de yat" → [{"hour":23,"minute":0,"label":"Yat"}]
+"Öğlen yemek ye" → [{"hour":12,"minute":0,"label":"Yemek ye"}]
+
+KURALLAR:
+1. Sadece net saat belirtilmişse çıkar
+2. "Sabah", "öğlen", "akşam" gibi belirsiz ifadeler saat belirtmiyorsa ÇIKARMA
+3. "Sabah 8" gibi saat belirtenleri çıkar
+4. Etiket kısa olsun (2-3 kelime max)
+5. Sadece JSON array döndür: [{"hour":number,"minute":number,"label":"string"}, ...]
+6. Hiç saat yoksa boş array döndür: []
+
+Metin: "${paragraph}"
+
+JSON:`;
+
+  const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1 },
+      }),
+    });
+
+    if (!response.ok) return [];
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!text) return [];
+
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const times = JSON.parse(cleaned);
+
+    if (!Array.isArray(times)) return [];
+    return times.filter(
+      (t: any) => typeof t.hour === 'number' && typeof t.minute === 'number' && typeof t.label === 'string'
+    );
+  } catch (e) {
+    console.log('Time extraction error:', e);
+    return [];
+  }
+};

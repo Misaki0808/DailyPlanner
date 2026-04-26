@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   RECURRING_TASKS: '@daily_planner_recurring_tasks',
   LAST_RECURRING_SYNC: '@daily_planner_last_recurring_sync',
   ABOUT_ME: '@daily_planner_about_me',
+  POMODORO_STATS: '@daily_planner_pomodoro_stats',
 };
 
 /**
@@ -180,6 +181,10 @@ export const getSettings = async (): Promise<Settings> => {
         darkMode: true, // Default: Dark mode
         notificationsEnabled: true, // Default: Bildirimler açık
         notificationTime: '08:00', // Default: Sabah 8
+        pomodoroFocusTime: 25,
+        pomodoroShortBreak: 5,
+        pomodoroLongBreak: 15,
+        pomodoroSoundEnabled: false,
       };
     }
     return JSON.parse(settingsJson);
@@ -190,6 +195,10 @@ export const getSettings = async (): Promise<Settings> => {
       darkMode: true,
       notificationsEnabled: true,
       notificationTime: '08:00',
+      pomodoroFocusTime: 25,
+      pomodoroShortBreak: 5,
+      pomodoroLongBreak: 15,
+      pomodoroSoundEnabled: false,
     };
   }
 };
@@ -302,5 +311,27 @@ export const getAboutMe = async (): Promise<string> => {
   } catch (error) {
     console.error('Hakkımda okunurken hata:', error);
     return '';
+  }
+};
+
+// POMODORO ISTATISTIKLERINI GETIR
+export const getPomodoroStats = async (): Promise<Record<string, number>> => {
+  try {
+    const json = await AsyncStorage.getItem(STORAGE_KEYS.POMODORO_STATS);
+    return json ? JSON.parse(json) : {};
+  } catch (error) {
+    console.error('Pomodoro istatistikleri okunurken hata:', error);
+    return {};
+  }
+};
+
+// POMODORO ISTATISTIKLERINI KAYDET
+export const savePomodoroStats = async (stats: Record<string, number>) => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.POMODORO_STATS, JSON.stringify(stats));
+    return true;
+  } catch (error) {
+    console.error('Pomodoro istatistikleri kaydedilirken hata:', error);
+    return false;
   }
 };

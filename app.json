@@ -13,9 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dailyplanner.app"
     },
     "android": {
+      "package": "com.dailyplanner.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -32,6 +34,22 @@
         {
           "microphonePermission": "Allow DailyPlanner to access your microphone to recognize speech.",
           "speechRecognitionPermission": "Allow DailyPlanner to recognize your speech."
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "DailyPlannerWidget",
+              "label": "Günün Planı",
+              "description": "Bugünkü görevlerinin özeti",
+              "minWidth": "320dp",
+              "minHeight": "120dp",
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
         }
       ]
     ]

@@ -15,7 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
 import { Task } from '../types';
-import { convertParagraphToTasks, checkApiKey } from '../utils/aiService';
+import { convertParagraphToTasks, checkApiKey, extractTimesFromText } from '../utils/aiService';
+import { scheduleAlarmNotification, requestNotificationPermissions } from '../utils/notificationService';
 import CalendarModal from '../components/CalendarModal';
 import SuccessModal from '../components/SuccessModal';
 import VoiceInputButton from '../components/VoiceInputButton';
@@ -158,7 +159,8 @@ export default function CreatePlanScreen() {
 
   // AI ile görev oluştur
   const handleAiGenerate = async () => {
-    if (paragraphInput.trim() === '') {
+    const input = paragraphInput.trim();
+    if (input === '') {
       Alert.alert('Uyarı', 'Lütfen bir paragraf yazın');
       return;
     }
@@ -171,7 +173,7 @@ export default function CreatePlanScreen() {
     setIsAiLoading(true);
 
     try {
-      const aiTasks = await convertParagraphToTasks(paragraphInput, aboutMe || undefined);
+      const aiTasks = await convertParagraphToTasks(input, aboutMe || undefined);
 
       // AI'dan gelen görevleri Task formatına çevir (kategori atamalı)
       const newTasks: Task[] = aiTasks.map((item) => ({
@@ -185,7 +187,40 @@ export default function CreatePlanScreen() {
       setTasks([...tasks, ...newTasks]);
       setParagraphInput(''); // Paragrafı temizle
 
-      Alert.alert('Başarılı', `${aiTasks.length} görev oluşturuldu! 🎉`);
+      // Metinden saat referanslarını çıkar ve alarm kur
+      try {
+        const times = await extractTimesFromText(input);
+        if (times.length > 0) {
+          const hasPermission = await requestNotificationPermissions();
+          if (hasPermission) {
+            const now = new Date();
+            let alarmsSet = 0;
+            for (const t of times) {
+              const alarmDate = new Date();
+              // Seçilen tarihe göre ayarla
+              const [year, month, day] = selectedDate.split('-').map(Number);
+              alarmDate.setFullYear(year, month - 1, day);
+              alarmDate.setHours(t.hour, t.minute, 0, 0);
+              if (alarmDate > now) {
+                await scheduleAlarmNotification(`⏰ ${t.label}`, `Planlanan saat: ${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`, alarmDate);
+                alarmsSet++;
+              }
+            }
+            if (alarmsSet > 0) {
+              Alert.alert('🎉 Başarılı', `${aiTasks.length} görev ve ${alarmsSet} alarm kuruldu! ⏰`);
+            } else {
+              Alert.alert('Başarılı', `${aiTasks.length} görev oluşturuldu! 🎉`);
+            }
+          } else {
+            Alert.alert('Başarılı', `${aiTasks.length} görev oluşturuldu! 🎉`);
+          }
+        } else {
+          Alert.alert('Başarılı', `${aiTasks.length} görev oluşturuldu! 🎉`);
+        }
+      } catch (e) {
+        // Alarm kurulamazsa sadece görev başarı mesajı göster
+        Alert.alert('Başarılı', `${aiTasks.length} görev oluşturuldu! 🎉`);
+      }
     } catch (error: any) {
       Alert.alert('AI Hatası', error.message || 'Görevler oluşturulamadı');
     } finally {
