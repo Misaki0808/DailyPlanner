@@ -12,7 +12,7 @@ import { createSharedStyles } from '../../utils/sharedStyles';
 import WeeklyStatsChart from '../WeeklyStatsChart';
 import { generateWeeklySummary, checkApiKey } from '../../utils/aiService';
 import { getToday, addDays } from '../../utils/dateUtils';
-import { useApp } from '../../context/AppContext';
+import { useApp, usePomodoroContext } from '../../context/AppContext';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
@@ -25,10 +25,31 @@ interface StatsSectionProps {
 
 export default function StatsSection({ plans, username }: StatsSectionProps) {
   const { theme } = useApp();
+  const { pomodoroStats } = usePomodoroContext();
   const themed = createSharedStyles(theme);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const dashboardRef = useRef<View>(null);
+
+  const streak = (() => {
+    let s = 0;
+    const d = new Date();
+    const today = getToday();
+    while (true) {
+      const dateStr = d.toISOString().split('T')[0];
+      if (pomodoroStats[dateStr] > 0) {
+        s++;
+        d.setDate(d.getDate() - 1);
+      } else {
+        if (s === 0 && dateStr === today) {
+           d.setDate(d.getDate() - 1);
+           continue;
+        }
+        break;
+      }
+    }
+    return s;
+  })();
 
   const calculateStats = () => {
     const planDates = Object.keys(plans);
@@ -135,6 +156,14 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
 
       <View collapsable={false} ref={dashboardRef} style={{ backgroundColor: theme.background, paddingVertical: 10, borderRadius: 16 }}>
         <View style={styles.statsGrid}>
+          {/* Streak Card */}
+          <View style={[styles.statCardWrapper, { width: '100%', marginBottom: 4 }]}>
+            <LinearGradient colors={['#FF512F', '#F09819']} style={styles.statCardGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+              <Text style={styles.statValue}>🔥 {streak} Gün</Text>
+              <Text style={styles.statLabel}>Pomodoro Serisi</Text>
+            </LinearGradient>
+          </View>
+
           <View style={styles.statCardWrapper}>
             <LinearGradient colors={theme.accentGradient} style={styles.statCardGradient}>
               <Text style={styles.statValue}>{stats.totalPlans}</Text>

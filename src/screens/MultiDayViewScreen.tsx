@@ -28,6 +28,7 @@ import DayStatsBar from '../components/planner/DayStatsBar';
 import SearchFilterModal from '../components/planner/SearchFilterModal';
 import { getCategoryEmoji, getCategoryLabel, getCategoryColor, TASK_CATEGORIES } from '../utils/categories';
 import { formatDateDisplay as formatDisplay } from '../utils/dateUtils';
+import { HeaderProgressBar } from '../components/HeaderProgressBar';
 
 // Sadece native platformlarda import et
 let RNShare: any = null;
@@ -61,9 +62,12 @@ export default function MultiDayViewScreen() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity style={{ padding: 8, marginRight: 12 }} onPress={() => setIsSearchFilterOpen(true)} activeOpacity={0.7}>
-          <Text style={{ fontSize: 20 }}>🔍</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <HeaderProgressBar />
+          <TouchableOpacity style={{ padding: 8, marginRight: 12 }} onPress={() => setIsSearchFilterOpen(true)} activeOpacity={0.7}>
+            <Text style={{ fontSize: 20 }}>🔍</Text>
+          </TouchableOpacity>
+        </View>
       )
     });
   }, [navigation]);

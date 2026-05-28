@@ -131,8 +131,6 @@ export function DailyPlannerWidget({ date, tasks }: DailyPlannerWidgetProps) {
               style={{
                 fontSize: 13,
                 color: task.done ? '#666688' : '#e0e0ff',
-                textDecorationLine: task.done ? 'line-through' : 'none',
-                flex: 1,
               }}
             />
             {task.priority === 'high' && (

@@ -13,7 +13,7 @@ import { createSharedStyles } from '../../utils/sharedStyles';
 import { useApp } from '../../context/AppContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  scheduleDailyNotification,
+  scheduleDailySummaryNotification,
   cancelAllNotifications,
   requestNotificationPermissions,
 } from '../../utils/notificationService';
@@ -51,9 +51,8 @@ export default function PreferencesSection({
         Alert.alert('İzin Gerekli', 'Bildirimler için izin vermeniz gerekiyor.');
         return;
       }
-      const hour = parseInt(notificationHour);
-      const minute = parseInt(notificationMinute);
-      await scheduleDailyNotification(hour, minute);
+      const [h, m] = (settings.notificationTime || '08:00').split(':').map(Number);
+      await scheduleDailySummaryNotification(h, m);
       await onUpdateSettings({ notificationsEnabled: true });
     } else {
       await cancelAllNotifications();
@@ -79,7 +78,7 @@ export default function PreferencesSection({
     await onUpdateSettings({ notificationTime: timeString });
 
     if (settings.notificationsEnabled) {
-      await scheduleDailyNotification(hour, minute);
+      await scheduleDailySummaryNotification(hour, minute);
       Alert.alert('Başarılı', `Bildirim saati ${timeString} olarak güncellendi!`);
     } else {
       Alert.alert('Başarılı', 'Bildirim saati kaydedildi. Bildirimleri açtığınızda bu saat kullanılacak.');

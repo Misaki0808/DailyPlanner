@@ -10,6 +10,7 @@ import JSDrawer from './src/components/JSDrawer';
 import Svg, { Line } from 'react-native-svg';
 import { useEffect, useState } from 'react';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import { HeaderProgressBar } from './src/components/HeaderProgressBar';
 
 // Ekranlar
 import CreatePlanScreen from './src/screens/CreatePlanScreen';
@@ -77,15 +78,14 @@ function AppContent() {
   const screenOptions: StackNavigationOptions = {
     headerStyle: {
       backgroundColor: theme.headerBackground,
-      elevation: 0,
-      shadowOpacity: 0,
     },
     headerTintColor: theme.textOnGradient,
     headerTitleStyle: {
       fontWeight: 'bold',
       fontSize: 20,
     },
-    headerLeft: () => <MenuButton />, // Her ekranda menü butonu
+    headerLeft: () => <MenuButton />,
+    headerRight: () => <HeaderProgressBar />,
   };
 
   // Onboarding: username yoksa ilk kullanım
