@@ -14,6 +14,28 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 const categoryListForPrompt = TASK_CATEGORIES.map(c => `"${c.id}" (${c.label})`).join(', ');
 
 /**
+ * Otomatik tekrar deneme (retry) mekanizması ile API isteği atar.
+ */
+const fetchWithRetry = async (url: string, options: RequestInit, retries = 3, backoff = 1000): Promise<Response> => {
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok && retries > 0) {
+      console.warn(`API isteği ${response.status} hatası döndürdü. ${backoff}ms sonra tekrar deneniyor... (Kalan: ${retries})`);
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    }
+    return response;
+  } catch (err) {
+    if (retries > 0) {
+      console.warn(`Ağ hatası: ${err}. ${backoff}ms sonra tekrar deneniyor... (Kalan: ${retries})`);
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    }
+    throw err;
+  }
+};
+
+/**
  * AI ile paragrafı görev listesine çevir (kategori atamalı)
  * @param paragraph - Kullanıcının yazdığı paragraf
  * @param aboutMe - Kullanıcının "Hakkımda" bilgisi (opsiyonel)
@@ -52,7 +74,7 @@ Görev listesi (sadece JSON array):`;
   const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -182,7 +204,7 @@ Düzeltilmiş metin:`;
   const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -231,7 +253,7 @@ Görev başlığı:`;
   const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -300,7 +322,7 @@ KURALLAR:
   const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -357,7 +379,7 @@ JSON:`;
   const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

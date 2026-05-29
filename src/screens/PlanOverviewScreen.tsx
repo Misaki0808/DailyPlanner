@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, useWindowDimensions, ViewStyle, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
+import { usePlansContext, useSettingsContext } from '../context/AppContext';
 import { getToday, formatDateDisplay } from '../utils/dateUtils';
 
 export default function PlanOverviewScreen() {
-  const { plans, settings, theme } = useApp();
+  const { plans } = usePlansContext();
+  const { settings, theme } = useSettingsContext();
   const { width, height } = useWindowDimensions();
   const [centerDate, setCenterDate] = useState(getToday());
 

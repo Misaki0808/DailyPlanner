@@ -6,7 +6,7 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
+import { useUserContext, usePlansContext, useSettingsContext, useRecurringContext } from '../context/AppContext';
 import ProfileSection from '../components/settings/ProfileSection';
 import StatsSection from '../components/settings/StatsSection';
 import RecurringTasksSection from '../components/settings/RecurringTasksSection';
@@ -14,20 +14,10 @@ import PreferencesSection from '../components/settings/PreferencesSection';
 import AboutMeSection from '../components/settings/AboutMeSection';
 
 export default function SettingsScreen() {
-  const {
-    username,
-    setUsername,
-    plans,
-    gender,
-    setGender,
-    settings,
-    theme,
-    updateSettings,
-    recurringTasks,
-    addRecurringTask,
-    removeRecurringTask,
-    toggleRecurringTask,
-  } = useApp();
+  const { username, setUsername, gender, setGender } = useUserContext();
+  const { plans } = usePlansContext();
+  const { settings, theme, updateSettings } = useSettingsContext();
+  const { recurringTasks, addRecurringTask, removeRecurringTask, toggleRecurringTask } = useRecurringContext();
 
   const handleGenderChange = async (newGender: 'male' | 'female') => {
     try {

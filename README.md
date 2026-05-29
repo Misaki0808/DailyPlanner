@@ -64,9 +64,8 @@ Projeyi kendi bilgisayarınızda çalıştırmak için aşağıdaki adımları i
 ### 1. Projeyi Klonlayın
 
 ```bash
-git clone https://github.com/misaki0808/To_Do_List_Project.git
-cd To_Do_List_Project/DailyPlanner
-# Not: Klasör yapısına göre 'DailyPlanner' dizinine girdiğinizden emin olun.
+git clone https://github.com/Misaki0808/DailyPlanner.git
+cd DailyPlanner
 ```
 
 ### 2. Bağımlılıkları Yükleyin

@@ -3,7 +3,7 @@ import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity, Platform }
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createStackNavigator, StackNavigationOptions } from '@react-navigation/stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AppProvider, useApp } from './src/context/AppContext';
+import { AppProvider, useApp, useSettingsContext, useUserContext } from './src/context/AppContext';
 import { DrawerProvider, useDrawer } from './src/context/DrawerContext';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import JSDrawer from './src/components/JSDrawer';
@@ -11,6 +11,7 @@ import Svg, { Line } from 'react-native-svg';
 import { useEffect, useState } from 'react';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import { HeaderProgressBar } from './src/components/HeaderProgressBar';
+import Toast from 'react-native-toast-message';
 
 // Ekranlar
 import CreatePlanScreen from './src/screens/CreatePlanScreen';
@@ -41,7 +42,9 @@ function MenuButton() {
 
 // Ana uygulama içeriği
 function AppContent() {
-  const { isLoading, theme, settings, username } = useApp();
+  const { isLoading } = useApp();
+  const { theme, settings } = useSettingsContext();
+  const { username } = useUserContext();
   const [onboardingDone, setOnboardingDone] = useState(false);
 
   // Web için global stil ayarı
@@ -142,6 +145,7 @@ export default function App() {
           </DrawerProvider>
         </AppProvider>
       </GestureHandlerRootView>
+      <Toast />
     </ErrorBoundary>
   );
 }

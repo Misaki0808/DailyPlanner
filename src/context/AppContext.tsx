@@ -190,3 +190,9 @@ export const usePomodoroContext = () => {
   if (context === undefined) throw new Error('usePomodoroContext must be used within an AppProvider');
   return context;
 };
+
+export const useRecurringContext = () => {
+  const context = useContext(RecurringContext);
+  if (context === undefined) throw new Error('useRecurringContext must be used within an AppProvider');
+  return context;
+};

@@ -12,13 +12,14 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
-import { Task } from '../types';
+import { Task, Subtask } from '../types';
 import { TASK_CATEGORIES, getCategoryById } from '../utils/categories';
+import { generateId } from '../utils/dateUtils';
 
 interface TaskEditModalProps {
     visible: boolean;
     task: Task;
-    onSave: (updates: { title?: string; note?: string; category?: string }) => void;
+    onSave: (updates: { title?: string; note?: string; category?: string; subtasks?: Subtask[] }) => void;
     onClose: () => void;
 }
 
@@ -32,20 +33,39 @@ export default function TaskEditModal({
     const [titleText, setTitleText] = useState(task.title);
     const [noteText, setNoteText] = useState(task.note || '');
     const [selectedCategory, setSelectedCategory] = useState(task.category || 'diger');
+    const [subtasks, setSubtasks] = useState<Subtask[]>(task.subtasks || []);
+    const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
 
     useEffect(() => {
         if (visible) {
             setTitleText(task.title);
             setNoteText(task.note || '');
             setSelectedCategory(task.category || 'diger');
+            setSubtasks(task.subtasks || []);
+            setNewSubtaskTitle('');
         }
     }, [visible, task]);
+
+    const handleAddSubtask = () => {
+        if (!newSubtaskTitle.trim()) return;
+        setSubtasks([...subtasks, { id: generateId(), title: newSubtaskTitle.trim(), done: false }]);
+        setNewSubtaskTitle('');
+    };
+
+    const handleRemoveSubtask = (id: string) => {
+        setSubtasks(subtasks.filter(s => s.id !== id));
+    };
+
+    const handleToggleSubtask = (id: string) => {
+        setSubtasks(subtasks.map(s => s.id === id ? { ...s, done: !s.done } : s));
+    };
 
     const handleSave = () => {
         onSave({
             title: titleText.trim() || task.title,
             note: noteText.trim() || undefined,
             category: selectedCategory,
+            subtasks,
         });
         onClose();
     };
@@ -113,6 +133,37 @@ export default function TaskEditModal({
                             );
                         })}
                     </ScrollView>
+
+                    {/* Alt Görevler */}
+                    <Text style={[styles.label, { color: theme.textSecondary, marginTop: 12 }]}>Alt Görevler</Text>
+                    <View style={styles.subtaskList}>
+                        {subtasks.map((st) => (
+                            <View key={st.id} style={[styles.subtaskItem, { backgroundColor: theme.taskCardBackground, borderColor: theme.border }]}>
+                                <TouchableOpacity onPress={() => handleToggleSubtask(st.id)}>
+                                    <Text style={styles.subtaskCheck}>{st.done ? '✅' : '⬜'}</Text>
+                                </TouchableOpacity>
+                                <Text style={[styles.subtaskTitle, { color: st.done ? theme.textMuted : theme.text }, st.done && styles.subtaskDoneText]}>
+                                    {st.title}
+                                </Text>
+                                <TouchableOpacity onPress={() => handleRemoveSubtask(st.id)}>
+                                    <Text style={styles.subtaskRemove}>🗑️</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </View>
+                    <View style={styles.subtaskAddRow}>
+                        <TextInput
+                            style={[styles.input, styles.subtaskInput, { backgroundColor: theme.accentLight, color: theme.text, borderColor: theme.border }]}
+                            value={newSubtaskTitle}
+                            onChangeText={setNewSubtaskTitle}
+                            placeholder="Yeni alt görev..."
+                            placeholderTextColor={theme.textMuted}
+                            onSubmitEditing={handleAddSubtask}
+                        />
+                        <TouchableOpacity style={[styles.subtaskAddBtn, { backgroundColor: theme.accent }]} onPress={handleAddSubtask}>
+                            <Text style={styles.subtaskAddBtnText}>Ekle</Text>
+                        </TouchableOpacity>
+                    </View>
 
                     {/* Aksiyonlar */}
                     <View style={styles.actions}>
@@ -223,5 +274,54 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 14,
         fontWeight: '700',
+    },
+    subtaskList: {
+        maxHeight: 120,
+        marginBottom: 8,
+    },
+    subtaskItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 8,
+        borderRadius: 8,
+        borderWidth: 1,
+        marginBottom: 6,
+    },
+    subtaskCheck: {
+        fontSize: 16,
+        marginRight: 8,
+    },
+    subtaskTitle: {
+        flex: 1,
+        fontSize: 14,
+    },
+    subtaskDoneText: {
+        textDecorationLine: 'line-through',
+    },
+    subtaskRemove: {
+        fontSize: 16,
+        paddingLeft: 8,
+    },
+    subtaskAddRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    subtaskInput: {
+        flex: 1,
+        marginBottom: 0,
+        borderTopRightRadius: 0,
+        borderBottomRightRadius: 0,
+    },
+    subtaskAddBtn: {
+        paddingHorizontal: 16,
+        paddingVertical: 13,
+        borderTopRightRadius: 14,
+        borderBottomRightRadius: 14,
+        justifyContent: 'center',
+    },
+    subtaskAddBtnText: {
+        color: '#fff',
+        fontWeight: 'bold',
     },
 });

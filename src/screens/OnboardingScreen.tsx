@@ -12,7 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
+import { useUserContext, useSettingsContext } from '../context/AppContext';
 import { Gender } from '../types';
 
 const { width, height } = Dimensions.get('window');
@@ -40,7 +40,8 @@ interface OnboardingScreenProps {
 }
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
-  const { setUsername, setGender, theme, saveAboutMe } = useApp();
+  const { setUsername, setGender, saveAboutMe } = useUserContext();
+  const { theme } = useSettingsContext();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [name, setName] = useState('');
   const [selectedGender, setSelectedGender] = useState<Gender>('male');

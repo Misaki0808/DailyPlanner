@@ -23,7 +23,8 @@ interface AnimatedTaskItemProps {
   onToggleDone: () => void;
   onChangePriority: () => void;
   onRemove: () => void;
-  onNoteEdit?: (taskId: string, note: string | undefined, title?: string, category?: string) => void;
+  onNoteEdit?: (taskId: string, note: string | undefined, title?: string, category?: string, subtasks?: any[]) => void;
+  onToggleSubtask?: (subtaskId: string) => void;
 }
 
 export default function AnimatedTaskItem({
@@ -35,6 +36,7 @@ export default function AnimatedTaskItem({
   onChangePriority,
   onRemove,
   onNoteEdit,
+  onToggleSubtask,
 }: AnimatedTaskItemProps) {
   const { settings, theme } = useApp();
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -191,6 +193,10 @@ export default function AnimatedTaskItem({
         style={styles.taskItem}
         onPress={() => {}}
         activeOpacity={0.7}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel={`${task.title}, ${task.done ? 'Tamamlandı' : 'Tamamlanmadı'}, Öncelik: ${task.priority || 'Normal'}`}
+        accessibilityHint="Görevi tamamlamak için sağa, silmek için sola kaydırın. Düzenlemek için çift dokunun."
       >
         {/* Görev Numarası ve Başlığı */}
         <View style={styles.taskContent}>
@@ -214,6 +220,32 @@ export default function AnimatedTaskItem({
                 <Text style={[styles.categoryText, { color: getCategoryColor(task.category) }]}>
                   {getCategoryEmoji(task.category)} {getCategoryLabel(task.category)}
                 </Text>
+              </View>
+            )}
+            {/* Alt Görevler Listesi */}
+            {task.subtasks && task.subtasks.length > 0 && (
+              <View style={styles.subtasksContainer}>
+                {task.subtasks.map(st => (
+                  <TouchableOpacity
+                    key={st.id}
+                    style={styles.subtaskRow}
+                    onPress={() => onToggleSubtask && onToggleSubtask(st.id)}
+                    disabled={isEditMode}
+                    accessible={true}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: st.done }}
+                    accessibilityLabel={`Alt görev: ${st.title}`}
+                  >
+                    <Text style={styles.subtaskCheck}>{st.done ? '✅' : '⬜'}</Text>
+                    <Text style={[
+                      styles.subtaskText,
+                      { color: st.done ? theme.textMuted : theme.textSecondary },
+                      st.done && { textDecorationLine: 'line-through' }
+                    ]}>
+                      {st.title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
           </View>
@@ -286,8 +318,7 @@ export default function AnimatedTaskItem({
         task={task}
         onSave={(updates) => {
           if (onNoteEdit) {
-            // Pass all updates through onNoteEdit which we'll enhance
-            onNoteEdit(task.id, updates.note, updates.title, updates.category);
+            onNoteEdit(task.id, updates.note, updates.title, updates.category, updates.subtasks);
           }
         }}
         onClose={() => setShowNoteModal(false)}
@@ -442,5 +473,20 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  subtasksContainer: {
+    marginTop: 8,
+    gap: 4,
+  },
+  subtaskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subtaskCheck: {
+    fontSize: 12,
+    marginRight: 6,
+  },
+  subtaskText: {
+    fontSize: 13,
   },
 });

@@ -1,6 +1,13 @@
 // Gender tipi
 export type Gender = 'male' | 'female';
 
+// Alt Görev (Subtask) tipi
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
 // Task (Görev) tipi
 export interface Task {
   id: string;
@@ -10,6 +17,7 @@ export interface Task {
   note?: string;
   category?: string; // Kategori id'si (ör: 'is', 'okul', 'spor')
   pomodoroCount?: number; // Bu göreve bağlı tamamlanan pomodoro sayısı
+  subtasks?: Subtask[]; // Alt görevler listesi
 }
 
 // Tekrarlayan görev tipi

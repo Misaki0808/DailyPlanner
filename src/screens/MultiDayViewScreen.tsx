@@ -10,9 +10,13 @@ import {
   Share,
   TextInput,
   Animated as RNAnimated,
+  Keyboard,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
+import { usePlansContext, useSettingsContext, useRecurringContext } from '../context/AppContext';
 import { useNavigation } from '@react-navigation/native';
 import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
 import { Task } from '../types';
@@ -26,8 +30,7 @@ import FlexibleTaskPool from '../components/planner/FlexibleTaskPool';
 import ActionButtonsBar from '../components/planner/ActionButtonsBar';
 import DayStatsBar from '../components/planner/DayStatsBar';
 import SearchFilterModal from '../components/planner/SearchFilterModal';
-import { getCategoryEmoji, getCategoryLabel, getCategoryColor, TASK_CATEGORIES } from '../utils/categories';
-import { formatDateDisplay as formatDisplay } from '../utils/dateUtils';
+import { getCategoryEmoji, getCategoryLabel, getCategoryColor } from '../utils/categories';
 import { HeaderProgressBar } from '../components/HeaderProgressBar';
 
 // Sadece native platformlarda import et
@@ -40,8 +43,12 @@ if (Platform.OS !== 'web') {
   }
 }
 
+import { styles } from './styles/MultiDayViewScreen.styles';
+
 export default function MultiDayViewScreen() {
-  const { plans, updateTask, savePlan, deletePlan, settings, theme, recurringTasks } = useApp();
+  const { plans, updateTask, savePlan, deletePlan } = usePlansContext();
+  const { settings, theme } = useSettingsContext();
+  const { recurringTasks } = useRecurringContext();
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -50,6 +57,7 @@ export default function MultiDayViewScreen() {
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [deletedTask, setDeletedTask] = useState<Task | null>(null);
   const [quickAddText, setQuickAddText] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const undoAnim = useRef(new RNAnimated.Value(0)).current;
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
@@ -108,12 +116,15 @@ export default function MultiDayViewScreen() {
   const percentage = calculatePercentage();
 
   // Görev durumunu değiştir
-  const toggleTaskDone = async (taskId: string, currentDone: boolean) => {
-    try {
-      await updateTask(selectedDate, taskId, { done: !currentDone });
-  
-    } catch (error) {
-      console.error('Görev güncellenirken hata:', error);
+  const toggleTaskDone = async (taskId: string, currentStatus: boolean) => {
+    const updatedTasks = currentTasks.map(task =>
+      task.id === taskId ? { ...task, done: !currentStatus } : task
+    );
+    await savePlan(selectedDate, updatedTasks);
+    
+    if (!currentStatus) {
+      setShowConfetti(false);
+      setTimeout(() => setShowConfetti(true), 50);
     }
   };
 
@@ -191,16 +202,34 @@ export default function MultiDayViewScreen() {
   };
 
   // Not düzenle/sil
-  const handleNoteEdit = async (taskId: string, note: string | undefined, title?: string, category?: string) => {
+  const handleNoteEdit = async (taskId: string, note: string | undefined, title?: string, category?: string, subtasks?: any[]) => {
     const updatedTasks = currentTasks.map(task => {
-      if (task.id !== taskId) return task;
-      const updated = { ...task, note };
-      if (title !== undefined) updated.title = title;
-      if (category !== undefined) updated.category = category;
-      return updated;
+      if (task.id === taskId) {
+        return {
+          ...task,
+          note,
+          ...(title ? { title } : {}),
+          ...(category ? { category } : {}),
+          ...(subtasks ? { subtasks } : {}),
+        };
+      }
+      return task;
     });
     await savePlan(selectedDate, updatedTasks);
+  };
 
+  // Alt görev toggle
+  const handleToggleSubtask = async (taskId: string, subtaskId: string) => {
+    const updatedTasks = currentTasks.map(task => {
+      if (task.id === taskId && task.subtasks) {
+        return {
+          ...task,
+          subtasks: task.subtasks.map(st => st.id === subtaskId ? { ...st, done: !st.done } : st)
+        };
+      }
+      return task;
+    });
+    await savePlan(selectedDate, updatedTasks);
   };
 
   // Tüm günü sil
@@ -276,7 +305,7 @@ export default function MultiDayViewScreen() {
     const allTasks = [...existingTasks, ...newTasks];
     await savePlan(targetDate, allTasks);
 
-    Alert.alert('Başarılı', `${selectedTasks.length} görev ${targetDate} tarihine kopyalandı.`, [{ text: 'Tamam' }]);
+    Toast.show({ type: 'success', text1: 'Başarılı', text2: `${selectedTasks.length} görev ${targetDate} tarihine kopyalandı.` });
   };
 
   // Paylaşım metni oluştur
@@ -297,7 +326,7 @@ export default function MultiDayViewScreen() {
   const handleSharePlan = async () => {
     if (currentTasks.length === 0) {
       if (Platform.OS === 'web') window.alert('Paylaşılacak görev yok');
-      else Alert.alert('Uyarı', 'Paylaşılacak görev yok');
+      else Toast.show({ type: 'info', text1: 'Uyarı', text2: 'Paylaşılacak görev yok' });
       return;
     }
     try {
@@ -318,7 +347,7 @@ export default function MultiDayViewScreen() {
     } catch (error) {
       console.error('Paylaşım hatası:', error);
       if (Platform.OS === 'web') window.alert('Plan paylaşılırken hata oluştu');
-      else Alert.alert('Hata', 'Plan paylaşılırken hata oluştu');
+      else Toast.show({ type: 'error', text1: 'Hata', text2: 'Plan paylaşılırken hata oluştu' });
     }
   };
 
@@ -426,7 +455,7 @@ export default function MultiDayViewScreen() {
                       </Text>
                       <View style={styles.searchResultMeta}>
                         <Text style={[styles.searchResultDate, { color: theme.textSecondary }]}>
-                          📅 {formatDisplay(r.date)}
+                          📅 {formatDateDisplay(r.date)}
                         </Text>
                         {r.task.category && (
                           <Text style={[styles.searchResultCat, { color: getCategoryColor(r.task.category) }]}>
@@ -476,9 +505,14 @@ export default function MultiDayViewScreen() {
         )}
 
         {/* Görev Listesi */}
+        {/* Görev Listesi */}
         {!isFiltering && (
-          <ScrollView style={styles.taskList}>
-            {currentTasks.length === 0 ? (
+          <DraggableFlatList
+            style={styles.taskList}
+            data={currentTasks}
+            onDragEnd={({ data }) => savePlan(selectedDate, data)}
+            keyExtractor={(item) => item.id}
+            ListEmptyComponent={() => (
               <View style={styles.emptyState}>
                 <View style={[styles.emptyStateCard, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
                   <Text style={styles.emptyStateIcon}>📭</Text>
@@ -488,22 +522,51 @@ export default function MultiDayViewScreen() {
                   </Text>
                 </View>
               </View>
-            ) : (
-              currentTasks.map((task, index) => (
+            )}
+            renderItem={({ item, getIndex, drag, isActive }: RenderItemParams<Task>) => (
+              <View style={[isActive && { transform: [{ scale: 1.05 }], zIndex: 99, elevation: 5, shadowColor: '#000', shadowOpacity: 0.2, shadowOffset: { width: 0, height: 4 } }]}>
                 <AnimatedTaskItem
-                  key={task.id}
-                  task={task}
-                  index={index}
+                  task={item}
+                  index={getIndex() || 0}
                   totalCount={currentTasks.length}
                   isEditMode={isEditMode}
-                  onToggleDone={() => toggleTaskDone(task.id, task.done)}
-                  onChangePriority={() => handleChangePriority(task.id)}
-                  onRemove={() => handleRemoveTask(task.id)}
+                  onToggleDone={() => toggleTaskDone(item.id, item.done)}
+                  onChangePriority={() => handleChangePriority(item.id)}
+                  onRemove={() => handleRemoveTask(item.id)}
                   onNoteEdit={handleNoteEdit}
+                  onToggleSubtask={(subtaskId) => handleToggleSubtask(item.id, subtaskId)}
                 />
-              ))
+                {isEditMode && (
+                  <TouchableOpacity
+                    onLongPress={drag}
+                    style={{
+                      position: 'absolute',
+                      right: 50,
+                      top: 15,
+                      padding: 10,
+                      zIndex: 100,
+                    }}
+                  >
+                    <Text style={{ fontSize: 20 }}>☰</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
-          </ScrollView>
+            contentContainerStyle={currentTasks.length === 0 ? { flex: 1 } : undefined}
+          />
+        )}
+
+        {/* Konfeti Animasyonu */}
+        {showConfetti && (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <ConfettiCannon 
+              count={100} 
+              origin={{x: -10, y: 0}}
+              autoStart={true}
+              fadeOut={true}
+              onAnimationEnd={() => setShowConfetti(false)}
+            />
+          </View>
         )}
 
         {/* Geri Al Snackbar */}
@@ -572,152 +635,4 @@ export default function MultiDayViewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  dateNavigation: {
-    padding: 16,
-  },
-  taskList: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80,
-  },
-  emptyStateCard: {
-    borderRadius: 24,
-    padding: 32,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  emptyStateIcon: {
-    fontSize: 72,
-    marginBottom: 16,
-  },
-  emptyStateTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  undoSnackbar: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  undoText: {
-    fontSize: 14,
-    flex: 1,
-    marginRight: 12,
-  },
-  undoButtonGradient: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  undoButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  dateNavWithSearch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  filterBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginTop: 12,
-  },
-  filterBannerTitle: {
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  searchResults: {
-    marginTop: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    maxHeight: 250,
-    overflow: 'hidden',
-  },
-  searchNoResult: {
-    padding: 20,
-    textAlign: 'center',
-    fontSize: 14,
-  },
-  searchResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-  },
-  searchResultTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  searchResultMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 3,
-  },
-  searchResultDate: {
-    fontSize: 11,
-  },
-  searchResultCat: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  searchResultArrow: {
-    fontSize: 24,
-    marginLeft: 8,
-  },
-  catFilterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-    borderWidth: 2,
-    gap: 4,
-  },
-  catFilterEmoji: {
-    fontSize: 13,
-  },
-  catFilterLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});
+
