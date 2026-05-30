@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Switch,
+  Platform,
 } from 'react-native';
 import { Settings } from '../../types';
 import { createSharedStyles } from '../../utils/sharedStyles';
@@ -92,32 +93,49 @@ export default function PreferencesSection({
 
   // Tüm Verileri Sıfırla
   const handleClearData = () => {
-    Alert.alert(
-      '⚠️ Tüm Verileri Sıfırla',
-      'Emin misin? Girdiğin görevler, ismin, sistem kayıtları ve istatistikler kalıcı olarak silinecek. (Test etmek için bu işlemi yapıyorsan Onaylaya bas).',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        { 
-          text: 'Evet, Sıfırla', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await AsyncStorage.clear();
-              // Zustand state'lerini sıfırla
-              useUserStore.setState({ username: 'Kullanıcı', gender: 'male', hasCompletedOnboarding: false, aboutMe: '' });
-              usePlansStore.setState({ plans: {} });
-              useSettingsStore.setState({ settings: defaultSettings, theme: 'dark' });
-              usePomodoroStore.setState({ completedSessionsCount: 0, completedSessions: [] });
-              useRecurringStore.setState({ recurringTasks: [] });
-              
-              Alert.alert('Sıfırlandı!', 'Tüm verilerin başarıyla silindi ve uygulama ilk haline döndü.');
-            } catch (error) {
-              Alert.alert('Hata', 'Veriler sıfırlanırken hata oluştu.');
-            }
-          }
+    const performClear = async () => {
+      try {
+        await AsyncStorage.clear();
+        // Zustand state'lerini sıfırla
+        useUserStore.setState({ username: 'Kullanıcı', gender: 'male', hasCompletedOnboarding: false, aboutMe: '' });
+        usePlansStore.setState({ plans: {} });
+        useSettingsStore.setState({ settings: defaultSettings, theme: 'dark' });
+        usePomodoroStore.setState({ completedSessionsCount: 0, completedSessions: [] });
+        useRecurringStore.setState({ recurringTasks: [] });
+        
+        if (Platform.OS === 'web') {
+          window.alert('Sıfırlandı! Tüm verilerin başarıyla silindi ve uygulama ilk haline döndü.');
+        } else {
+          Alert.alert('Sıfırlandı!', 'Tüm verilerin başarıyla silindi ve uygulama ilk haline döndü.');
         }
-      ]
-    );
+      } catch (error) {
+        if (Platform.OS === 'web') {
+          window.alert('Hata: Veriler sıfırlanırken hata oluştu.');
+        } else {
+          Alert.alert('Hata', 'Veriler sıfırlanırken hata oluştu.');
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('⚠️ Tüm Verileri Sıfırla\n\nEmin misin? Girdiğin görevler, ismin, sistem kayıtları ve istatistikler kalıcı olarak silinecek. (Test etmek için bu işlemi yapıyorsan Tamam\'a bas).');
+      if (confirmed) {
+        performClear();
+      }
+    } else {
+      Alert.alert(
+        '⚠️ Tüm Verileri Sıfırla',
+        'Emin misin? Girdiğin görevler, ismin, sistem kayıtları ve istatistikler kalıcı olarak silinecek. (Test etmek için bu işlemi yapıyorsan Onaylaya bas).',
+        [
+          { text: 'Vazgeç', style: 'cancel' },
+          { 
+            text: 'Evet, Sıfırla', 
+            style: 'destructive',
+            onPress: performClear
+          }
+        ]
+      );
+    }
   };
 
   return (
