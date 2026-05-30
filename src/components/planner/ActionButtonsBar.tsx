@@ -20,6 +20,7 @@ interface ActionButtonsBarProps {
   onSharePlan: () => void;
   onCopyPlan: () => void;
   onDeleteDay: () => void;
+  onAiEditPlan?: () => void;
 }
 
 export default function ActionButtonsBar({
@@ -31,6 +32,7 @@ export default function ActionButtonsBar({
   onSharePlan,
   onCopyPlan,
   onDeleteDay,
+  onAiEditPlan,
 }: ActionButtonsBarProps) {
   const { theme } = useApp();
 
@@ -50,6 +52,20 @@ export default function ActionButtonsBar({
               end={{ x: 1, y: 0 }}
             >
               <Text style={styles.actionButtonText}>⚙️ Düzenle</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={onAiEditPlan}
+          >
+            <LinearGradient
+              colors={['#8a2be2', '#4b0082']}
+              style={styles.actionButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.actionButtonText}>🤖 AI Düzenle</Text>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -173,7 +189,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: '#fff',
   },

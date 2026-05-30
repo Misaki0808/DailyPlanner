@@ -1,14 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, useWindowDimensions, ViewStyle, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions, ViewStyle, TouchableOpacity, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePlansContext, useSettingsContext } from '../context/AppContext';
 import { getToday, formatDateDisplay } from '../utils/dateUtils';
+import WeeklyProgressChart from '../components/charts/WeeklyProgressChart';
 
 export default function PlanOverviewScreen() {
   const { plans } = usePlansContext();
   const { settings, theme } = useSettingsContext();
   const { width, height } = useWindowDimensions();
   const [centerDate, setCenterDate] = useState(getToday());
+  const [isStatsModalVisible, setIsStatsModalVisible] = useState(false);
 
   const surroundingDays = useMemo(() => {
     const allDates = Object.keys(plans).filter(date => date !== centerDate && plans[date].length > 0);
@@ -97,6 +99,31 @@ export default function PlanOverviewScreen() {
           </LinearGradient>
         </View>
       </View>
+
+      {/* İstatistikler Butonu */}
+      <TouchableOpacity 
+        style={[styles.statsButton, { backgroundColor: theme.cardBackground, borderColor: theme.border }]} 
+        onPress={() => setIsStatsModalVisible(true)}
+      >
+        <Text style={{ fontSize: 24 }}>📊</Text>
+      </TouchableOpacity>
+
+      {/* İstatistikler Modalı */}
+      <Modal visible={isStatsModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.modalBackground, borderColor: theme.border }]}>
+            <TouchableOpacity 
+              style={styles.modalCloseBtn} 
+              onPress={() => setIsStatsModalVisible(false)}
+            >
+              <Text style={{ color: theme.textSecondary, fontSize: 16 }}>✕ Kapat</Text>
+            </TouchableOpacity>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <WeeklyProgressChart />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -200,4 +227,36 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
   },
+  statsButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    maxHeight: '80%',
+    paddingBottom: 40,
+  },
+  modalCloseBtn: {
+    alignSelf: 'flex-end',
+    padding: 16,
+  }
 });

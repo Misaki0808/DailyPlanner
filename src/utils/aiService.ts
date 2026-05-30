@@ -405,3 +405,63 @@ JSON:`;
     return [];
   }
 };
+
+/**
+ * AI ile mevcut planı kullanıcının isteğine göre düzenler (Modify Plan)
+ * @param currentTasks - Mevcut görev listesi
+ * @param userPrompt - Kullanıcının değişiklik isteği (ör. "Bugün çok hastayım, önemli olmayanları sil")
+ * @returns Güncellenmiş Task listesi
+ */
+export const modifyPlanWithAI = async (currentTasks: Task[], userPrompt: string): Promise<Task[]> => {
+  if (!GEMINI_API_KEY) {
+    throw new Error('API key bulunamadı.');
+  }
+
+  const prompt = `
+Sen bir görev planlama asistanısın. Kullanıcının MEVCUT görev listesi var ve bu listeyi kullanıcının YENİ İSTEĞİNE göre güncellemek istiyor.
+
+MEVCUT GÖREVLER (JSON):
+${JSON.stringify(currentTasks.map(t => ({ id: t.id, title: t.title, priority: t.priority, done: t.done })), null, 2)}
+
+KULLANICININ YENİ İSTEĞİ: "${userPrompt}"
+
+KURALLAR:
+1. Kullanıcının isteğini analiz et (ör. "önemsizleri sil", "ertelenmişleri yarına at" vb. ise buna göre listeyi filtrele veya önceliklerini/başlıklarını değiştir).
+2. Sonuçları GÜNCELLENMİŞ bir JSON array olarak döndür. 
+3. Orijinal "id" değerlerini KORU. Sadece JSON array döndür, açıklama yapma.
+4. Çıktı formatı: [{"id": "...", "title": "...", "priority": "low|medium|high", "done": boolean}, ...]
+`;
+
+  const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+  try {
+    const response = await fetchWithRetry(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7 },
+      }),
+    });
+
+    if (!response.ok) throw new Error('API hatası');
+    const data = await response.json();
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!generatedText) throw new Error('AI yanıt üretemedi');
+
+    const cleanedText = generatedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const updatedTasksData = JSON.parse(cleanedText);
+
+    // Orijinal görevleri yeni veriyle birleştir (Kategori vb. kaybolmaması için)
+    return currentTasks.map(oldTask => {
+      const aiUpdated = updatedTasksData.find((t: any) => t.id === oldTask.id);
+      if (aiUpdated) {
+        return { ...oldTask, ...aiUpdated };
+      }
+      return null; // AI sildiyse null döner
+    }).filter(t => t !== null) as Task[];
+
+  } catch (error) {
+    console.error('AI Plan Düzenleme Hatası:', error);
+    throw new Error('Plan düzenlenirken bir hata oluştu');
+  }
+};

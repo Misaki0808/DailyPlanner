@@ -11,6 +11,7 @@ import {
   TextInput,
   Animated as RNAnimated,
   Keyboard,
+  Modal,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
@@ -18,6 +19,7 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePlansContext, useSettingsContext, useRecurringContext } from '../context/AppContext';
 import { useNavigation } from '@react-navigation/native';
+import { modifyPlanWithAI } from '../utils/aiService';
 import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
 import { Task } from '../types';
 import CopyPlanModal from '../components/CopyPlanModal';
@@ -64,6 +66,11 @@ export default function MultiDayViewScreen() {
   const [isSearchFilterOpen, setIsSearchFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilterCats, setSelectedFilterCats] = useState<string[]>([]);
+  
+  // AI State
+  const [isAiModalVisible, setIsAiModalVisible] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
   
   const navigation = useNavigation();
 
@@ -249,6 +256,27 @@ export default function MultiDayViewScreen() {
       }
     } else {
       await confirmDelete();
+    }
+  };
+
+  // AI ile Düzenle
+  const handleAiEditPlan = async () => {
+    if (!aiPrompt.trim()) return;
+    if (currentTasks.length === 0) {
+      Toast.show({ type: 'info', text1: 'Uyarı', text2: 'Düzenlenecek görev yok.' });
+      return;
+    }
+    setIsAiLoading(true);
+    try {
+      const updatedTasks = await modifyPlanWithAI(currentTasks, aiPrompt.trim());
+      await savePlan(selectedDate, updatedTasks);
+      Toast.show({ type: 'success', text1: 'Başarılı', text2: 'Planınız AI tarafından güncellendi!' });
+      setIsAiModalVisible(false);
+      setAiPrompt('');
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Hata', text2: error.message || 'Plan düzenlenemedi' });
+    } finally {
+      setIsAiLoading(false);
     }
   };
 
@@ -490,6 +518,7 @@ export default function MultiDayViewScreen() {
               onSharePlan={handleSharePlan}
               onCopyPlan={() => setIsCopyModalVisible(true)}
               onDeleteDay={handleDeleteDay}
+              onAiEditPlan={() => setIsAiModalVisible(true)}
             />
           )}
         </View>
@@ -630,9 +659,40 @@ export default function MultiDayViewScreen() {
           title="Tüm Planları Sil"
           message={`${formatDateDisplay(selectedDate)} tarihindeki tüm görevleri silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`}
         />
+        
+        {/* AI Düzenle Modalı */}
+        <Modal visible={isAiModalVisible} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: theme.modalBackground, borderColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>🤖 AI ile Planı Düzenle</Text>
+              <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>
+                Örn: "Bugün çok hastayım, önemsizleri yarına at", "Tüm işleri yüksek öncelikli yap"
+              </Text>
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: theme.cardBackground, color: theme.text, borderColor: theme.border }]}
+                placeholder="İsteğinizi yazın..."
+                placeholderTextColor={theme.textMuted}
+                value={aiPrompt}
+                onChangeText={setAiPrompt}
+                multiline
+                autoFocus
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsAiModalVisible(false)} disabled={isAiLoading}>
+                  <Text style={{ color: theme.textSecondary, fontWeight: 'bold' }}>İptal</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleAiEditPlan} disabled={isAiLoading}>
+                  <LinearGradient colors={theme.accentGradient} style={styles.saveBtnGradient}>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>{isAiLoading ? 'Düzenleniyor...' : 'Uygula'}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </LinearGradient>
   );
+
+
 }
-
-

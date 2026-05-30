@@ -149,4 +149,50 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  modalInput: {
+    minHeight: 100,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    fontSize: 16,
+    textAlignVertical: 'top',
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  cancelBtn: {
+    padding: 12,
+    justifyContent: 'center',
+  },
+  saveBtnGradient: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    justifyContent: 'center',
+  },
 });
