@@ -64,5 +64,6 @@ export type RootTabParamList = {
   MultiDayView: undefined;
   PlanOverview: undefined;
   Pomodoro: undefined;
+  CalendarGrid: undefined;
   Settings: undefined;
 };

@@ -12,6 +12,7 @@ import StatsSection from '../components/settings/StatsSection';
 import RecurringTasksSection from '../components/settings/RecurringTasksSection';
 import PreferencesSection from '../components/settings/PreferencesSection';
 import AboutMeSection from '../components/settings/AboutMeSection';
+import CloudSyncSection from '../components/settings/CloudSyncSection';
 
 export default function SettingsScreen() {
   const { username, setUsername, gender, setGender } = useUserContext();
@@ -50,6 +51,8 @@ export default function SettingsScreen() {
           />
 
           <AboutMeSection />
+          
+          <CloudSyncSection />
 
           <StatsSection
             plans={plans}

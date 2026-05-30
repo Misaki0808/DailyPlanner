@@ -19,6 +19,7 @@ import MultiDayViewScreen from './src/screens/MultiDayViewScreen';
 import PlanOverviewScreen from './src/screens/PlanOverviewScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import PomodoroScreen from './src/screens/PomodoroScreen';
+import CalendarGridScreen from './src/screens/CalendarGridScreen';
 import { RootTabParamList } from './src/types';
 
 import { navigationRef } from './src/utils/navigationRef';
@@ -121,6 +122,11 @@ function AppContent() {
             name="Pomodoro"
             component={PomodoroScreen}
             options={{ title: '⏱️ Pomodoro' }}
+          />
+          <Stack.Screen
+            name="CalendarGrid"
+            component={CalendarGridScreen}
+            options={{ title: '🗓️ Takvim' }}
           />
           <Stack.Screen
             name="Settings"
