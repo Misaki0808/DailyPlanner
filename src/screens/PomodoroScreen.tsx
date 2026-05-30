@@ -5,6 +5,8 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { useSettingsContext } from '../context/AppContext';
 import { usePomodoroTimer, TimerMode, MODES } from '../hooks/usePomodoroTimer';
 import { PomodoroModals } from '../components/pomodoro/PomodoroModals';
+import { useNavigation } from '@react-navigation/native';
+import { HeaderProgressBar } from '../components/HeaderProgressBar';
 
 // ─── SVG Icon Components ────────────────────────────────────────
 const PlayIcon = ({ size = 28, color = '#fff' }: { size?: number; color?: string }) => (
@@ -55,6 +57,23 @@ export default function PomodoroScreen() {
   const [isTaskModalVisible, setIsTaskModalVisible] = useState(false);
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
   const [isSoundModalVisible, setIsSoundModalVisible] = useState(false);
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity style={{ padding: 5, marginRight: 8 }} onPress={() => setIsSoundModalVisible(true)}>
+            <Text style={{ fontSize: 22 }}>{timer.selectedAmbient !== 'none' ? '🔊' : '🔇'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ padding: 5, marginRight: 15 }} onPress={() => setIsSettingsModalVisible(true)}>
+            <Text style={{ fontSize: 22 }}>⚙️</Text>
+          </TouchableOpacity>
+          <HeaderProgressBar />
+        </View>
+      ),
+    });
+  }, [navigation, timer.selectedAmbient, setIsSoundModalVisible, setIsSettingsModalVisible]);
 
   const savePomodoroSettings = async () => {
     await updateSettings({
@@ -209,15 +228,6 @@ export default function PomodoroScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ── Top right settings & sound buttons ── */}
-      <View style={styles.topRightControls}>
-        <TouchableOpacity style={styles.headerButton} onPress={() => setIsSoundModalVisible(true)}>
-          <Text style={{ fontSize: 22 }}>{timer.selectedAmbient !== 'none' ? '🔊' : '🔇'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerButton} onPress={() => setIsSettingsModalVisible(true)}>
-          <Text style={{ fontSize: 22 }}>⚙️</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* ── Animated background gradients ── */}
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: focusBgOpacity }]} pointerEvents="none">

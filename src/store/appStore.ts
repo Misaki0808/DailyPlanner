@@ -8,9 +8,7 @@ import { usePlansStore } from './plansStore';
 import { usePomodoroStore } from './pomodoroStore';
 import { useRecurringStore } from './recurringStore';
 
-// Note: syncRecurringTasks needs to be imported or rewritten here.
-// For simplicity, we rewrite a lightweight version of it here, 
-// or we can import it from a utility file if we refactor `useRecurringTasks`.
+import { Task } from '../types';
 
 interface AppState {
   isLoading: boolean;
@@ -60,6 +58,49 @@ export const useAppStore = create<AppState>((set) => ({
           const [h, m] = (savedSettings.notificationTime || '20:00').split(':').map(Number);
           await scheduleDailySummaryNotification(h, m);
         }
+      }
+
+      // Sync Recurring Tasks for Today
+      const today = getToday();
+      const lastSync = await storage.getLastRecurringSync();
+      
+      if (lastSync !== today && savedRecurring && savedRecurring.length > 0) {
+        const dateObj = new Date();
+        const dayOfWeek = dateObj.getDay();
+        const dayOfMonth = dateObj.getDate();
+        const existingTasks = savedPlans[today] || [];
+        const existingTitles = new Set(existingTasks.map((t: Task) => t.title.toLowerCase()));
+
+        const newTasks: Task[] = [];
+        for (const rt of savedRecurring) {
+          if (!rt.isActive) continue;
+          if (existingTitles.has(rt.title.toLowerCase())) continue;
+          
+          let shouldAdd = false;
+          if (rt.frequency === 'daily') shouldAdd = true;
+          else if (rt.frequency === 'weekly') {
+            if (rt.weekDays && rt.weekDays.includes(dayOfWeek)) shouldAdd = true;
+            else if (rt.weekDay !== undefined && rt.weekDay === dayOfWeek) shouldAdd = true;
+          } else if (rt.frequency === 'monthly' && rt.monthDay === dayOfMonth) {
+            shouldAdd = true;
+          }
+
+          if (shouldAdd) {
+            newTasks.push({
+              id: 'rt-' + Date.now() + Math.random().toString(36).substring(2, 7),
+              title: rt.title,
+              done: false,
+              priority: rt.priority,
+              category: 'diger',
+            });
+          }
+        }
+
+        if (newTasks.length > 0) {
+          const updatedTasks = [...existingTasks, ...newTasks];
+          await usePlansStore.getState().savePlan(today, updatedTasks);
+        }
+        await storage.saveLastRecurringSync(today);
       }
 
     } catch (error) {

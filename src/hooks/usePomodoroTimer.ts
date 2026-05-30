@@ -96,29 +96,28 @@ export function usePomodoroTimer() {
 
   useEffect(() => {
     const loadAmbient = async () => {
-      if (ambientSoundRef.current) {
-        await ambientSoundRef.current.unloadAsync();
-        ambientSoundRef.current = null;
-      }
-      if (selectedAmbient === 'none') return;
-      const soundObj = AMBIENT_SOUNDS.find(s => s.id === selectedAmbient);
-      if (!soundObj) return;
-
       try {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: soundObj.url },
-          { isLooping: true, volume: ambientVolume }
-        );
-        ambientSoundRef.current = sound;
-        if (isRunning) {
+        if (ambientSoundRef.current) {
+          await ambientSoundRef.current.unloadAsync();
+          ambientSoundRef.current = null;
+        }
+        if (selectedAmbient === 'none' || !isRunning) return;
+
+        const soundObj = AMBIENT_SOUNDS.find(s => s.id === selectedAmbient);
+        if (soundObj?.url) {
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: soundObj.url },
+            { isLooping: true, volume: ambientVolume }
+          );
+          ambientSoundRef.current = sound;
           await sound.playAsync();
         }
-      } catch (e) {
-        console.log("Ambient load error", e);
+      } catch (error) {
+        console.warn('Arka plan sesi yüklenemedi (403 Forbidden veya ağ hatası):', error);
       }
     };
     loadAmbient();
-  }, [selectedAmbient]);
+  }, [selectedAmbient, isRunning, ambientVolume]);
 
   useEffect(() => {
     if (ambientSoundRef.current) {
@@ -136,12 +135,14 @@ export function usePomodoroTimer() {
   }, [isRunning]);
 
   const playDingSound = async () => {
-    try {
-      const { sound } = await Audio.Sound.createAsync({ uri: DING_SOUND_URL });
-      await sound.playAsync();
-      setTimeout(() => sound.unloadAsync(), 5000);
-    } catch (e) {
-      console.log('Error playing ding:', e);
+    if (settings?.pomodoroSoundEnabled) {
+      try {
+        const { sound } = await Audio.Sound.createAsync({ uri: DING_SOUND_URL });
+        await sound.playAsync();
+        setTimeout(() => sound.unloadAsync(), 5000);
+      } catch (error) {
+        console.warn('Süre bitiş zili çalınamadı:', error);
+      }
     }
   };
 

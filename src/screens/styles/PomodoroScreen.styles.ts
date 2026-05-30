@@ -2,7 +2,7 @@ import { StyleSheet, Dimensions } from 'react-native';
 const { width, height } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 20, paddingTop: 20, alignItems: 'center' },
+  container: { flex: 1, paddingHorizontal: 20, paddingTop: 60, alignItems: 'center' },
   modeSelector: { flexDirection: 'row', gap: 8, marginBottom: 40, position: 'relative' },
   modeIndicator: { position: 'absolute', top: 0, bottom: 0, borderRadius: 20, borderWidth: 1.5 },
   modeButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, gap: 6 },
@@ -28,7 +28,7 @@ export const styles = StyleSheet.create({
   taskChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, borderWidth: 1.5, marginBottom: 20, minWidth: 160, justifyContent: 'center' },
   taskChipText: { fontSize: 14, fontWeight: '600', marginRight: 4 },
   taskChipClear: { padding: 2, marginLeft: 6 },
-  topRightControls: { position: 'absolute', top: 10, right: 20, zIndex: 10, flexDirection: 'row', gap: 16 },
+  topRightControls: { position: 'absolute', top: 20, right: 20, zIndex: 10, flexDirection: 'row', gap: 16 },
   headerButton: { padding: 5 },
   statsCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingVertical: 16, borderRadius: 16, borderWidth: 1, marginTop: 16, width: '100%' },
   statsItem: { alignItems: 'center', flex: 1 },
