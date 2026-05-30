@@ -19,19 +19,29 @@ const { width, height } = Dimensions.get('window');
 
 const SLIDES = [
   {
-    emoji: '📋',
-    title: 'Hoş Geldin!',
-    description: 'DailyPlanner ile günlük görevlerini kolayca planla, takip et ve hedeflerine ulaş.',
+    emoji: '✨',
+    title: 'Daily Planner\'a\nHoş Geldin!',
+    description: 'Yeni nesil, yapay zeka destekli kişisel asistanınla tanışmaya hazır mısın?',
   },
   {
-    emoji: '🤖',
-    title: 'Yapay Zeka Destekli',
-    description: 'Görevlerini sesli kaydet veya paragraf olarak yaz, AI otomatik olarak madde madde listeye ve kategorilere dönüştürsün.',
+    emoji: '🎙️',
+    title: 'Sen Söyle,\nO Planlasın',
+    description: 'İster mikrofonla konuş, ister uzun uzun yaz. Gemini AI karmaşık planlarını saniyeler içinde akıllı görevlere dönüştürür.',
+  },
+  {
+    emoji: '🍅',
+    title: 'Pomodoro ile\nTam Odaklanma',
+    description: 'Yağmur, şömine veya okyanus sesleri eşliğinde çalış. Zamanını verimli kullan ve odak serini koru!',
+  },
+  {
+    emoji: '🔄',
+    title: 'Otomatik\nRutinler',
+    description: 'Günlük spor veya haftalık toplantılar... Düzenli tekrarlayan görevlerini bir kere ekle, gerisini sisteme bırak.',
   },
   {
     emoji: '📊',
-    title: 'İlerlemeyi Takip Et',
-    description: 'Haftalık istatistikler, kategori dağılımları ve AI analizleriyle motivasyonunu yüksek tut.',
+    title: 'İlerlemeyi\nTakip Et',
+    description: 'Haftalık istatistikler, kategori dağılımları ve yapay zeka karneleriyle motivasyonunu hep en üstte tut.',
   },
 ];
 
@@ -48,6 +58,16 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const [aboutMe, setAboutMe] = useState('');
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: -15, duration: 1500, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 1500, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
 
   const isSlidePhase = currentSlide < SLIDES.length;
   const isNamePhase = currentSlide === SLIDES.length;
@@ -94,7 +114,9 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     const slide = SLIDES[currentSlide];
     return (
       <View style={styles.slideContainer}>
-        <Text style={styles.slideEmoji}>{slide.emoji}</Text>
+        <Animated.Text style={[styles.slideEmoji, { transform: [{ translateY: floatAnim }] }]}>
+          {slide.emoji}
+        </Animated.Text>
         <Text style={[styles.slideTitle, { color: theme.text }]}>{slide.title}</Text>
         <Text style={[styles.slideDesc, { color: theme.textSecondary }]}>{slide.description}</Text>
       </View>
@@ -123,22 +145,22 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
 
   const renderGenderSelect = () => (
     <View style={styles.slideContainer}>
-      <Text style={styles.slideEmoji}>🎭</Text>
+      <Animated.Text style={[styles.slideEmoji, { transform: [{ translateY: floatAnim }] }]}>🎭</Animated.Text>
       <Text style={[styles.slideTitle, { color: theme.text }]}>Profil Avatarı</Text>
       <Text style={[styles.slideDesc, { color: theme.textSecondary }]}>
-        Profilinde hangi avatarı kullanmak istersin?
+        Sana en uygun avatarı seçerek profilini kişiselleştir.
       </Text>
       <View style={styles.genderRow}>
         <TouchableOpacity
           style={[
             styles.genderOption,
             { backgroundColor: theme.accentLight, borderColor: theme.border },
-            selectedGender === 'male' && { borderColor: theme.accent, backgroundColor: theme.accent + '20' },
+            selectedGender === 'male' && { borderColor: theme.accent, backgroundColor: theme.accent + '30', shadowColor: theme.accent, shadowOpacity: 0.5, shadowRadius: 10, elevation: 5 },
           ]}
           onPress={() => setSelectedGender('male')}
         >
           <Text style={styles.genderEmoji}>👨</Text>
-          <Text style={[styles.genderLabel, { color: selectedGender === 'male' ? theme.accent : theme.textSecondary }]}>
+          <Text style={[styles.genderLabel, { color: selectedGender === 'male' ? theme.text : theme.textSecondary }]}>
             Erkek
           </Text>
         </TouchableOpacity>
@@ -146,12 +168,12 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
           style={[
             styles.genderOption,
             { backgroundColor: theme.accentLight, borderColor: theme.border },
-            selectedGender === 'female' && { borderColor: theme.accent, backgroundColor: theme.accent + '20' },
+            selectedGender === 'female' && { borderColor: theme.accent, backgroundColor: theme.accent + '30', shadowColor: theme.accent, shadowOpacity: 0.5, shadowRadius: 10, elevation: 5 },
           ]}
           onPress={() => setSelectedGender('female')}
         >
           <Text style={styles.genderEmoji}>👩</Text>
-          <Text style={[styles.genderLabel, { color: selectedGender === 'female' ? theme.accent : theme.textSecondary }]}>
+          <Text style={[styles.genderLabel, { color: selectedGender === 'female' ? theme.text : theme.textSecondary }]}>
             Kadın
           </Text>
         </TouchableOpacity>
@@ -274,14 +296,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   slideEmoji: {
-    fontSize: 72,
-    marginBottom: 24,
+    fontSize: 90,
+    marginBottom: 20,
+    textShadowColor: 'rgba(0,0,0,0.2)',
+    textShadowOffset: { width: 0, height: 10 },
+    textShadowRadius: 20,
   },
   slideTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 16,
+    lineHeight: 40,
   },
   slideDesc: {
     fontSize: 16,
