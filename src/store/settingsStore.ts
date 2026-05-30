@@ -10,7 +10,7 @@ interface SettingsState {
   _hydrate: (data: Settings | null) => void;
 }
 
-const defaultSettings: Settings = {
+export const defaultSettings: Settings = {
   askBeforeDeleteAll: true,
   darkMode: true,
   notificationsEnabled: true,

@@ -18,6 +18,7 @@ import { usePlansStore } from '../../store/plansStore';
 import { useSettingsStore, defaultSettings } from '../../store/settingsStore';
 import { usePomodoroStore } from '../../store/pomodoroStore';
 import { useRecurringStore } from '../../store/recurringStore';
+import { getTheme } from '../../utils/theme';
 import {
   scheduleDailySummaryNotification,
   cancelAllNotifications,
@@ -97,10 +98,10 @@ export default function PreferencesSection({
       try {
         await AsyncStorage.clear();
         // Zustand state'lerini sıfırla
-        useUserStore.setState({ username: 'Kullanıcı', gender: 'male', hasCompletedOnboarding: false, aboutMe: '' });
+        useUserStore.setState({ username: null, gender: 'male', aboutMe: '' });
         usePlansStore.setState({ plans: {} });
-        useSettingsStore.setState({ settings: defaultSettings, theme: 'dark' });
-        usePomodoroStore.setState({ completedSessionsCount: 0, completedSessions: [] });
+        useSettingsStore.setState({ settings: defaultSettings, theme: getTheme(defaultSettings.darkMode) });
+        usePomodoroStore.setState({ pomodoroStats: {} });
         useRecurringStore.setState({ recurringTasks: [] });
         
         if (Platform.OS === 'web') {
