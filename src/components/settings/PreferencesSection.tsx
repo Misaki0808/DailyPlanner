@@ -12,6 +12,11 @@ import { Settings } from '../../types';
 import { createSharedStyles } from '../../utils/sharedStyles';
 import { useApp } from '../../context/AppContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserStore } from '../../store/userStore';
+import { usePlansStore } from '../../store/plansStore';
+import { useSettingsStore, defaultSettings } from '../../store/settingsStore';
+import { usePomodoroStore } from '../../store/pomodoroStore';
+import { useRecurringStore } from '../../store/recurringStore';
 import {
   scheduleDailySummaryNotification,
   cancelAllNotifications,
@@ -98,7 +103,14 @@ export default function PreferencesSection({
           onPress: async () => {
             try {
               await AsyncStorage.clear();
-              Alert.alert('Sıfırlandı!', 'Lütfen uygulamayı yeniden başlatın (Terminalde r tuşuna basabilirsin).');
+              // Zustand state'lerini sıfırla
+              useUserStore.setState({ username: 'Kullanıcı', gender: 'male', hasCompletedOnboarding: false, aboutMe: '' });
+              usePlansStore.setState({ plans: {} });
+              useSettingsStore.setState({ settings: defaultSettings, theme: 'dark' });
+              usePomodoroStore.setState({ completedSessionsCount: 0, completedSessions: [] });
+              useRecurringStore.setState({ recurringTasks: [] });
+              
+              Alert.alert('Sıfırlandı!', 'Tüm verilerin başarıyla silindi ve uygulama ilk haline döndü.');
             } catch (error) {
               Alert.alert('Hata', 'Veriler sıfırlanırken hata oluştu.');
             }

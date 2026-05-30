@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plans } from '../../types';
@@ -100,14 +101,25 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
 
   const handleShareDashboard = async () => {
     try {
+      if (Platform.OS === 'web') {
+        Alert.alert('Bilgi', 'Dashboard ekran görüntüsü alma özelliği şu an sadece mobil cihazlarda (Android/iOS) desteklenmektedir. Lütfen telefondan deneyin.');
+        return;
+      }
+      
       if (dashboardRef.current) {
         const uri = await captureRef(dashboardRef, {
           format: 'png',
           quality: 0.9,
         });
-        await Sharing.shareAsync(uri, { dialogTitle: 'DailyPlanner İstatistiklerim' });
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(uri, { dialogTitle: 'DailyPlanner İstatistiklerim' });
+        } else {
+          Alert.alert('Hata', 'Paylaşım özelliği bu cihazda kullanılamıyor.');
+        }
       }
     } catch (error) {
+      console.log(error);
       Alert.alert('Hata', 'Dashboard resmi oluşturulurken bir hata oluştu');
     }
   };
@@ -122,7 +134,6 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
       dates.forEach(date => {
         const tasks = plans[date];
         tasks.forEach(task => {
-          // Virgülden kaynaklanacak sorunları çözmek için başlığı vb tırnak içine alıyoruz
           const safeTitle = `"${(task.title || '').replace(/"/g, '""')}"`;
           const priority = task.priority || 'low';
           const category = getCategoryLabel(task.category || 'diger');
@@ -134,17 +145,39 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
       });
 
       const fileName = `DailyPlanner_DisaAktarim_${getToday()}.csv`;
-      const FS = FileSystem as any; // TS hata çözüm için type cast
+
+      // Web Desteği
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', fileName);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      // Mobil Desteği
+      const FS = FileSystem as any;
       const fileUri = `${FS.cacheDirectory || FS.documentDirectory}${fileName}`;
       await FS.writeAsStringAsync(fileUri, csvString, { encoding: FS.EncodingType.UTF8 });
       
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'text/csv',
-        dialogTitle: 'Planları Excel (CSV) Olarak Aktar',
-        UTI: 'public.comma-separated-values-text'
-      });
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Planları Excel (CSV) Olarak Aktar',
+          UTI: 'public.comma-separated-values-text'
+        });
+      } else {
+        Alert.alert('Hata', 'Paylaşım özelliği bu cihazda desteklenmiyor.');
+      }
     } catch (error) {
-      Alert.alert('Hata', 'Excel (CSV) dosyası oluşturulurken hata meydan geldi');
+      console.log(error);
+      Alert.alert('Hata', 'Excel (CSV) dosyası oluşturulurken hata meydana geldi');
     }
   };
 
