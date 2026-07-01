@@ -3,7 +3,7 @@ import { Platform, AppState, AppStateStatus, Vibration, Alert } from 'react-nati
 import * as Notifications from 'expo-notifications';
 import { Audio } from 'expo-av';
 import { useApp } from '../context/AppContext';
-import { getToday } from '../utils/dateUtils';
+import { formatDate, getToday, parseDate } from '../utils/dateUtils';
 import { Task } from '../types';
 
 export type TimerMode = 'focus' | 'shortBreak' | 'longBreak';
@@ -24,6 +24,29 @@ export const AMBIENT_SOUNDS = [
 ];
 
 const DING_SOUND_URL = 'https://cdn.pixabay.com/audio/2021/08/04/audio_c6ccf3232f.mp3';
+
+export const calculatePomodoroStreak = (pomodoroStats: Record<string, number>, today: string): number => {
+  let streak = 0;
+  const date = parseDate(today);
+
+  while (true) {
+    const dateStr = formatDate(date);
+    if ((pomodoroStats[dateStr] || 0) > 0) {
+      streak++;
+      date.setDate(date.getDate() - 1);
+      continue;
+    }
+
+    if (streak === 0 && dateStr === today) {
+      date.setDate(date.getDate() - 1);
+      continue;
+    }
+
+    break;
+  }
+
+  return streak;
+};
 
 export function usePomodoroTimer() {
   const { settings, pomodoroStats, addPomodoroSession, plans, updateTask } = useApp();
@@ -49,6 +72,8 @@ export function usePomodoroTimer() {
   const [ambientVolume, setAmbientVolume] = useState<number>(0.5);
   const [tempSoundEnabled, setTempSoundEnabled] = useState(settings?.pomodoroSoundEnabled ?? false);
   const ambientSoundRef = useRef<Audio.Sound | null>(null);
+  const dingSoundRef = useRef<Audio.Sound | null>(null);
+  const dingUnloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const notificationIdRef = useRef<string | null>(null);
@@ -58,25 +83,7 @@ export function usePomodoroTimer() {
   const today = getToday();
   const completedSessionsCount = pomodoroStats[today] || 0;
 
-  // Streak logic
-  const streak = (() => {
-    let s = 0;
-    const d = new Date();
-    while (true) {
-      const dateStr = d.toISOString().split('T')[0];
-      if (pomodoroStats[dateStr] > 0) {
-        s++;
-        d.setDate(d.getDate() - 1);
-      } else {
-        if (s === 0 && dateStr === today) {
-           d.setDate(d.getDate() - 1);
-           continue;
-        }
-        break;
-      }
-    }
-    return s;
-  })();
+  const streak = calculatePomodoroStreak(pomodoroStats, today);
 
   const todayTasks = plans[today] || [];
   const selectedTask = todayTasks.find((t: Task) => t.id === selectedTaskId);
@@ -90,7 +97,9 @@ export function usePomodoroTimer() {
       staysActiveInBackground: true,
     });
     return () => {
+      if (dingUnloadTimeoutRef.current) clearTimeout(dingUnloadTimeoutRef.current);
       if (ambientSoundRef.current) ambientSoundRef.current.unloadAsync();
+      if (dingSoundRef.current) dingSoundRef.current.unloadAsync();
     };
   }, []);
 
@@ -137,9 +146,22 @@ export function usePomodoroTimer() {
   const playDingSound = async () => {
     if (settings?.pomodoroSoundEnabled) {
       try {
+        if (dingUnloadTimeoutRef.current) {
+          clearTimeout(dingUnloadTimeoutRef.current);
+          dingUnloadTimeoutRef.current = null;
+        }
+        if (dingSoundRef.current) {
+          await dingSoundRef.current.unloadAsync().catch(() => {});
+          dingSoundRef.current = null;
+        }
         const { sound } = await Audio.Sound.createAsync({ uri: DING_SOUND_URL });
+        dingSoundRef.current = sound;
         await sound.playAsync();
-        setTimeout(() => sound.unloadAsync(), 5000);
+        dingUnloadTimeoutRef.current = setTimeout(() => {
+          sound.unloadAsync().catch(() => {});
+          if (dingSoundRef.current === sound) dingSoundRef.current = null;
+          dingUnloadTimeoutRef.current = null;
+        }, 5000);
       } catch (error) {
         console.warn('Süre bitiş zili çalınamadı:', error);
       }
