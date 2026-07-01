@@ -25,10 +25,13 @@ export const useRecurringStore = create<RecurringState>((set, get) => ({
     const updated = [...get().recurringTasks, newTask];
     set({ recurringTasks: updated });
     await storage.saveRecurringTasks(updated);
-    
-    // Yalnızca bugünün planlarını güncellemek için:
-    // (Aslında sync logic'in her gün çalışması gerekir.
-    // Şimdilik sadece store'a ekliyoruz, sync logic app boot'ta çalışır).
+
+    try {
+      const { syncRecurringForToday } = require('./appStore') as typeof import('./appStore');
+      await syncRecurringForToday({ force: true });
+    } catch (error) {
+      console.warn('Recurring sync after add failed:', error);
+    }
   },
   
   removeRecurringTask: async (id: string) => {

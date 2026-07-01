@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { WidgetTaskHandlerProps } from 'react-native-android-widget';
 import { DailyPlannerWidget } from './src/widgets/DailyPlannerWidget';
+import type { Task } from './src/types';
 
 function getToday(): string {
   const now = new Date();
@@ -11,7 +12,6 @@ function getToday(): string {
 }
 
 export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
-  const widgetInfo = props.widgetInfo;
   const widgetAction = props.widgetAction;
 
   switch (widgetAction) {
@@ -19,14 +19,11 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
     case 'WIDGET_UPDATE':
     case 'WIDGET_RESIZED': {
       const today = getToday();
-      let tasks: any[] = [];
+      let tasks: Task[] = [];
 
       try {
-        const plansJson = await AsyncStorage.getItem('@daily_planner_plans');
-        if (plansJson) {
-          const allPlans = JSON.parse(plansJson);
-          tasks = allPlans[today] || [];
-        }
+        const planJson = await AsyncStorage.getItem(`@dp_plan_${today}`);
+        tasks = planJson ? JSON.parse(planJson) as Task[] : [];
       } catch (e) {
         console.log('Widget: AsyncStorage read error', e);
       }
