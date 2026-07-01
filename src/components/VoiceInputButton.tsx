@@ -43,7 +43,7 @@ const getWebSpeechRecognition = (): SpeechRecognitionConstructor | null => {
     return (win.SpeechRecognition || win.webkitSpeechRecognition) as SpeechRecognitionConstructor | null;
 };
 
-let ExpoSpeechRecognitionModule: { addListener: (event: string, cb: (event: { results: { transcript: string }[]; isFinal: boolean; error?: string; message?: string }) => void) => { remove: () => void }; requestPermissionsAsync: () => Promise<{ status: string }>; start: (opts: { lang: string; interimResults: boolean; maxAlternatives: number }) => void; stop: () => void } | null = null;
+let ExpoSpeechRecognitionModule: { addListener: (event: string, cb: (event: { results: { transcript: string }[]; isFinal: boolean; error?: string; message?: string }) => void) => { remove: () => void }; requestPermissionsAsync: () => Promise<{ status: string }>; start: (opts: { lang: string; interimResults: boolean; maxAlternatives: number; continuous?: boolean }) => void; stop: () => void } | null = null;
 if (Platform.OS !== 'web') {
     try {
         ExpoSpeechRecognitionModule = require('expo-speech-recognition').ExpoSpeechRecognitionModule;
@@ -82,17 +82,22 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
 
         const resultSub = ExpoSpeechRecognitionModule.addListener('result', (event) => {
             const transcript = event.results[0]?.transcript || '';
-            onTranscript(transcript, event.isFinal);
+            finalTranscriptRef.current = transcript;
+            onTranscript(transcript, false);
+        });
 
-            if (event.isFinal) {
-                setIsListening(false);
-                const rawText = transcript.trim();
-                if (rawText.length > 0 && checkApiKey()) {
+        const endSub = ExpoSpeechRecognitionModule.addListener('end', () => {
+            setIsListening(false);
+            const rawText = finalTranscriptRef.current.trim();
+            if (rawText.length > 0) {
+                if (checkApiKey()) {
                     setIsCorrecting(true);
                     const corrector = mode === 'task' ? convertToSingleTask : correctVoiceTranscript;
                     corrector(rawText)
                         .then((corrected) => onTranscript(corrected, true))
                         .finally(() => setIsCorrecting(false));
+                } else {
+                    onTranscript(rawText, true);
                 }
             }
         });
@@ -108,6 +113,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
 
         return () => {
             resultSub.remove();
+            endSub.remove();
             errorSub.remove();
         };
     }, [mode, onTranscript]);
@@ -193,10 +199,12 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
             }
 
             setIsListening(true);
+            finalTranscriptRef.current = '';
             ExpoSpeechRecognitionModule.start({
                 lang: 'tr-TR',
                 interimResults: true,
                 maxAlternatives: 1,
+                continuous: true,
             });
         } catch (e) {
             console.error(e);
