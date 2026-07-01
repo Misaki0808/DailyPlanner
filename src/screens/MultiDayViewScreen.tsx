@@ -20,7 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { usePlansContext, useSettingsContext, useRecurringContext } from '../context/AppContext';
 import { useNavigation } from '@react-navigation/native';
 import { modifyPlanWithAI } from '../utils/aiService';
-import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
+import { formatDateDisplay, getToday, addDays, generateId, parseDate } from '../utils/dateUtils';
 import { Task } from '../types';
 import CopyPlanModal from '../components/CopyPlanModal';
 import ShareModal from '../components/ShareModal';
@@ -32,7 +32,7 @@ import FlexibleTaskPool from '../components/planner/FlexibleTaskPool';
 import ActionButtonsBar from '../components/planner/ActionButtonsBar';
 import DayStatsBar from '../components/planner/DayStatsBar';
 import SearchFilterModal from '../components/planner/SearchFilterModal';
-import { getCategoryEmoji, getCategoryLabel, getCategoryColor } from '../utils/categories';
+import { getCategoryEmoji, getCategoryLabel, getCategoryColor, TASK_CATEGORIES } from '../utils/categories';
 import { HeaderProgressBar } from '../components/HeaderProgressBar';
 
 // Sadece native platformlarda import et
@@ -46,6 +46,24 @@ if (Platform.OS !== 'web') {
 }
 
 import { styles } from './styles/MultiDayViewScreen.styles';
+
+const normalizeTurkish = (value: string) => value.trim().toLocaleLowerCase('tr-TR');
+
+const inferCategoryForFlexibleTask = (title: string, explicitCategory?: string) => {
+  if (explicitCategory && TASK_CATEGORIES.some(category => category.id === explicitCategory)) {
+    return explicitCategory;
+  }
+
+  const normalizedTitle = normalizeTurkish(title);
+  if (/(okul|ders|ödev|sınav|proje|tez|kampüs|kütüphane)/.test(normalizedTitle)) return 'okul';
+  if (/(spor|koş|yürüyüş|antrenman|egzersiz|fitness|yoga)/.test(normalizedTitle)) return 'spor';
+  if (/(sağlık|doktor|ilaç|randevu|hastane|terapi|vitamin)/.test(normalizedTitle)) return 'saglik';
+  if (/(market|alışveriş|satın al|sipariş)/.test(normalizedTitle)) return 'alisveris';
+  if (/(arkadaş|aile|buluş|toplantı|etkinlik|sosyal)/.test(normalizedTitle)) return 'sosyal';
+  if (/(iş|mesai|müşteri|rapor|mail|sunum|ofis)/.test(normalizedTitle)) return 'is';
+  if (/(ev|kişisel|temizlik|çamaşır|yemek)/.test(normalizedTitle)) return 'kisisel';
+  return 'diger';
+};
 
 export default function MultiDayViewScreen() {
   const { plans, updateTask, savePlan, deletePlan } = usePlansContext();
@@ -182,13 +200,28 @@ export default function MultiDayViewScreen() {
 
   // Esnek görev havuzundan bugüne ekle
   const handleAddFlexibleTask = async (title: string, priority: 'low' | 'medium' | 'high') => {
-    const newTask: Task = {
+    const normalizedTitle = normalizeTurkish(title);
+    const flexibleTask = recurringTasks.find(rt =>
+      rt.isActive &&
+      rt.frequency === 'flexible' &&
+      rt.priority === priority &&
+      normalizeTurkish(rt.title) === normalizedTitle
+    ) || recurringTasks.find(rt =>
+      rt.isActive &&
+      rt.frequency === 'flexible' &&
+      normalizeTurkish(rt.title) === normalizedTitle
+    );
+    const explicitCategory = (flexibleTask as { category?: string } | undefined)?.category;
+    const newTask: Task & { recurringTaskId?: string } = {
       id: generateId(),
       title,
       done: false,
       priority,
+      category: inferCategoryForFlexibleTask(title, explicitCategory),
+      ...(flexibleTask ? { recurringTaskId: flexibleTask.id } : {}),
     };
     const updatedTasks = [...currentTasks, newTask];
+    // Esnek görevler bilinçli olarak auto-sync'e girmez; kullanıcı seçtiği güne manuel ekler.
     await savePlan(selectedDate, updatedTasks);
 
   };
@@ -291,7 +324,7 @@ export default function MultiDayViewScreen() {
     const flexibleTasks = recurringTasks.filter(rt => rt.isActive && rt.frequency === 'flexible' && rt.flexibleTarget);
     if (flexibleTasks.length === 0) return [];
 
-    const todayObj = new Date(selectedDate);
+    const todayObj = parseDate(selectedDate);
     const dayOfWeek = todayObj.getDay() === 0 ? 7 : todayObj.getDay();
     const mondayObj = new Date(todayObj);
     mondayObj.setDate(todayObj.getDate() - dayOfWeek + 1);
@@ -308,10 +341,13 @@ export default function MultiDayViewScreen() {
     return flexibleTasks.map(rt => {
       let currentCount = 0;
       let isAddedToday = false;
-      const titleLower = rt.title.toLocaleLowerCase('tr-TR');
+      const titleLower = normalizeTurkish(rt.title);
       weekDates.forEach(date => {
         const dayTasks = plans[date] || [];
-        if (dayTasks.some(t => t.title.toLocaleLowerCase('tr-TR') === titleLower)) {
+        if (dayTasks.some(t => {
+          const recurringTaskId = (t as Task & { recurringTaskId?: string }).recurringTaskId;
+          return recurringTaskId === rt.id || (!recurringTaskId && normalizeTurkish(t.title) === titleLower);
+        })) {
           currentCount++;
           if (date === selectedDate) isAddedToday = true;
         }
