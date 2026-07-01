@@ -86,6 +86,14 @@ Uygulamanın AI özelliklerinin çalışması için bir Google Gemini API anahta
 EXPO_PUBLIC_GEMINI_API_KEY=AIzaSy...Sizin_API_Anahtarınız
 ```
 
+> **⚠️ Güvenlik Notu (Production / EAS Build):** `.env` veya `eas.json` içine API anahtarını **düz metin olarak yazmayın / commit etmeyin.** EAS build'lerde anahtarı project-scoped secret olarak tanımlayın:
+>
+> ```bash
+> eas secret:create --scope project --name EXPO_PUBLIC_GEMINI_API_KEY --value <yeni_anahtar>
+> ```
+>
+> Secret build ortamına otomatik enjekte edilir; `eas.json` içinde ayrıca tanımlanmaz. `EXPO_PUBLIC_` önekli değişkenler client bundle'a gömüldüğü için, üretimde anahtarı bir backend proxy arkasına almanız önerilir.
+
 ### 4. Uygulamayı Başlatın
 
 ```bash
