@@ -216,7 +216,8 @@ export const saveRecurringTasks = async (tasks: RecurringTask[]) => {
 export const getLastRecurringSync = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem(STORAGE_KEYS.LAST_RECURRING_SYNC);
-  } catch {
+  } catch (error) {
+    console.warn('Son recurring sync tarihi okunurken hata:', error);
     return null;
   }
 };
@@ -224,7 +225,9 @@ export const getLastRecurringSync = async (): Promise<string | null> => {
 export const saveLastRecurringSync = async (date: string) => {
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.LAST_RECURRING_SYNC, date);
-  } catch {}
+  } catch (error) {
+    console.warn('Son recurring sync tarihi kaydedilirken hata:', error);
+  }
 };
 
 export const clearAllData = async () => {
