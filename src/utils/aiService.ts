@@ -12,6 +12,35 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 
 // Kategori listesini prompt'a eklemek için
 const categoryListForPrompt = TASK_CATEGORIES.map(c => `"${c.id}" (${c.label})`).join(', ');
+const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
+
+const isValidPriority = (priority: unknown): priority is Task['priority'] => {
+  return typeof priority === 'string' && VALID_PRIORITIES.includes(priority as typeof VALID_PRIORITIES[number]);
+};
+
+const sanitizeAiTaskUpdate = (oldTask: Task, aiUpdated: any): Task => {
+  const nextTitle = typeof aiUpdated.title === 'string' && aiUpdated.title.trim().length > 0
+    ? aiUpdated.title.trim()
+    : oldTask.title;
+  const nextPriority = isValidPriority(aiUpdated.priority)
+    ? aiUpdated.priority
+    : oldTask.priority || 'medium';
+  const nextDone = typeof aiUpdated.done === 'boolean' ? aiUpdated.done : oldTask.done;
+
+  if (!isValidPriority(aiUpdated.priority)) {
+    console.warn('AI geçersiz priority döndürdü, güvenli varsayılan kullanılıyor:', aiUpdated.priority);
+  }
+  if (typeof aiUpdated.done !== 'boolean') {
+    console.warn('AI geçersiz done döndürdü, mevcut durum korunuyor:', aiUpdated.done);
+  }
+
+  return {
+    ...oldTask,
+    title: nextTitle,
+    priority: nextPriority,
+    done: nextDone,
+  };
+};
 
 /**
  * Otomatik tekrar deneme (retry) mekanizması ile API isteği atar.
@@ -214,13 +243,19 @@ Düzeltilmiş metin:`;
     });
 
     if (!response.ok) {
+      console.warn('Ses düzeltme API yanıtı başarısız, ham metin korunuyor:', response.status);
       return rawTranscript; // Hata durumunda ham metni döndür
     }
 
     const data = await response.json();
     const correctedText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
-    return correctedText || rawTranscript;
+    if (!correctedText) {
+      console.warn('Ses düzeltme AI boş yanıt döndürdü, ham metin korunuyor.');
+      return rawTranscript;
+    }
+
+    return correctedText;
   } catch (error) {
     console.error('Ses düzeltme hatası:', error);
     return rawTranscript;
@@ -262,10 +297,19 @@ Görev başlığı:`;
       }),
     });
 
-    if (!response.ok) return rawTranscript;
+    if (!response.ok) {
+      console.warn('Tek görev dönüştürme API yanıtı başarısız, ham metin korunuyor:', response.status);
+      return rawTranscript;
+    }
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || rawTranscript;
-  } catch {
+    const taskTitle = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!taskTitle) {
+      console.warn('Tek görev dönüştürme AI boş yanıt döndürdü, ham metin korunuyor.');
+      return rawTranscript;
+    }
+    return taskTitle;
+  } catch (error) {
+    console.warn('Tek görev dönüştürme hatası, ham metin korunuyor:', error);
     return rawTranscript;
   }
 };
@@ -388,20 +432,29 @@ JSON:`;
       }),
     });
 
-    if (!response.ok) return [];
+    if (!response.ok) {
+      console.warn('Saat çıkarma API yanıtı başarısız, boş liste dönülüyor:', response.status);
+      return [];
+    }
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!text) return [];
+    if (!text) {
+      console.warn('Saat çıkarma AI boş yanıt döndürdü, boş liste dönülüyor.');
+      return [];
+    }
 
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const times = JSON.parse(cleaned);
 
-    if (!Array.isArray(times)) return [];
+    if (!Array.isArray(times)) {
+      console.warn('Saat çıkarma AI JSON array döndürmedi, boş liste dönülüyor.');
+      return [];
+    }
     return times.filter(
       (t: any) => typeof t.hour === 'number' && typeof t.minute === 'number' && typeof t.label === 'string'
     );
   } catch (e) {
-    console.log('Time extraction error:', e);
+    console.warn('Saat çıkarma hatası, boş liste dönülüyor:', e);
     return [];
   }
 };
@@ -450,12 +503,15 @@ KURALLAR:
 
     const cleanedText = generatedText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const updatedTasksData = JSON.parse(cleanedText);
+    if (!Array.isArray(updatedTasksData)) {
+      throw new Error('AI geçersiz görev listesi döndürdü');
+    }
 
     // Orijinal görevleri yeni veriyle birleştir (Kategori vb. kaybolmaması için)
     return currentTasks.map(oldTask => {
       const aiUpdated = updatedTasksData.find((t: any) => t.id === oldTask.id);
       if (aiUpdated) {
-        return { ...oldTask, ...aiUpdated };
+        return sanitizeAiTaskUpdate(oldTask, aiUpdated);
       }
       return null; // AI sildiyse null döner
     }).filter(t => t !== null) as Task[];
