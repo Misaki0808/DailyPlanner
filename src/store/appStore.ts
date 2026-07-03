@@ -8,12 +8,16 @@ import { useSettingsStore } from './settingsStore';
 import { usePlansStore } from './plansStore';
 import { usePomodoroStore } from './pomodoroStore';
 import { useRecurringStore } from './recurringStore';
+import { backupToCloudSilently, fetchCloudBackupRecord } from '../hooks/useCloudSync';
 
 import { Task } from '../types';
 
 interface AppStoreState {
   isLoading: boolean;
+  hasCloudBackupAvailable: boolean;
+  cloudBackupUpdatedAt: string | null;
   initializeApp: () => Promise<void>;
+  checkCloudBackupStatus: () => Promise<void>;
 }
 
 interface SyncRecurringOptions {
@@ -22,6 +26,7 @@ interface SyncRecurringOptions {
 
 let appStateListenerRegistered = false;
 let lastObservedDate: string | null = null;
+let cloudBackupInFlight = false;
 
 const normalizeTitle = (title: string) => title.toLocaleLowerCase('tr-TR');
 
@@ -80,29 +85,59 @@ export const syncRecurringForToday = async ({ force = false }: SyncRecurringOpti
   await storage.saveLastRecurringSync(today);
 };
 
-const registerRecurringDateSyncListener = () => {
+const runBackgroundCloudBackup = async () => {
+  if (cloudBackupInFlight) return;
+
+  cloudBackupInFlight = true;
+  try {
+    await backupToCloudSilently();
+  } finally {
+    cloudBackupInFlight = false;
+  }
+};
+
+const registerAppStateListeners = () => {
   if (appStateListenerRegistered) return;
 
   appStateListenerRegistered = true;
   lastObservedDate = getToday();
 
   ReactNativeAppState.addEventListener('change', async (nextState) => {
-    if (nextState !== 'active') return;
+    if (nextState === 'active') {
+      const today = getToday();
+      if (lastObservedDate === today) return;
 
-    const today = getToday();
-    if (lastObservedDate === today) return;
+      lastObservedDate = today;
+      try {
+        await syncRecurringForToday();
+      } catch (error) {
+        console.warn('Recurring sync on app foreground failed:', error);
+      }
+      return;
+    }
 
-    lastObservedDate = today;
-    try {
-      await syncRecurringForToday();
-    } catch (error) {
-      console.warn('Recurring sync on app foreground failed:', error);
+    if (nextState === 'background') {
+      await runBackgroundCloudBackup();
     }
   });
 };
 
-export const useAppStore = create<AppStoreState>((set) => ({
+export const useAppStore = create<AppStoreState>((set, get) => ({
   isLoading: true,
+  hasCloudBackupAvailable: false,
+  cloudBackupUpdatedAt: null,
+  checkCloudBackupStatus: async () => {
+    try {
+      const record = await fetchCloudBackupRecord();
+      set({
+        hasCloudBackupAvailable: Boolean(record),
+        cloudBackupUpdatedAt: record?.updated_at ?? null,
+      });
+    } catch (error) {
+      console.warn('Cloud backup status check failed:', error);
+      set({ hasCloudBackupAvailable: false, cloudBackupUpdatedAt: null });
+    }
+  },
   initializeApp: async () => {
     try {
       await storage.cleanOldPlans(90);
@@ -146,8 +181,9 @@ export const useAppStore = create<AppStoreState>((set) => ({
         }
       }
 
-      registerRecurringDateSyncListener();
+      registerAppStateListeners();
       await syncRecurringForToday();
+      await get().checkCloudBackupStatus();
 
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
