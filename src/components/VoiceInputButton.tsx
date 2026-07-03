@@ -9,7 +9,7 @@ import {
     View,
     ActivityIndicator,
 } from 'react-native';
-import { correctVoiceTranscript, convertToSingleTask, checkApiKey } from '../utils/aiService';
+import { correctTranscriptLocal } from '../utils/voiceParser';
 
 // Web Speech API tip tanımları
 interface SpeechRecognitionEvent {
@@ -66,6 +66,11 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
     const finalTranscriptRef = useRef('');
     const pulseAnim = useRef(new Animated.Value(1)).current;
 
+    const emitFinalTranscript = (rawText: string) => {
+        const corrected = correctTranscriptLocal(rawText);
+        onTranscript(corrected, true);
+    };
+
     useEffect(() => {
         if (Platform.OS === 'web') {
             const SR = getWebSpeechRecognition();
@@ -90,15 +95,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
             setIsListening(false);
             const rawText = finalTranscriptRef.current.trim();
             if (rawText.length > 0) {
-                if (checkApiKey()) {
-                    setIsCorrecting(true);
-                    const corrector = mode === 'task' ? convertToSingleTask : correctVoiceTranscript;
-                    corrector(rawText)
-                        .then((corrected) => onTranscript(corrected, true))
-                        .finally(() => setIsCorrecting(false));
-                } else {
-                    onTranscript(rawText, true);
-                }
+                emitFinalTranscript(rawText);
             }
         });
 
@@ -171,12 +168,8 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         recognition.onend = () => {
             setIsListening(false);
             const rawText = finalTranscriptRef.current.trim();
-            if (rawText.length > 0 && checkApiKey()) {
-                setIsCorrecting(true);
-                const corrector = mode === 'task' ? convertToSingleTask : correctVoiceTranscript;
-                corrector(rawText)
-                    .then((corrected) => onTranscript(corrected, true))
-                    .finally(() => setIsCorrecting(false));
+            if (rawText.length > 0) {
+                emitFinalTranscript(rawText);
             }
         };
 

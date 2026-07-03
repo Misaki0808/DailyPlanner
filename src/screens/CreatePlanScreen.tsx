@@ -16,7 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { usePlansContext, useSettingsContext, useRecurringContext, useUserContext } from '../context/AppContext';
 import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
 import { Task } from '../types';
-import { convertParagraphToTasks, checkApiKey, extractTimesFromText } from '../utils/aiService';
+import { convertParagraphToTasks } from '../utils/aiService';
+import { extractTimesLocal } from '../utils/timeParser';
 import { scheduleAlarmNotification, requestNotificationPermissions } from '../utils/notificationService';
 import CalendarModal from '../components/CalendarModal';
 import SuccessModal from '../components/SuccessModal';
@@ -171,15 +172,11 @@ export default function CreatePlanScreen() {
       return;
     }
 
-    if (!checkApiKey()) {
-      Toast.show({ type: 'error', text1: 'Hata', text2: 'API anahtarı bulunamadı. Lütfen .env dosyasını kontrol edin.' });
-      return;
-    }
-
     setIsAiLoading(true);
 
     try {
       const aiTasks = await convertParagraphToTasks(input, aboutMe || undefined);
+      const usedFallback = Boolean(aiTasks.usedFallback);
 
       // AI'dan gelen görevleri Task formatına çevir (kategori atamalı)
       const newTasks: Task[] = aiTasks.map((item) => ({
@@ -195,7 +192,7 @@ export default function CreatePlanScreen() {
 
       // Metinden saat referanslarını çıkar ve alarm kur
       try {
-        const times = await extractTimesFromText(input);
+        const times = extractTimesLocal(input);
         if (times.length > 0) {
           const hasPermission = await requestNotificationPermissions();
           if (hasPermission) {
@@ -213,19 +210,49 @@ export default function CreatePlanScreen() {
               }
             }
             if (alarmsSet > 0) {
-              Toast.show({ type: 'success', text1: 'Başarılı', text2: `${aiTasks.length} görev ve ${alarmsSet} alarm kuruldu! ⏰` });
+              Toast.show({
+                type: 'success',
+                text1: usedFallback ? 'Basit ayrıştırma' : 'Başarılı',
+                text2: usedFallback
+                  ? `AI kullanılamadı, ${aiTasks.length} görev ve ${alarmsSet} alarm kuruldu.`
+                  : `${aiTasks.length} görev ve ${alarmsSet} alarm kuruldu! ⏰`,
+              });
             } else {
-              Toast.show({ type: 'success', text1: 'Başarılı', text2: `${aiTasks.length} görev oluşturuldu! 🎉` });
+              Toast.show({
+                type: 'success',
+                text1: usedFallback ? 'Basit ayrıştırma' : 'Başarılı',
+                text2: usedFallback
+                  ? `AI kullanılamadı, ${aiTasks.length} görev basitçe ayrıştırıldı.`
+                  : `${aiTasks.length} görev oluşturuldu! 🎉`,
+              });
             }
           } else {
-            Toast.show({ type: 'success', text1: 'Başarılı', text2: `${aiTasks.length} görev oluşturuldu! 🎉` });
+            Toast.show({
+              type: 'success',
+              text1: usedFallback ? 'Basit ayrıştırma' : 'Başarılı',
+              text2: usedFallback
+                ? `AI kullanılamadı, ${aiTasks.length} görev basitçe ayrıştırıldı.`
+                : `${aiTasks.length} görev oluşturuldu! 🎉`,
+            });
           }
         } else {
-          Toast.show({ type: 'success', text1: 'Başarılı', text2: `${aiTasks.length} görev oluşturuldu! 🎉` });
+          Toast.show({
+            type: 'success',
+            text1: usedFallback ? 'Basit ayrıştırma' : 'Başarılı',
+            text2: usedFallback
+              ? `AI kullanılamadı, ${aiTasks.length} görev basitçe ayrıştırıldı.`
+              : `${aiTasks.length} görev oluşturuldu! 🎉`,
+          });
         }
       } catch (e) {
         // Alarm kurulamazsa sadece görev başarı mesajı göster
-        Toast.show({ type: 'success', text1: 'Başarılı', text2: `${aiTasks.length} görev oluşturuldu! 🎉` });
+        Toast.show({
+          type: 'success',
+          text1: usedFallback ? 'Basit ayrıştırma' : 'Başarılı',
+          text2: usedFallback
+            ? `AI kullanılamadı, ${aiTasks.length} görev basitçe ayrıştırıldı.`
+            : `${aiTasks.length} görev oluşturuldu! 🎉`,
+        });
       }
     } catch (error: any) {
       Toast.show({ type: 'error', text1: 'AI Hatası', text2: error.message || 'Görevler oluşturulamadı' });
@@ -502,5 +529,4 @@ export default function CreatePlanScreen() {
     </LinearGradient>
   );
 }
-
 
