@@ -1,18 +1,29 @@
 import Constants from 'expo-constants';
 import { Task } from '../types';
 import { TASK_CATEGORIES } from './categories';
+import { extractTimesLocal } from './timeParser';
+import { correctTranscriptLocal } from './voiceParser';
 
-// .env'den API key'i al (EXPO_PUBLIC_ prefix otomatik çalışır)
+// Sağlayıcı/model değiştirmek için TEK yer burası.
+const AI_CONFIG = {
+  provider: 'gemini',
+  model: 'gemini-2.5-flash',
+  baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models',
+} as const;
+
 const GEMINI_API_KEY =
   process.env.EXPO_PUBLIC_GEMINI_API_KEY ||
   Constants.expoConfig?.extra?.geminiApiKey ||
   '';
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const getAiGenerateUrl = () => `${AI_CONFIG.baseUrl}/${AI_CONFIG.model}:generateContent?key=${GEMINI_API_KEY}`;
 
 // Kategori listesini prompt'a eklemek için
 const categoryListForPrompt = TASK_CATEGORIES.map(c => `"${c.id}" (${c.label})`).join(', ');
 const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
+
+export type ConvertedTask = { title: string; category: string };
+export type ConvertParagraphResult = ConvertedTask[] & { usedFallback?: boolean };
 
 const isValidPriority = (priority: unknown): priority is Task['priority'] => {
   return typeof priority === 'string' && VALID_PRIORITIES.includes(priority as typeof VALID_PRIORITIES[number]);
@@ -40,6 +51,52 @@ const sanitizeAiTaskUpdate = (oldTask: Task, aiUpdated: any): Task => {
     priority: nextPriority,
     done: nextDone,
   };
+};
+
+const markFallback = (tasks: ConvertedTask[]): ConvertParagraphResult => {
+  const result = tasks as ConvertParagraphResult;
+  Object.defineProperty(result, 'usedFallback', {
+    value: true,
+    enumerable: false,
+    configurable: true,
+  });
+  return result;
+};
+
+const splitParagraphIntoLocalTasks = (paragraph: string): ConvertParagraphResult => {
+  const normalized = paragraph
+    .replace(/\r/g, '\n')
+    .replace(/[•·]/g, '\n')
+    .replace(/^\s*[-*]\s+/gm, '')
+    .trim();
+
+  const primaryParts = normalized
+    .split(/\n+|[.!?;]+/g)
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  const parts = primaryParts.length <= 1
+    ? normalized.split(/\s*,\s*|\s+\b(?:ve sonra|sonra|ardından)\b\s+/iu).map(part => part.trim()).filter(Boolean)
+    : primaryParts;
+
+  const tasks = parts
+    .map(part => part
+      .replace(/^\d+[.)]\s*/, '')
+      .replace(/^[-*]\s*/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    )
+    .filter(part => part.length > 0)
+    .slice(0, 10)
+    .map(title => ({
+      title: title.substring(0, 100),
+      category: 'diger',
+    }));
+
+  if (tasks.length > 0) return markFallback(tasks);
+
+  const fallbackTitle = paragraph.replace(/\s+/g, ' ').trim().substring(0, 100);
+  return markFallback(fallbackTitle ? [{ title: fallbackTitle, category: 'diger' }] : []);
 };
 
 /**
@@ -70,10 +127,10 @@ const fetchWithRetry = async (url: string, options: RequestInit, retries = 3, ba
  * @param aboutMe - Kullanıcının "Hakkımda" bilgisi (opsiyonel)
  * @returns Task bilgileri (title + category)
  */
-export const convertParagraphToTasks = async (paragraph: string, aboutMe?: string): Promise<{ title: string; category: string }[]> => {
-  // API key kontrolü
+export const convertParagraphToTasks = async (paragraph: string, aboutMe?: string): Promise<ConvertParagraphResult> => {
   if (!GEMINI_API_KEY) {
-    throw new Error('API key bulunamadı. Lütfen .env dosyasını kontrol edin.');
+    console.warn('AI API anahtarı yok, paragraf yerel olarak ayrıştırılıyor.');
+    return splitParagraphIntoLocalTasks(paragraph);
   }
 
   // Kullanıcı bağlamı
@@ -100,7 +157,7 @@ Paragraf: "${paragraph}"
 
 Görev listesi (sadece JSON array):`;
 
-  const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+  const url = getAiGenerateUrl();
 
   try {
     const response = await fetchWithRetry(url, {
@@ -154,7 +211,7 @@ Görev listesi (sadece JSON array):`;
 
     // Validasyonlu dönüşüm — hem eski format (string[]) hem yeni format desteklenir
     const validCategoryIds = TASK_CATEGORIES.map(c => c.id);
-    return tasks
+    const convertedTasks = tasks
       .map((task: any) => {
         if (typeof task === 'string') {
           // Eski format backward compat
@@ -169,19 +226,11 @@ Görev listesi (sadece JSON array):`;
       .filter((t: any): t is { title: string; category: string } => t !== null && t.title.length > 0)
       .slice(0, 10);
 
-  } catch (error: any) {
-    console.error('AI Servis Hatası:', error);
+    return convertedTasks as ConvertParagraphResult;
 
-    // Kullanıcı dostu hata mesajları
-    if (error.message.includes('API key')) {
-      throw new Error('API anahtarı geçersiz');
-    } else if (error.message.includes('JSON')) {
-      throw new Error('AI yanıtı işlenemedi');
-    } else if (error.message.includes('network') || error.message.includes('fetch')) {
-      throw new Error('İnternet bağlantısı hatası');
-    } else {
-      throw new Error('AI ile iletişim kurulamadı');
-    }
+  } catch (error: any) {
+    console.warn('AI görev üretimi başarısız, paragraf yerel olarak ayrıştırılıyor:', error);
+    return splitParagraphIntoLocalTasks(paragraph);
   }
 };
 
@@ -199,8 +248,12 @@ export const checkApiKey = (): boolean => {
  * @returns Düzeltilmiş metin
  */
 export const correctVoiceTranscript = async (rawTranscript: string): Promise<string> => {
+  return correctTranscriptLocal(rawTranscript);
+};
+
+export const correctVoiceTranscriptWithAI = async (rawTranscript: string): Promise<string> => {
   if (!GEMINI_API_KEY) {
-    return rawTranscript; // API key yoksa ham metni döndür
+    return correctTranscriptLocal(rawTranscript);
   }
 
   const prompt = `
@@ -230,7 +283,7 @@ Ham metin: "${rawTranscript}"
 
 Düzeltilmiş metin:`;
 
-  const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+  const url = getAiGenerateUrl();
 
   try {
     const response = await fetchWithRetry(url, {
@@ -244,7 +297,7 @@ Düzeltilmiş metin:`;
 
     if (!response.ok) {
       console.warn('Ses düzeltme API yanıtı başarısız, ham metin korunuyor:', response.status);
-      return rawTranscript; // Hata durumunda ham metni döndür
+      return correctTranscriptLocal(rawTranscript);
     }
 
     const data = await response.json();
@@ -252,13 +305,13 @@ Düzeltilmiş metin:`;
 
     if (!correctedText) {
       console.warn('Ses düzeltme AI boş yanıt döndürdü, ham metin korunuyor.');
-      return rawTranscript;
+      return correctTranscriptLocal(rawTranscript);
     }
 
-    return correctedText;
+    return correctTranscriptLocal(correctedText);
   } catch (error) {
     console.error('Ses düzeltme hatası:', error);
-    return rawTranscript;
+    return correctTranscriptLocal(rawTranscript);
   }
 };
 
@@ -285,7 +338,7 @@ Sesli girdi: "${rawTranscript}"
 
 Görev başlığı:`;
 
-  const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+  const url = getAiGenerateUrl();
 
   try {
     const response = await fetchWithRetry(url, {
@@ -363,7 +416,7 @@ KURALLAR:
 4. Robot gibi değil, yakın bir arkadaş veya yaşam koçu gibi konuş. Mutlaka emoji kullan.
 5. Sadece yanıtı döndür, başka hiçbir şey yazma.`;
 
-  const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+  const url = getAiGenerateUrl();
 
   try {
     const response = await fetchWithRetry(url, {
@@ -395,7 +448,11 @@ KURALLAR:
  * Ör: "Sabah 8'de kalkacağım, 14:30'da toplantı var" → [{hour:8, minute:0, label:"Kalk"}, {hour:14, minute:30, label:"Toplantı"}]
  */
 export const extractTimesFromText = async (paragraph: string): Promise<{ hour: number; minute: number; label: string }[]> => {
-  if (!GEMINI_API_KEY) return [];
+  return extractTimesLocal(paragraph);
+};
+
+export const extractTimesFromTextWithAI = async (paragraph: string): Promise<{ hour: number; minute: number; label: string }[]> => {
+  if (!GEMINI_API_KEY) return extractTimesLocal(paragraph);
 
   const prompt = `
 Aşağıdaki Türkçe metinde zaman/saat referansları var mı analiz et.
@@ -420,7 +477,7 @@ Metin: "${paragraph}"
 
 JSON:`;
 
-  const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+  const url = getAiGenerateUrl();
 
   try {
     const response = await fetchWithRetry(url, {
@@ -434,13 +491,13 @@ JSON:`;
 
     if (!response.ok) {
       console.warn('Saat çıkarma API yanıtı başarısız, boş liste dönülüyor:', response.status);
-      return [];
+      return extractTimesLocal(paragraph);
     }
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!text) {
       console.warn('Saat çıkarma AI boş yanıt döndürdü, boş liste dönülüyor.');
-      return [];
+      return extractTimesLocal(paragraph);
     }
 
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -448,14 +505,14 @@ JSON:`;
 
     if (!Array.isArray(times)) {
       console.warn('Saat çıkarma AI JSON array döndürmedi, boş liste dönülüyor.');
-      return [];
+      return extractTimesLocal(paragraph);
     }
     return times.filter(
       (t: any) => typeof t.hour === 'number' && typeof t.minute === 'number' && typeof t.label === 'string'
     );
   } catch (e) {
     console.warn('Saat çıkarma hatası, boş liste dönülüyor:', e);
-    return [];
+    return extractTimesLocal(paragraph);
   }
 };
 
@@ -485,7 +542,7 @@ KURALLAR:
 4. Çıktı formatı: [{"id": "...", "title": "...", "priority": "low|medium|high", "done": boolean}, ...]
 `;
 
-  const url = `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`;
+  const url = getAiGenerateUrl();
   try {
     const response = await fetchWithRetry(url, {
       method: 'POST',
