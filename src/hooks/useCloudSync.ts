@@ -1,79 +1,309 @@
-import { useState } from 'react';
-import { supabaseService } from '../services/supabase';
-import { useApp } from '../context/AppContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
+import { CloudBackupData, CloudBackupRecord, getSession, isSupabaseConfigured, signInWithEmailOtp, signOut as supabaseSignOut, supabaseService, verifyOtp as supabaseVerifyOtp } from '../services/supabase';
+import { createHousehold, getMyHousehold, joinHousehold as joinHouseholdByCode, leaveHousehold as leaveCurrentHousehold } from '../services/pairing';
+import { HouseholdWithMembers } from '../services/supabase';
+import { usePlansStore } from '../store/plansStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { useRecurringStore } from '../store/recurringStore';
+import { useUserStore } from '../store/userStore';
+import { usePomodoroStore } from '../store/pomodoroStore';
+import * as storage from '../utils/storage';
+
+const PLAN_PREFIX = '@dp_plan_';
+
+type BackupResult = {
+  ok: boolean;
+  record?: CloudBackupRecord | null;
+  reason?: 'not-configured' | 'not-signed-in' | 'not-paired' | 'no-backup' | 'error';
+  error?: unknown;
+};
+
+const buildCloudBackupData = (): CloudBackupData => ({
+  version: 1,
+  plans: usePlansStore.getState().plans,
+  settings: useSettingsStore.getState().settings,
+  recurringTasks: useRecurringStore.getState().recurringTasks,
+  user: {
+    username: useUserStore.getState().username,
+    gender: useUserStore.getState().gender,
+    aboutMe: useUserStore.getState().aboutMe,
+  },
+  pomodoroStats: usePomodoroStore.getState().pomodoroStats,
+});
+
+const persistRestoredData = async (backup: CloudBackupData) => {
+  const planKeys = (await AsyncStorage.getAllKeys()).filter(key => key.startsWith(PLAN_PREFIX));
+  if (planKeys.length > 0) {
+    await AsyncStorage.multiRemove(planKeys);
+  }
+
+  await Promise.all([
+    ...Object.entries(backup.plans || {}).map(([date, tasks]) => storage.savePlan(date, tasks)),
+    storage.saveSettings(backup.settings),
+    storage.saveRecurringTasks(backup.recurringTasks || []),
+    backup.user?.username !== undefined && backup.user?.username !== null
+      ? storage.saveUserName(backup.user.username)
+      : Promise.resolve(true),
+    backup.user?.gender ? storage.saveGender(backup.user.gender) : Promise.resolve(true),
+    backup.user?.aboutMe !== undefined ? storage.saveAboutMe(backup.user.aboutMe) : Promise.resolve(true),
+    storage.savePomodoroStats(backup.pomodoroStats || {}),
+  ]);
+};
+
+const hydrateStoresFromBackup = (backup: CloudBackupData) => {
+  usePlansStore.getState()._hydrate(backup.plans || {});
+  useSettingsStore.getState()._hydrate(backup.settings);
+  useRecurringStore.getState()._hydrate(backup.recurringTasks || []);
+  useUserStore.getState()._hydrate({
+    username: backup.user?.username ?? useUserStore.getState().username,
+    gender: backup.user?.gender ?? useUserStore.getState().gender,
+    aboutMe: backup.user?.aboutMe ?? useUserStore.getState().aboutMe,
+  });
+  usePomodoroStore.getState()._hydrate(backup.pomodoroStats || {});
+};
+
+export const isHouseholdPaired = (household: HouseholdWithMembers | null) => (household?.members.length || 0) >= 2;
+
+export async function fetchCloudBackupRecord(): Promise<CloudBackupRecord | null> {
+  if (!isSupabaseConfigured) return null;
+
+  const household = await getMyHousehold();
+  if (!household) return null;
+
+  return supabaseService.restoreData(household.id);
+}
+
+export async function backupToCloudSilently(): Promise<BackupResult> {
+  try {
+    if (!isSupabaseConfigured) return { ok: false, reason: 'not-configured' };
+
+    const session = await getSession();
+    if (!session) return { ok: false, reason: 'not-signed-in' };
+
+    const household = await getMyHousehold();
+    if (!household || !isHouseholdPaired(household)) return { ok: false, reason: 'not-paired' };
+
+    const success = await supabaseService.backupData(household.id, buildCloudBackupData());
+    if (!success) return { ok: false, reason: 'error' };
+
+    const record = await supabaseService.restoreData(household.id);
+    return { ok: true, record };
+  } catch (error) {
+    console.warn('Silent cloud backup failed:', error);
+    return { ok: false, reason: 'error', error };
+  }
+}
+
+export async function restoreFromCloudSilently(): Promise<BackupResult> {
+  try {
+    if (!isSupabaseConfigured) return { ok: false, reason: 'not-configured' };
+
+    const session = await getSession();
+    if (!session) return { ok: false, reason: 'not-signed-in' };
+
+    const household = await getMyHousehold();
+    if (!household) return { ok: false, reason: 'not-paired' };
+
+    const record = await supabaseService.restoreData(household.id);
+    if (!record) return { ok: false, reason: 'no-backup' };
+
+    await persistRestoredData(record.data);
+    hydrateStoresFromBackup(record.data);
+    return { ok: true, record };
+  } catch (error) {
+    return { ok: false, reason: 'error', error };
+  }
+}
+
+const errorMessage = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
 
 export const useCloudSync = () => {
+  const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const { plans, settings, recurringTasks } = useApp();
+  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  const [household, setHousehold] = useState<HouseholdWithMembers | null>(null);
+  const [backupRecord, setBackupRecord] = useState<CloudBackupRecord | null>(null);
 
-  const backupToCloud = async (email: string) => {
-    setIsSyncing(true);
-    try {
-      // Önce mock giriş
-      await supabaseService.loginOrRegister(email);
-      
-      // Sonra yedekleme
-      const success = await supabaseService.backupData(email, {
-        plans,
-        settings,
-        recurring: recurringTasks
-      });
-
-      if (success) {
-        Toast.show({
-          type: 'success',
-          text1: 'Yedekleme Başarılı',
-          text2: 'Tüm verileriniz buluta kaydedildi.'
-        });
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Yedekleme Başarısız',
-        text2: error.message || 'Bir hata oluştu.'
-      });
-    } finally {
-      setIsSyncing(false);
+  const refresh = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      setSessionEmail(null);
+      setHousehold(null);
+      setBackupRecord(null);
+      return;
     }
-  };
 
-  const restoreFromCloud = async (email: string) => {
-    setIsSyncing(true);
+    setIsLoading(true);
     try {
-      await supabaseService.loginOrRegister(email);
-      const data = await supabaseService.restoreData(email);
-      
-      if (!data) {
-        Toast.show({
-          type: 'info',
-          text1: 'Bilgi',
-          text2: 'Bulutta bu hesaba ait veri bulunamadı.'
-        });
+      const session = await getSession();
+      setSessionEmail(session?.user.email ?? null);
+
+      if (!session) {
+        setHousehold(null);
+        setBackupRecord(null);
         return;
       }
-      
-      // Gerçek implementasyonda burada Zustand store'lara _hydrate metodlarıyla veriler basılır
-      Toast.show({
-        type: 'success',
-        text1: 'Geri Yükleme Başarılı',
-        text2: 'Veriler cihazınıza indirildi.'
-      });
-      
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Geri Yükleme Başarısız',
-        text2: error.message || 'Bir hata oluştu.'
-      });
+
+      const currentHousehold = await getMyHousehold();
+      setHousehold(currentHousehold);
+      setBackupRecord(currentHousehold ? await supabaseService.restoreData(currentHousehold.id) : null);
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Bulut Durumu Alınamadı', text2: errorMessage(error, 'Lütfen tekrar deneyin.') });
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const sendOtp = useCallback(async (email: string) => {
+    setIsLoading(true);
+    try {
+      await signInWithEmailOtp(email);
+      Toast.show({ type: 'success', text1: 'Kod Gönderildi', text2: 'E-postanızdaki 6 haneli kodu girin.' });
+      return true;
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Kod Gönderilemedi', text2: errorMessage(error, 'E-posta adresini kontrol edin.') });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const verifyOtp = useCallback(async (email: string, token: string) => {
+    setIsLoading(true);
+    try {
+      const session = await supabaseVerifyOtp(email, token);
+      setSessionEmail(session?.user.email ?? null);
+      await refresh();
+      Toast.show({ type: 'success', text1: 'Giriş Başarılı', text2: 'Bulut hesabınız hazır.' });
+      return true;
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Doğrulama Başarısız', text2: errorMessage(error, 'Kodun süresi dolmuş veya hatalı olabilir.') });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refresh]);
+
+  const createInvite = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const created = await createHousehold();
+      setHousehold(created);
+      setBackupRecord(created ? await supabaseService.restoreData(created.id) : null);
+      return created;
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Davet Kodu Oluşturulamadı', text2: errorMessage(error, 'Lütfen tekrar deneyin.') });
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const joinHousehold = useCallback(async (code: string) => {
+    setIsLoading(true);
+    try {
+      const joined = await joinHouseholdByCode(code);
+      setHousehold(joined);
+      setBackupRecord(joined ? await supabaseService.restoreData(joined.id) : null);
+      Toast.show({ type: 'success', text1: 'Eşleştirme Tamamlandı', text2: 'Ortak yedekleme alanınız hazır.' });
+      return true;
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Eşleştirme Başarısız', text2: errorMessage(error, 'Davet kodunu kontrol edin.') });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const leaveHousehold = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await leaveCurrentHousehold();
+      setHousehold(null);
+      setBackupRecord(null);
+      Toast.show({ type: 'success', text1: 'Eşleştirme Kaldırıldı' });
+      return true;
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'İşlem Başarısız', text2: errorMessage(error, 'Lütfen tekrar deneyin.') });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const signOut = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await supabaseSignOut();
+      setSessionEmail(null);
+      setHousehold(null);
+      setBackupRecord(null);
+      Toast.show({ type: 'success', text1: 'Çıkış Yapıldı' });
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Çıkış Yapılamadı', text2: errorMessage(error, 'Lütfen tekrar deneyin.') });
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const backupToCloud = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const result = await backupToCloudSilently();
+      if (!result.ok) {
+        Toast.show({ type: 'error', text1: 'Yedekleme Başarısız', text2: 'Giriş ve eşleştirme durumunu kontrol edin.' });
+        return false;
+      }
+
+      setBackupRecord(result.record ?? null);
+      Toast.show({ type: 'success', text1: 'Yedekleme Başarılı', text2: 'Yerel veriler buluta kaydedildi.' });
+      return true;
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, []);
+
+  const restoreFromCloud = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const result = await restoreFromCloudSilently();
+      if (!result.ok) {
+        const text2 = result.reason === 'no-backup'
+          ? 'Bulutta geri yüklenecek yedek bulunamadı.'
+          : 'Giriş ve eşleştirme durumunu kontrol edin.';
+        Toast.show({ type: 'error', text1: 'Geri Yükleme Başarısız', text2 });
+        return false;
+      }
+
+      setBackupRecord(result.record ?? null);
+      Toast.show({ type: 'success', text1: 'Geri Yükleme Başarılı', text2: 'Bulut yedeği bu cihaza uygulandı.' });
+      return true;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
 
   return {
+    isConfigured: isSupabaseConfigured,
+    isLoading,
     isSyncing,
+    sessionEmail,
+    household,
+    isPaired: isHouseholdPaired(household),
+    backupRecord,
+    refresh,
+    sendOtp,
+    verifyOtp,
+    signOut,
+    createInvite,
+    joinHousehold,
+    leaveHousehold,
     backupToCloud,
-    restoreFromCloud
+    restoreFromCloud,
   };
 };

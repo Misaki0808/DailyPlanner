@@ -1,74 +1,225 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../../context/AppContext';
 import { useCloudSync } from '../../hooks/useCloudSync';
 
+const formatSyncTime = (value?: string | null) => {
+  if (!value) return 'Henüz yok';
+  return new Date(value).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+};
+
 export default function CloudSyncSection() {
   const { theme } = useApp();
-  const { isSyncing, backupToCloud, restoreFromCloud } = useCloudSync();
+  const {
+    isConfigured,
+    isLoading,
+    isSyncing,
+    sessionEmail,
+    household,
+    isPaired,
+    backupRecord,
+    sendOtp,
+    verifyOtp,
+    signOut,
+    createInvite,
+    joinHousehold,
+    leaveHousehold,
+    backupToCloud,
+    restoreFromCloud,
+  } = useCloudSync();
+
   const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [autoInviteRequested, setAutoInviteRequested] = useState(false);
 
-  const handleBackup = () => {
-    if (!email) return;
-    backupToCloud(email);
+  useEffect(() => {
+    if (!sessionEmail) {
+      setAutoInviteRequested(false);
+    }
+  }, [sessionEmail]);
+
+  useEffect(() => {
+    if (isConfigured && sessionEmail && !household && !isLoading && !autoInviteRequested) {
+      setAutoInviteRequested(true);
+      createInvite();
+    }
+  }, [autoInviteRequested, createInvite, household, isConfigured, isLoading, sessionEmail]);
+
+  const partnerText = useMemo(() => {
+    if (!household || !sessionEmail) return 'Partner bilgisi alınamadı';
+    const partner = household.members.find(member => member.profile?.email !== sessionEmail);
+    return partner?.profile?.email || 'Partner e-postası görünmüyor';
+  }, [household, sessionEmail]);
+
+  const lastBackupBy = backupRecord?.updatedByProfile?.email || backupRecord?.updated_by;
+  const isBusy = isLoading || isSyncing;
+
+  const handleSendOtp = async () => {
+    if (!email.trim()) return;
+    const sent = await sendOtp(email);
+    setOtpSent(sent);
   };
 
-  const handleRestore = () => {
-    if (!email) return;
-    restoreFromCloud(email);
+  const handleVerifyOtp = async () => {
+    if (!email.trim() || !otp.trim()) return;
+    const verified = await verifyOtp(email, otp);
+    if (verified) {
+      setOtp('');
+      setOtpSent(false);
+    }
   };
 
-  return (
-    <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>☁️ Bulut Senkronizasyonu (Beta)</Text>
-      
-      <Text style={[styles.description, { color: theme.textSecondary }]}>
-        Tüm görevlerinizi, istatistiklerinizi ve ayarlarınızı buluta yedekleyin. Supabase altyapısı kullanmaktadır.
-      </Text>
+  const confirmBackup = () => {
+    Alert.alert(
+      'Bulut yedeği güncellensin mi?',
+      'Bu işlem ortak bulut yedeğinin üzerine bu cihazdaki verileri yazar.',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'Şimdi Yedekle', onPress: backupToCloud },
+      ]
+    );
+  };
 
+  const confirmRestore = () => {
+    Alert.alert(
+      'Buluttan geri yüklensin mi?',
+      'Bu işlem bu cihazdaki yerel plan, ayar, tekrarlayan görev ve istatistikleri bulut yedeğiyle değiştirir.',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'Geri Yükle', style: 'destructive', onPress: restoreFromCloud },
+      ]
+    );
+  };
+
+  const confirmLeave = () => {
+    Alert.alert(
+      'Eşleştirme kaldırılsın mı?',
+      'Bu cihaz bulut household üyeliğinden ayrılır. Yerel veriler silinmez.',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'Ayrıl', style: 'destructive', onPress: leaveHousehold },
+      ]
+    );
+  };
+
+  const renderSetupRequired = () => (
+    <View style={[styles.noticeBox, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
+      <Text style={[styles.noticeTitle, { color: theme.text }]}>Kurulum gerekli</Text>
+      <Text style={[styles.description, { color: theme.textSecondary }]}>Bulut senkronizasyonu için Supabase URL ve anon key ortam değişkenleri tanımlanmalı. Kurulum yapılmazsa uygulama yerel modda çalışmaya devam eder.</Text>
+    </View>
+  );
+
+  const renderSignedOut = () => (
+    <>
+      <Text style={[styles.description, { color: theme.textSecondary }]}>E-postanıza gönderilen 6 haneli kodla şifresiz giriş yapın.</Text>
       <TextInput
         style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-        placeholder="Hesap E-postası"
+        placeholder="E-posta"
         placeholderTextColor={theme.textMuted}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
+        editable={!isBusy}
       />
-
+      {otpSent && (
+        <TextInput
+          style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+          placeholder="6 haneli kod"
+          placeholderTextColor={theme.textMuted}
+          value={otp}
+          onChangeText={setOtp}
+          keyboardType="number-pad"
+          maxLength={6}
+          editable={!isBusy}
+        />
+      )}
       <View style={styles.buttonRow}>
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={handleBackup}
-          disabled={!email || isSyncing}
-        >
-          <LinearGradient
-            colors={!email ? [theme.background, theme.background] : theme.accentGradient}
-            style={styles.buttonGradient}
-          >
-            <Text style={[styles.buttonText, !email && { color: theme.textMuted }]}>
-              {isSyncing ? 'Yedekleniyor...' : '☁️ Yedekle'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={handleRestore}
-          disabled={!email || isSyncing}
-        >
-          <LinearGradient
-            colors={!email ? [theme.background, theme.background] : theme.blueGradient}
-            style={styles.buttonGradient}
-          >
-            <Text style={[styles.buttonText, !email && { color: theme.textMuted }]}>
-              {isSyncing ? 'İndiriliyor...' : '📥 Geri Yükle'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        <GradientButton disabled={!email.trim() || isBusy} colors={theme.accentGradient} label={otpSent ? 'Kodu Tekrar Gönder' : 'Kod Gönder'} onPress={handleSendOtp} />
+        {otpSent && <GradientButton disabled={otp.trim().length !== 6 || isBusy} colors={theme.blueGradient} label="Doğrula" onPress={handleVerifyOtp} />}
       </View>
+    </>
+  );
+
+  const renderUnpaired = () => (
+    <>
+      <View style={styles.statusRow}>
+        <Text style={[styles.metaText, { color: theme.textSecondary }]}>Giriş:</Text>
+        <Text style={[styles.metaValue, { color: theme.text }]}>{sessionEmail}</Text>
+      </View>
+      <Text style={[styles.description, { color: theme.textSecondary }]}>Bu kodu partnerinizle paylaşın veya partnerinizin 6 karakterlik kodunu girerek ortak household'a katılın.</Text>
+      <View style={[styles.inviteBox, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
+        <Text style={[styles.inviteLabel, { color: theme.textSecondary }]}>Davet Kodunuz</Text>
+        <Text selectable style={[styles.inviteCodeText, { color: theme.text }]}>{household?.invite_code || 'Oluşturuluyor...'}</Text>
+      </View>
+      <TextInput
+        style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+        placeholder="Partner davet kodu"
+        placeholderTextColor={theme.textMuted}
+        value={inviteCode}
+        onChangeText={(value) => setInviteCode(value.toLocaleUpperCase('tr-TR'))}
+        autoCapitalize="characters"
+        maxLength={6}
+        editable={!isBusy}
+      />
+      <View style={styles.buttonRow}>
+        <GradientButton disabled={inviteCode.trim().length !== 6 || isBusy} colors={theme.accentGradient} label="Eşleştir" onPress={() => joinHousehold(inviteCode)} />
+        <SecondaryButton disabled={isBusy} label="Çıkış Yap" textColor={theme.textSecondary} backgroundColor={theme.accentLight} onPress={signOut} />
+      </View>
+    </>
+  );
+
+  const renderPaired = () => (
+    <>
+      <View style={styles.statusRow}>
+        <Text style={[styles.metaText, { color: theme.textSecondary }]}>Partner:</Text>
+        <Text style={[styles.metaValue, { color: theme.text }]}>{partnerText}</Text>
+      </View>
+      <View style={styles.statusRow}>
+        <Text style={[styles.metaText, { color: theme.textSecondary }]}>Son senkron:</Text>
+        <Text style={[styles.metaValue, { color: theme.text }]}>{formatSyncTime(backupRecord?.updated_at)}</Text>
+      </View>
+      <View style={styles.statusRow}>
+        <Text style={[styles.metaText, { color: theme.textSecondary }]}>Son yedekleyen:</Text>
+        <Text style={[styles.metaValue, { color: theme.text }]}>{lastBackupBy || 'Henüz yok'}</Text>
+      </View>
+      <View style={styles.buttonRow}>
+        <GradientButton disabled={isBusy} colors={theme.accentGradient} label={isSyncing ? 'Yedekleniyor...' : 'Şimdi Yedekle'} onPress={confirmBackup} />
+        <GradientButton disabled={isBusy || !backupRecord} colors={theme.blueGradient} label={isSyncing ? 'İndiriliyor...' : 'Buluttan Geri Yükle'} onPress={confirmRestore} />
+      </View>
+      <View style={styles.buttonRow}>
+        <SecondaryButton disabled={isBusy} label="Eşleştirmeden Ayrıl" textColor={theme.textSecondary} backgroundColor={theme.accentLight} onPress={confirmLeave} />
+        <SecondaryButton disabled={isBusy} label="Çıkış Yap" textColor={theme.textSecondary} backgroundColor={theme.accentLight} onPress={signOut} />
+      </View>
+    </>
+  );
+
+  return (
+    <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>☁️ Bulut Senkronizasyonu</Text>
+      {!isConfigured ? renderSetupRequired() : !sessionEmail ? renderSignedOut() : !isPaired ? renderUnpaired() : renderPaired()}
     </View>
+  );
+}
+
+function GradientButton({ disabled, colors, label, onPress }: { disabled: boolean; colors: readonly [string, string, ...string[]]; label: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={[styles.actionButton, disabled && styles.disabled]} onPress={onPress} disabled={disabled}>
+      <LinearGradient colors={disabled ? ['#777777', '#777777'] : colors} style={styles.buttonGradient}>
+        <Text style={styles.buttonText}>{label}</Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+}
+
+function SecondaryButton({ disabled, label, textColor, backgroundColor, onPress }: { disabled: boolean; label: string; textColor: string; backgroundColor: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={[styles.secondaryButton, { backgroundColor }, disabled && styles.disabled]} onPress={onPress} disabled={disabled}>
+      <Text style={[styles.secondaryButtonText, { color: textColor }]}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -94,6 +245,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 16,
   },
+  noticeBox: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  noticeTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
   input: {
     height: 48,
     borderRadius: 12,
@@ -105,6 +266,8 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: 12,
+    marginTop: 4,
+    marginBottom: 8,
   },
   actionButton: {
     flex: 1,
@@ -113,12 +276,65 @@ const styles = StyleSheet.create({
   },
   buttonGradient: {
     paddingVertical: 12,
+    paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 44,
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
-  }
+    textAlign: 'center',
+  },
+  secondaryButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  secondaryButtonText: {
+    fontWeight: '700',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  disabled: {
+    opacity: 0.55,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 10,
+  },
+  metaText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  metaValue: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  inviteBox: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  inviteLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  inviteCodeText: {
+    fontSize: 28,
+    letterSpacing: 5,
+    fontWeight: '900',
+  },
 });
