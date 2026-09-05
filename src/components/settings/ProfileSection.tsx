@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Gender } from '../../types';
 import { createSharedStyles } from '../../utils/sharedStyles';
-import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/AppContext';
 
 interface ProfileSectionProps {
   username: string | null;
@@ -25,7 +25,7 @@ export default function ProfileSection({
   onSaveUsername,
   onChangeGender,
 }: ProfileSectionProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
   const themed = createSharedStyles(theme);
   const [nameInput, setNameInput] = useState('');
   const [isEditing, setIsEditing] = useState(false);

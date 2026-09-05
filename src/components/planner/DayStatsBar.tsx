@@ -5,7 +5,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/AppContext';
 
 interface DayStatsBarProps {
   completedCount: number;
@@ -20,7 +20,7 @@ export default function DayStatsBar({
   percentage,
   allCompleted,
 }: DayStatsBarProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
   if (totalCount === 0) return null;
 
   return (

@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import VoiceInputButton from '../VoiceInputButton';
-import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/AppContext';
 
 interface ActionButtonsBarProps {
   isEditMode: boolean;
@@ -34,7 +34,7 @@ export default function ActionButtonsBar({
   onDeleteDay,
   onAiEditPlan,
 }: ActionButtonsBarProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
 
   return (
     <View style={styles.buttonGroup}>

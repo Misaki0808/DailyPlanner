@@ -8,7 +8,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/AppContext';
 
 interface ShareModalProps {
   visible: boolean;
@@ -18,7 +18,7 @@ interface ShareModalProps {
 }
 
 export default function ShareModal({ visible, onClose, onWhatsApp, onCopy }: ShareModalProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

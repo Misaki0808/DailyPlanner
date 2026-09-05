@@ -26,6 +26,18 @@ export const usePlansContext = () => usePlansStore();
 export const usePomodoroContext = () => usePomodoroStore();
 export const useRecurringContext = () => useRecurringStore();
 
+/**
+ * Yalnız TEMAYA abone olur.
+ *
+ * `useApp()` altı store'u da selector'sız çağırıp sonucu spread ettiği için
+ * herhangi bir store'daki herhangi bir değişiklik (tek bir görevin
+ * işaretlenmesi dahil) onu kullanan her bileşeni yeniden render ediyordu.
+ * Sadece temaya ihtiyaç duyan bileşenler bunu kullanmalı; tema nesnesi
+ * referans olarak sabittir (getTheme iki modül sabitinden birini döndürür),
+ * bu yüzden render yalnız tema gerçekten değiştiğinde tetiklenir.
+ */
+export const useTheme = () => useSettingsStore(s => s.theme);
+
 export const useApp = () => {
   const user = useUserStore();
   const settings = useSettingsStore();

@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Settings } from '../types';
-import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/AppContext';
 
 interface SuccessModalProps {
   visible: boolean;
@@ -20,7 +20,7 @@ interface SuccessModalProps {
 }
 
 export default function SuccessModal({ visible, onClose, date, taskCount }: SuccessModalProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
 
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>

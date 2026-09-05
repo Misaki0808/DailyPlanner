@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/AppContext';
 import { useCloudSync } from '../../hooks/useCloudSync';
 
 const formatSyncTime = (value?: string | null) => {
@@ -10,7 +10,7 @@ const formatSyncTime = (value?: string | null) => {
 };
 
 export default function CloudSyncSection() {
-  const { theme } = useApp();
+  const theme = useTheme();
   const {
     isConfigured,
     isLoading,

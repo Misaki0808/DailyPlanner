@@ -12,7 +12,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { RecurringTask } from '../../types';
 import VoiceInputButton from '../VoiceInputButton';
-import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/AppContext';
 import { createSharedStyles } from '../../utils/sharedStyles';
 
 interface RecurringTasksSectionProps {
@@ -31,7 +31,7 @@ export default function RecurringTasksSection({
   onRemoveRecurringTask,
   onToggleRecurringTask,
 }: RecurringTasksSectionProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
   const themed = createSharedStyles(theme);
 
   const [showModal, setShowModal] = useState(false);

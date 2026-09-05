@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/AppContext';
 import { clampDayToMonth, getDaysInMonth, toDateString } from '../utils/dateUtils';
 
 interface CalendarModalProps {
@@ -41,7 +41,7 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
   selectedDate,
   onSelectDate,
 }) => {
-  const { theme } = useApp();
+  const theme = useTheme();
 
   // Yıl/ay/gün TEK bir state'te tutulur. Daha önce üç ayrı state vardı ve
   // changeDay, changeMonth'u çağırdığında changeMonth hâlâ render anındaki

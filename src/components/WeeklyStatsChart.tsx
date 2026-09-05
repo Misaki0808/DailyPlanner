@@ -3,14 +3,14 @@ import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Task } from '../types';
 import { buildWeeklyStats } from '../utils/weeklyStats';
-import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/AppContext';
 
 interface WeeklyStatsChartProps {
     plans: Record<string, Task[]>;
 }
 
 export default function WeeklyStatsChart({ plans }: WeeklyStatsChartProps) {
-    const { theme } = useApp();
+    const theme = useTheme();
 
     const chartData = useMemo(() => buildWeeklyStats(plans), [plans]);
 

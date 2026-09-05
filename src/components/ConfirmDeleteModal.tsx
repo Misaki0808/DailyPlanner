@@ -8,7 +8,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/AppContext';
 
 interface ConfirmDeleteModalProps {
   visible: boolean;
@@ -19,7 +19,7 @@ interface ConfirmDeleteModalProps {
 }
 
 export default function ConfirmDeleteModal({ visible, onClose, onConfirm, title, message }: ConfirmDeleteModalProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

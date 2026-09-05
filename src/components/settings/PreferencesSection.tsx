@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Settings } from '../../types';
 import { createSharedStyles } from '../../utils/sharedStyles';
-import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/AppContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '../../store/userStore';
 import { usePlansStore } from '../../store/plansStore';
@@ -34,7 +34,7 @@ export default function PreferencesSection({
   settings,
   onUpdateSettings,
 }: PreferencesSectionProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
   const themed = createSharedStyles(theme);
   const [defaultHour, defaultMinute] = defaultSettings.notificationTime.split(':');
   const [notificationHour, setNotificationHour] = useState(defaultHour);

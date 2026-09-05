@@ -14,7 +14,7 @@ import WeeklyStatsChart from '../WeeklyStatsChart';
 import { generateWeeklySummary, checkApiKey } from '../../utils/aiService';
 import { getToday, addDays } from '../../utils/dateUtils';
 import { calculatePomodoroStreak } from '../../utils/pomodoroStats';
-import { useApp, usePomodoroContext } from '../../context/AppContext';
+import { useTheme, usePomodoroContext } from '../../context/AppContext';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
@@ -26,7 +26,7 @@ interface StatsSectionProps {
 }
 
 export default function StatsSection({ plans, username }: StatsSectionProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
   const { pomodoroStats } = usePomodoroContext();
   const themed = createSharedStyles(theme);
   const [aiSummary, setAiSummary] = useState<string | null>(null);

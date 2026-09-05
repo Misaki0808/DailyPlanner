@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { formatDateDisplay, getToday } from '../../utils/dateUtils';
-import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/AppContext';
 
 interface DateNavigationProps {
   selectedDate: string;
@@ -19,7 +19,7 @@ export default function DateNavigation({
   onChangeDate,
   onOpenCalendar,
 }: DateNavigationProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
 
   return (
     <View style={[styles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
