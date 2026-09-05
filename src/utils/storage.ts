@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Plans, Task, Settings, RecurringTask } from '../types';
 import { defaultSettings, withSettingsDefaults } from './defaultSettings';
+import { getToday } from './dateUtils';
 
 // Storage anahtarları - tek yerden yönetmek için
 const STORAGE_KEYS = {
@@ -236,8 +237,10 @@ export const clearAllData = async () => {
  */
 export const cleanOldPlans = async (daysThreshold: number = 90) => {
   try {
-    // Sadece günde 1 kez çalışsın
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Sadece günde 1 kez çalışsın. Gün, uygulamanın geri kalanıyla aynı
+    // biçimde YEREL saate göre belirlenir; toISOString() UTC'ye kaydığı için
+    // kilit yerel günle örtüşmüyordu.
+    const todayStr = getToday();
     const lastCleanup = await AsyncStorage.getItem(STORAGE_KEYS.LAST_CLEANUP_DATE);
     if (lastCleanup === todayStr) return false;
 
@@ -252,10 +255,13 @@ export const cleanOldPlans = async (daysThreshold: number = 90) => {
       const dateStr = key.replace(STORAGE_KEYS.PLAN_PREFIX, '');
       const [year, month, day] = dateStr.split('-').map(Number);
       const planDate = new Date(year, month - 1, day);
-      
+
+      // Math.round kullanılır: iki yerel gece yarısı arasındaki fark, yaz
+      // saati geçişlerinde tam 24 saatin katı olmaz. Math.ceil ile 90.04 gün
+      // 91'e yuvarlanıyor ve planlar eşikten bir gün önce siliniyordu.
       const diffTime = now.getTime() - planDate.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
       if (diffDays > daysThreshold) {
         keysToRemove.push(key);
       }

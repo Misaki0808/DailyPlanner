@@ -60,6 +60,9 @@ export default function CalendarGridScreen() {
           current={today}
           onDayPress={onDayPress}
           markedDates={markedDates}
+          // Türkiye'de hafta Pazartesi başlar; esnek görev haftası da
+          // (MultiDayViewScreen) Pazartesi'ye göre hesaplanıyor.
+          firstDay={1}
           theme={{
             backgroundColor: theme.cardBackground,
             calendarBackground: theme.cardBackground,

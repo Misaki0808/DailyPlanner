@@ -71,6 +71,9 @@ export default function MonthlyCalendarModal({ visible, onClose, selectedDate, o
                 }}
                 markingType={'multi-dot'}
                 markedDates={markedDates}
+                // Türkiye'de hafta Pazartesi başlar; esnek görev haftası da
+                // (MultiDayViewScreen) Pazartesi'ye göre hesaplanıyor.
+                firstDay={1}
                 theme={{
                   backgroundColor: theme.background,
                   calendarBackground: theme.background,
