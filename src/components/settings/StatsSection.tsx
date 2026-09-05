@@ -19,7 +19,8 @@ import { useTheme, usePomodoroContext, useSettingsContext } from '../../context/
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
-import { getCategoryLabel, TASK_CATEGORIES } from '../../utils/categories';
+import { TASK_CATEGORIES } from '../../utils/categories';
+import { buildPlansCsv } from '../../utils/csvExport';
 
 interface StatsSectionProps {
   plans: Plans;
@@ -121,23 +122,8 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
 
   const handleExportCSV = async () => {
     try {
-      // CSV Header
-      let csvString = 'Tarih,Gorev Basligi,Oncelik,Kategori,Durum,Not\n';
-      
-      const dates = Object.keys(plans).sort((a, b) => b.localeCompare(a));
-      
-      dates.forEach(date => {
-        const tasks = plans[date];
-        tasks.forEach(task => {
-          const safeTitle = `"${(task.title || '').replace(/"/g, '""')}"`;
-          const priority = task.priority || 'low';
-          const category = getCategoryLabel(task.category || 'diger');
-          const isDone = task.done ? 'Tamamlandi' : 'Bekliyor';
-          const safeNote = `"${(task.note || '').replace(/"/g, '""')}"`;
-          
-          csvString += `${date},${safeTitle},${priority},${category},${isDone},${safeNote}\n`;
-        });
-      });
+      // CSV metnini üretmek saf bir işlem; testlenebilmesi için ayrı modülde.
+      const csvString = buildPlansCsv(plans);
 
       const fileName = `DailyPlanner_DisaAktarim_${getToday()}.csv`;
 
