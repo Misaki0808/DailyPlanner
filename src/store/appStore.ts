@@ -63,6 +63,14 @@ export const syncRecurringForToday = async ({ force = false }: SyncRecurringOpti
     else if (rt.frequency === 'weekly') {
       if (rt.weekDays && rt.weekDays.includes(dayOfWeek)) shouldAdd = true;
       else if (rt.weekDay !== undefined && rt.weekDay === dayOfWeek) shouldAdd = true;
+    } else if (rt.frequency === 'flexible') {
+      // BİLEREK eklenmiyor. Esnek görev belirli bir güne bağlı değil: kullanıcı
+      // haftalık hedefini koyar ve hangi günlerde yapacağını Planlarım
+      // ekranındaki "ESNEK GÖREV HAVUZU" kartından kendisi seçer. Otomatik
+      // eklemek hedefi kullanıcı seçmeden doldurur ve havuzdaki ekleme
+      // düğmesini anlamsız kılardı. Dal, bu kararın kod içinde açık durması
+      // için var; eskiden hiçbir dala düşmediği için davranış tesadüfiydi.
+      shouldAdd = false;
     } else if (rt.frequency === 'monthly' && rt.monthDay) {
       // Hedef gün ayın uzunluğuna kırpılır. Arayüz 31'e kadar seçime izin
       // veriyor; tam eşitlik arandığında "her ayın 31'i" Şubat, Nisan,

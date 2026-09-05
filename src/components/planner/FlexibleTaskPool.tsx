@@ -7,22 +7,20 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { RecurringTask } from '../../types';
+import { FlexibleTaskProgress } from '../../utils/flexibleTasks';
 import { useTheme } from '../../context/AppContext';
-
-interface FlexibleTaskProgress extends RecurringTask {
-  currentCount: number;
-  isAddedToday: boolean;
-}
 
 interface FlexibleTaskPoolProps {
   flexibleProgress: FlexibleTaskProgress[];
   onAddFlexibleTask: (title: string, priority: 'low' | 'medium' | 'high') => void;
+  /** Eklemenin yapılacağı gün bugün mü (düğme metni buna göre değişir) */
+  isSelectedDayToday: boolean;
 }
 
 export default function FlexibleTaskPool({
   flexibleProgress,
   onAddFlexibleTask,
+  isSelectedDayToday,
 }: FlexibleTaskPoolProps) {
   const theme = useTheme();
   if (flexibleProgress.length === 0) return null;
@@ -34,31 +32,40 @@ export default function FlexibleTaskPool({
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {flexibleProgress.map(fp => {
-          const target = fp.flexibleTarget || 0;
-          const isDone = fp.currentCount >= target;
+          const isDone = fp.currentCount >= fp.target;
+          // Havuz seçili günü hedefler, her zaman bugünü değil. Etiket buna
+          // göre değişmezse başka bir güne bakarken "Bugüne Ekle" yazıp
+          // görevi o güne eklediğimiz için yanıltıcı oluyordu.
+          const addLabel = isSelectedDayToday ? 'Bugüne Ekle' : 'Bu Güne Ekle';
+          const addedLabel = isSelectedDayToday ? '✅ Bugüne eklendi' : '✅ Bu güne eklendi';
           return (
             <View key={fp.id} style={[
               styles.card,
               { backgroundColor: theme.cardBackground },
-              fp.isAddedToday && { borderColor: theme.success, borderWidth: 1 }
+              fp.isAddedToSelectedDay && { borderColor: theme.success, borderWidth: 1 }
             ]}>
               <View style={styles.cardTop}>
                 <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>{fp.title}</Text>
                 <View style={[styles.badge, { backgroundColor: theme.accentLight }]}>
-                  <Text style={[styles.badgeText, { color: theme.text }]}>{fp.currentCount}/{target}</Text>
+                  <Text style={[styles.badgeText, { color: theme.text }]}>{fp.currentCount}/{fp.target}</Text>
                 </View>
               </View>
-              {!fp.isAddedToday && !isDone && (
-                <TouchableOpacity style={styles.addBtn} onPress={() => onAddFlexibleTask(fp.title, fp.priority)}>
+              {!fp.isAddedToSelectedDay && !isDone && (
+                <TouchableOpacity
+                  style={styles.addBtn}
+                  onPress={() => onAddFlexibleTask(fp.title, fp.priority)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${fp.title}: ${addLabel}. Bu hafta ${fp.currentCount} / ${fp.target}`}
+                >
                   <LinearGradient colors={theme.accentGradient} style={styles.addBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                    <Text style={styles.addBtnText}>Bugüne Ekle</Text>
+                    <Text style={styles.addBtnText}>{addLabel}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               )}
-              {fp.isAddedToday && (
-                <Text style={[styles.addedText, { color: theme.success }]}>✅ Bugüne eklendi</Text>
+              {fp.isAddedToSelectedDay && (
+                <Text style={[styles.addedText, { color: theme.success }]}>{addedLabel}</Text>
               )}
-              {isDone && !fp.isAddedToday && (
+              {isDone && !fp.isAddedToSelectedDay && (
                 <Text style={[styles.addedText, { color: theme.success }]}>🎉 Hedef tamam!</Text>
               )}
             </View>
