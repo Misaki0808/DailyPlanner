@@ -102,7 +102,7 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
   const handleShareDashboard = async () => {
     try {
       if (Platform.OS === 'web') {
-        Alert.alert('Bilgi', 'Dashboard ekran görüntüsü alma özelliği şu an sadece mobil cihazlarda (Android/iOS) desteklenmektedir. Lütfen telefondan deneyin.');
+        window.alert('Bilgi: Dashboard ekran görüntüsü alma özelliği şu an sadece mobil cihazlarda (Android/iOS) desteklenmektedir. Lütfen telefondan deneyin.');
         return;
       }
       
@@ -120,7 +120,11 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
       }
     } catch (error) {
       console.log(error);
-      Alert.alert('Hata', 'Dashboard resmi oluşturulurken bir hata oluştu');
+      if (Platform.OS === 'web') {
+        window.alert('Hata: Dashboard resmi oluşturulurken bir hata oluştu');
+      } else {
+        Alert.alert('Hata', 'Dashboard resmi oluşturulurken bir hata oluştu');
+      }
     }
   };
 
