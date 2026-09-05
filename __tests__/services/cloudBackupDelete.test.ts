@@ -57,28 +57,38 @@ describe('supabaseService.deleteBackup (R-009)', () => {
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = originalKey;
   });
 
-  it('satır gerçekten silindiyse true döner', async () => {
-    mockFrom
-      .mockImplementationOnce(() => chain(okResult))
-      .mockImplementationOnce(() => chain(okResult));
+  // Silinen satır .select() ile geri döndüyse silme gerçekten olmuştur.
+  it('silinen satır döndüyse deleted verir', async () => {
+    mockFrom.mockImplementationOnce(() => chain({ data: [{ household_id: 'h1' }], error: null }));
 
     const { supabaseService } = loadService();
 
-    await expect(supabaseService.deleteBackup('h1')).resolves.toBe(true);
-    expect(mockFrom).toHaveBeenCalledTimes(2);
+    await expect(supabaseService.deleteBackup('h1')).resolves.toBe('deleted');
+    expect(mockFrom).toHaveBeenCalledTimes(1);
     expect(mockFrom).toHaveBeenCalledWith('plan_backups');
   });
 
   // 0002 migration'ı uygulanmadan DELETE politikası yok: istek hata vermez,
-  // sessizce 0 satır etkiler. Kullanıcıya "silindi" demememiz gerekiyor.
-  it('politika yoksa (satır duruyor) false döner', async () => {
+  // sessizce 0 satır etkiler ama satır hâlâ okunabilir.
+  it('satır silinmeyip hâlâ okunabiliyorsa policy-missing verir', async () => {
     mockFrom
-      .mockImplementationOnce(() => chain(okResult))
+      .mockImplementationOnce(() => chain({ data: [], error: null }))
       .mockImplementationOnce(() => chain({ data: { household_id: 'h1' }, error: null }));
 
     const { supabaseService } = loadService();
 
-    await expect(supabaseService.deleteBackup('h1')).resolves.toBe(false);
+    await expect(supabaseService.deleteBackup('h1')).resolves.toBe('policy-missing');
+  });
+
+  // R2-005: satırı GÖREMEMEK silmiş olmakla aynı şey değil.
+  it('silinen satır yok ve satır da görünmüyorsa not-found verir', async () => {
+    mockFrom
+      .mockImplementationOnce(() => chain({ data: [], error: null }))
+      .mockImplementationOnce(() => chain(okResult));
+
+    const { supabaseService } = loadService();
+
+    await expect(supabaseService.deleteBackup('h1')).resolves.toBe('not-found');
   });
 
   it('silme hatasını yutmaz', async () => {
@@ -94,7 +104,7 @@ describe('supabaseService.deleteBackup (R-009)', () => {
 
   it('doğrulama sorgusu hata verirse yutmaz', async () => {
     mockFrom
-      .mockImplementationOnce(() => chain(okResult))
+      .mockImplementationOnce(() => chain({ data: [], error: null }))
       .mockImplementationOnce(() => chain({ data: null, error: { code: '42501', message: 'permission denied' } }));
 
     const { supabaseService } = loadService();
@@ -102,10 +112,10 @@ describe('supabaseService.deleteBackup (R-009)', () => {
     await expect(supabaseService.deleteBackup('h1')).rejects.toMatchObject({ code: '42501' });
   });
 
-  it('Supabase yapılandırılmamışsa istek atmadan false döner', async () => {
+  it('Supabase yapılandırılmamışsa istek atmadan not-found döner', async () => {
     const { supabaseService } = loadService(false);
 
-    await expect(supabaseService.deleteBackup('h1')).resolves.toBe(false);
+    await expect(supabaseService.deleteBackup('h1')).resolves.toBe('not-found');
     expect(mockFrom).not.toHaveBeenCalled();
   });
 });
