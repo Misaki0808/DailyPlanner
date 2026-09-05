@@ -18,7 +18,41 @@ type TimeMatch = {
  * bu kalıba düşmez, SUFFIX_HOUR_REGEX'e takılır ve 15:00 yerine 03:00 olur.
  */
 const PERIOD_HOUR_REGEX = /(^|[^\p{L}\p{N}_])(sabah|öğlen|öğle|akşam|gece)\s+(?:saat\s+)?(\d{1,2})(?:[:.](\d{2}))?(?:\s*['’]?(?:de|da|te|ta))?(?=$|[^\p{L}\p{N}_])/giu;
-const CLOCK_REGEX = /(?:\bsaat\s+)?\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:\s*['’]?(?:de|da|te|ta))?\b/giu;
+// İki nokta ayracı tek anlamlıdır: "14:30" her zaman saattir.
+const CLOCK_COLON_REGEX = /(?:\bsaat\s+)?\b([01]?\d|2[0-3]):([0-5]\d)(?:\s*['’]?(?:de|da|te|ta))?\b/giu;
+
+// Nokta ayracı Türkçe'de HEM saat HEM ondalık ayracıdır ("14.30" ama
+// "3.45 TL", "sürüm 1.20"). Bu yüzden yalnız bir saat bağlamı varsa
+// kabul edilir; bağlam denetimi shouldAcceptDotClock içinde.
+// Gruplar: 1=saat öneki, 2=saat, 3=dakika, 4=de/da/te/ta soneki
+const CLOCK_DOT_REGEX = /(\bsaat\s+)?\b([01]?\d|2[0-3])\.([0-5]\d)(\s*['’]?(?:de|da|te|ta))?\b/giu;
+
+/**
+ * Eşleşmenin hemen ardından para birimi geliyorsa bu bir tutardır, saat değil.
+ * Sınır Unicode-güvenli: "kuruş" gibi ASCII dışı harfle biten birimlerde `\b`
+ * çalışmaz.
+ */
+const CURRENCY_AFTER_REGEX = /^\s*(?:₺|\$|€|£|tl|try|lira|krş|kuruş|dolar|usd|euro|avro|eur|sterlin|gbp|cent|sent)(?=$|[^\p{L}\p{N}_])/iu;
+
+/**
+ * Noktalı yazımın saat sayılıp sayılmayacağına karar verir.
+ * Saat kabul edilir çünkü bağlam var:
+ *   - "saat 14.30"        -> açık saat öneki
+ *   - "3.45'te", "14.30 da" -> Türkçe bulunma hâli eki
+ *   - "09.30", "14.30"    -> iki haneli saat, saat yazımının olağan biçimi
+ * Aksi hâlde ("3.45 TL", "sürüm 1.20") ondalık sayı kabul edilir.
+ * Para birimi geliyorsa iki haneli olsa bile saat sayılmaz ("12.50 lira").
+ */
+const shouldAcceptDotClock = (
+  text: string,
+  matchEnd: number,
+  hourText: string,
+  hasSaatPrefix: boolean,
+  hasSuffix: boolean
+): boolean => {
+  if (CURRENCY_AFTER_REGEX.test(text.slice(matchEnd, matchEnd + 12))) return false;
+  return hasSaatPrefix || hasSuffix || hourText.length === 2;
+};
 const SUFFIX_HOUR_REGEX = /(?:\bsaat\s+)?\b(\d{1,2})(?:[:.](\d{2}))?\s*['’]?(?:de|da|te|ta)\b/giu;
 const NOON_REGEX = /(^|[^\p{L}\p{N}_])(öğlen|öğle)(?:\s*['’]?(?:de|da))?(?=$|[^\p{L}\p{N}_])/giu;
 
@@ -72,13 +106,22 @@ const collectMatches = (text: string): TimeMatch[] => {
     });
   }
 
-  for (const match of text.matchAll(CLOCK_REGEX)) {
+  for (const match of text.matchAll(CLOCK_COLON_REGEX)) {
     const candidate = {
       start: match.index || 0,
       end: (match.index || 0) + match[0].length,
       hour: Number(match[1]),
       minute: Number(match[2]),
     };
+    if (!overlaps(candidate, matches)) matches.push(candidate);
+  }
+
+  for (const match of text.matchAll(CLOCK_DOT_REGEX)) {
+    const start = match.index || 0;
+    const end = start + match[0].length;
+    if (!shouldAcceptDotClock(text, end, match[2], Boolean(match[1]), Boolean(match[4]))) continue;
+
+    const candidate = { start, end, hour: Number(match[2]), minute: Number(match[3]) };
     if (!overlaps(candidate, matches)) matches.push(candidate);
   }
 
