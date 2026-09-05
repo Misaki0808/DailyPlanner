@@ -23,5 +23,44 @@ describe('correctTranscriptLocal', () => {
     const text = 'Bugün okulda yemek yiyeceğim ve akşam spor yapacağım';
     expect(correctTranscriptLocal(text)).toBe(text);
   });
+
+  describe('yanlış düzeltmelere karşı koruma', () => {
+    // Regresyon: "baskent" ile "backent" arasındaki Levenshtein uzaklığı 1
+    // olduğu için gerçek bir Türkçe sözcük olan "başkent" bulanık eşleşmeyle
+    // "backend"e çevriliyordu. Kullanıcının söylemediği bir metin üretmek,
+    // düzeltmeyi kaçırmaktan daha kötü.
+    it('gerçek bir sözcük olan "başkent"i bozmaz', () => {
+      expect(correctTranscriptLocal('başkent gezisi')).toBe('başkent gezisi');
+      expect(correctTranscriptLocal('Başkent Üniversitesi')).toBe('Başkent Üniversitesi');
+    });
+
+    it('korumaya rağmen gerçek yanlış duymayı düzeltmeye devam eder', () => {
+      expect(correctTranscriptLocal('başkent evlatlarım olacağım')).toBe(
+        'backend developer olacağım'
+      );
+      expect(correctTranscriptLocal('backent çalış')).toBe('backend çalış');
+    });
+
+    // Regresyon: 'deploy et' variant listesindeydi, yani DOĞRU Türkçe ifade
+    // "deploy" ile değiştirilip "et" fiili siliniyordu.
+    it('"deploy et" ifadesindeki fiili silmez', () => {
+      expect(correctTranscriptLocal('deploy et')).toBe('deploy et');
+      expect(correctTranscriptLocal('yarın deploy et')).toBe('yarın deploy et');
+    });
+
+    // Regresyon: koruma listesi ham hâlleriyle yazıldığı, karşılaştırma ise
+    // normalize edilmiş biçimle yapıldığı için Türkçe'ye özgü harf içeren
+    // kelimeler ("akşam", "bugün", "iş", "toplantı", "yarın") hiç korunmuyordu.
+    it('Türkçe harf içeren korumalı kelimeler gerçekten korunuyor', () => {
+      for (const word of ['akşam', 'bugün', 'iş', 'toplantı', 'yarın']) {
+        expect(correctTranscriptLocal(word)).toBe(word);
+      }
+    });
+
+    it('boş ve yalnız boşluktan oluşan metni olduğu gibi döndürür', () => {
+      expect(correctTranscriptLocal('')).toBe('');
+      expect(correctTranscriptLocal('   ')).toBe('   ');
+    });
+  });
 });
 
