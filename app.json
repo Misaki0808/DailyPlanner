@@ -14,7 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dailyplanner.app"
+      "bundleIdentifier": "com.dailyplanner.app",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Allow DailyPlanner to recognize your speech.",
+        "NSMicrophoneUsageDescription": "Allow DailyPlanner to access your microphone to recognize speech."
+      }
     },
     "android": {
       "package": "com.dailyplanner.app",
@@ -23,7 +27,10 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -52,6 +59,11 @@
           ]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f5246831-bdaf-45f5-9e15-fd24b6755aca"
+      }
+    }
   }
 }
