@@ -190,9 +190,18 @@ export async function refreshInviteCode(): Promise<HouseholdWithMembers | null> 
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const inviteCode = generateInviteCode();
-    const { error } = await client.rpc('rotate_invite_code', { p_invite_code: inviteCode });
+    const { data, error } = await client.rpc('rotate_invite_code', { p_invite_code: inviteCode });
 
-    if (!error) return fetchHouseholdById(household.id);
+    if (!error) {
+      // İkinci savunma: sunucu beklenenden başka bir haneyi yenilediyse (ya da
+      // hiç satır dönmediyse) başarı gösterme. Aksi halde ekranda eski kod
+      // kalırken kullanıcıya "yeni kod hazır" denirdi.
+      const rotatedHouseholdId = data?.[0]?.id;
+      if (rotatedHouseholdId !== household.id) {
+        throw new Error('Davet kodu yenilenemedi: sunucu beklenen ev grubunu döndürmedi. Ayarları yenileyip tekrar deneyin.');
+      }
+      return fetchHouseholdById(household.id);
+    }
     if (error.code === '23505') continue;
     if (!isMissingDbObjectError(error)) throw error;
 

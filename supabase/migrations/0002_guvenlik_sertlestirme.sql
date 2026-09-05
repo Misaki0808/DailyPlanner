@@ -133,6 +133,7 @@ $$;
 -- alfabe tek yerde, pairing.ts içinde kalsın diye); yeni son kullanma zamanını
 -- ve yetki kontrolünü sunucu belirler, cihaz saatine güvenilmez.
 -- Benzersizlik çakışmasında 23505 döner; istemci yeni kodla tekrar dener.
+-- Dönen id istemcide mevcut hane ile karşılaştırılır (ikinci savunma).
 create or replace function public.rotate_invite_code(p_invite_code text)
 returns table (id uuid, invite_code text, invite_code_expires_at timestamptz)
 language plpgsql
@@ -154,11 +155,22 @@ begin
     raise exception 'invalid_invite_code' using errcode = '22023';
   end if;
 
+  -- Hedef hane çağıranın ÜYELİĞİNDEN çözülür; household_members.user_id üzerinde
+  -- tekillik kısıtı olduğu için bu en fazla bir satır verir ve istemcinin
+  -- gördüğü hane ile aynıdır (getMyHousehold da üyelikten çözüyor). Kuruculuk
+  -- şartı bunun üstünde korunur (R-011).
+  --
+  -- Önceki hâli yalnız `created_by = auth.uid() limit 1` idi: kimsesiz hane
+  -- satırları hiç silinmediği için (ayrılan kurucuya arayüz yeni hane açıyor)
+  -- RPC kullanıcının BAŞKA bir hanesini yenileyebiliyordu; ekranda süresi
+  -- dolmuş kod kalıyor, başka hanenin canlı kodu habersiz geçersizleşiyordu.
   select h.id
   into target_household_id
   from public.households h
-  where h.created_by = current_user_id
-  limit 1;
+  join public.household_members hm
+    on hm.household_id = h.id
+   and hm.user_id = current_user_id
+  where h.created_by = current_user_id;
 
   if target_household_id is null then
     raise exception 'not_household_creator' using errcode = '42501';

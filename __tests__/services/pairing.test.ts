@@ -78,7 +78,13 @@ beforeEach(() => {
   tableResults.profiles = { data: null, error: null };
 
   client.from.mockReset().mockImplementation((table: string) => makeQuery(table));
-  client.rpc.mockReset().mockResolvedValue({ data: [{ household_id: 'h1' }], error: null });
+  // İki RPC farklı satır döndürüyor: join_household household_id, rotate_invite_code
+  // ise yenilenen hanenin id'sini veriyor.
+  client.rpc.mockReset().mockImplementation(async (fn: string) =>
+    fn === 'rotate_invite_code'
+      ? { data: [{ id: 'h1', invite_code: 'XYZ789', invite_code_expires_at: '2026-09-06T12:00:00.000Z' }], error: null }
+      : { data: [{ household_id: 'h1' }], error: null }
+  );
   getCurrentUserMock.mockReset().mockResolvedValue({ id: 'u1' });
 });
 
@@ -204,6 +210,21 @@ describe('refreshInviteCode (R-010 / R-011)', () => {
     expect(updateCalls[0].table).toBe('households');
     expect(Object.keys(updateCalls[0].payload)).toEqual(['invite_code']);
     expect(updated?.id).toBe('h1');
+  });
+
+  // R2-001 regresyonu: RPC hedef haneyi çağıranın üyeliğinden çözmezse başka bir
+  // haneyi yenileyip "hazır" diyebiliyordu; ekranda süresi dolmuş kod kalıyordu.
+  it('RPC başka bir hane döndürürse başarı göstermez', async () => {
+    client.rpc.mockResolvedValue({ data: [{ id: 'h2', invite_code: 'QWE456' }], error: null });
+
+    await expect(refreshInviteCode()).rejects.toThrow(/beklenen ev grubunu döndürmedi/);
+    expect(updateCalls).toHaveLength(0);
+  });
+
+  it('RPC hiç satır döndürmezse başarı göstermez', async () => {
+    client.rpc.mockResolvedValue({ data: [], error: null });
+
+    await expect(refreshInviteCode()).rejects.toThrow(/beklenen ev grubunu döndürmedi/);
   });
 
   it('beklenmeyen RPC hatasını yutmaz', async () => {
