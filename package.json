@@ -12,7 +12,10 @@
     "typecheck": "tsc --noEmit"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "setupFiles": [
+      "<rootDir>/jest.setup.js"
+    ]
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

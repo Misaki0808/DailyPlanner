@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Task } from '../types';
+import { clampDayToMonth, getDaysInMonth, toDateString } from '../utils/dateUtils';
 
 interface CopyPlanModalProps {
   visible: boolean;
@@ -37,9 +38,19 @@ export default function CopyPlanModal({
     }
   }, [visible, sourceTasks]);
 
-  const [targetYear, setTargetYear] = useState(new Date().getFullYear());
-  const [targetMonth, setTargetMonth] = useState(new Date().getMonth() + 1);
-  const [targetDay, setTargetDay] = useState(new Date().getDate());
+  const [targetYear, setTargetYear] = useState(() => new Date().getFullYear());
+  const [targetMonth, setTargetMonth] = useState(() => new Date().getMonth() + 1);
+  const [targetDay, setTargetDay] = useState(() => new Date().getDate());
+
+  // Hedef tarih her açılışta bugüne alınır. State yalnız mount'ta kurulsaydı,
+  // uygulama açık kalıp gece yarısı geçtiğinde hedef dün olarak kalırdı.
+  useEffect(() => {
+    if (!visible) return;
+    const today = new Date();
+    setTargetYear(today.getFullYear());
+    setTargetMonth(today.getMonth() + 1);
+    setTargetDay(today.getDate());
+  }, [visible]);
 
   const toggleTask = (taskId: string) => {
     setSelectedTasks(prev =>
@@ -55,17 +66,25 @@ export default function CopyPlanModal({
       return;
     }
 
-    const targetDate = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
+    // toDateString günü ayın uzunluğuna kırpar; "2026-02-31" gibi var olmayan
+    // bir tarihe kopyalama yapılamaz.
+    const targetDate = toDateString(targetYear, targetMonth, targetDay);
     const tasksTosCopy = sourceTasks.filter(task => selectedTasks.includes(task.id));
     onCopy(targetDate, tasksTosCopy);
     onClose();
   };
 
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month, 0).getDate();
-  };
-
   const daysInMonth = getDaysInMonth(targetYear, targetMonth);
+
+  /**
+   * Ay veya yıl değiştiğinde gün ayın son gününü aşabilir (31 Ocak → Şubat).
+   * Gün her zaman birlikte kırpılır, aksi halde geçersiz tarih üretilir.
+   */
+  const setTargetMonthAndYear = (month: number, year: number) => {
+    setTargetMonth(month);
+    setTargetYear(year);
+    setTargetDay(prev => clampDayToMonth(year, month, prev));
+  };
 
   return (
     <Modal
@@ -131,14 +150,14 @@ export default function CopyPlanModal({
                 <View style={styles.dateUnit}>
                   <TouchableOpacity
                     style={styles.arrowButton}
-                    onPress={() => setTargetYear(targetYear + 1)}
+                    onPress={() => setTargetMonthAndYear(targetMonth, targetYear + 1)}
                   >
                     <Text style={styles.arrowText}>▲</Text>
                   </TouchableOpacity>
                   <Text style={styles.dateValue}>{targetYear}</Text>
                   <TouchableOpacity
                     style={styles.arrowButton}
-                    onPress={() => setTargetYear(targetYear - 1)}
+                    onPress={() => setTargetMonthAndYear(targetMonth, targetYear - 1)}
                   >
                     <Text style={styles.arrowText}>▼</Text>
                   </TouchableOpacity>
@@ -150,10 +169,9 @@ export default function CopyPlanModal({
                     style={styles.arrowButton}
                     onPress={() => {
                       if (targetMonth === 12) {
-                        setTargetMonth(1);
-                        setTargetYear(targetYear + 1);
+                        setTargetMonthAndYear(1, targetYear + 1);
                       } else {
-                        setTargetMonth(targetMonth + 1);
+                        setTargetMonthAndYear(targetMonth + 1, targetYear);
                       }
                     }}
                   >
@@ -164,10 +182,9 @@ export default function CopyPlanModal({
                     style={styles.arrowButton}
                     onPress={() => {
                       if (targetMonth === 1) {
-                        setTargetMonth(12);
-                        setTargetYear(targetYear - 1);
+                        setTargetMonthAndYear(12, targetYear - 1);
                       } else {
-                        setTargetMonth(targetMonth - 1);
+                        setTargetMonthAndYear(targetMonth - 1, targetYear);
                       }
                     }}
                   >
@@ -181,13 +198,11 @@ export default function CopyPlanModal({
                     style={styles.arrowButton}
                     onPress={() => {
                       if (targetDay >= daysInMonth) {
-                        // Sonraki aya geç
-                        if (targetMonth === 12) {
-                          setTargetMonth(1);
-                          setTargetYear(targetYear + 1);
-                        } else {
-                          setTargetMonth(targetMonth + 1);
-                        }
+                        // Sonraki ayın ilk günü
+                        const nextMonth = targetMonth === 12 ? 1 : targetMonth + 1;
+                        const nextYear = targetMonth === 12 ? targetYear + 1 : targetYear;
+                        setTargetMonth(nextMonth);
+                        setTargetYear(nextYear);
                         setTargetDay(1);
                       } else {
                         setTargetDay(targetDay + 1);
@@ -201,16 +216,12 @@ export default function CopyPlanModal({
                     style={styles.arrowButton}
                     onPress={() => {
                       if (targetDay === 1) {
-                        // Önceki aya geç
-                        if (targetMonth === 1) {
-                          setTargetMonth(12);
-                          setTargetYear(targetYear - 1);
-                          setTargetDay(31);
-                        } else {
-                          const prevMonth = targetMonth - 1;
-                          setTargetMonth(prevMonth);
-                          setTargetDay(getDaysInMonth(targetYear, prevMonth));
-                        }
+                        // Önceki ayın son günü
+                        const prevMonth = targetMonth === 1 ? 12 : targetMonth - 1;
+                        const prevYear = targetMonth === 1 ? targetYear - 1 : targetYear;
+                        setTargetMonth(prevMonth);
+                        setTargetYear(prevYear);
+                        setTargetDay(getDaysInMonth(prevYear, prevMonth));
                       } else {
                         setTargetDay(targetDay - 1);
                       }

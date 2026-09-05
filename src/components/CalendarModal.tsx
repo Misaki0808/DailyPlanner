@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
+import { clampDayToMonth, getDaysInMonth, toDateString } from '../utils/dateUtils';
 
 interface CalendarModalProps {
   visible: boolean;
@@ -17,6 +18,23 @@ interface CalendarModalProps {
   occupiedDates: string[];
 }
 
+const MIN_YEAR = 2025;
+const MAX_YEAR = 2030;
+
+type PickerDate = { year: number; month: number; day: number };
+
+/** YYYY-MM-DD metnini seçici state'ine çevirir; boş/bozuk girdide bugüne düşer. */
+const toPickerDate = (dateStr: string): PickerDate => {
+  const [year, month, day] = (dateStr || '').split('-').map(Number);
+
+  if (!year || !month || !day) {
+    const today = new Date();
+    return { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() };
+  }
+
+  return { year, month, day: clampDayToMonth(year, month, day) };
+};
+
 const CalendarModal: React.FC<CalendarModalProps> = ({
   visible,
   onClose,
@@ -25,84 +43,72 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
 }) => {
   const { theme } = useApp();
 
-  const parseDate = (dateStr: string) => {
-    if (!dateStr || dateStr === '') {
-      const today = new Date();
-      return {
-        year: today.getFullYear(),
-        month: today.getMonth() + 1,
-        day: today.getDate()
-      };
-    }
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return { year, month, day };
-  };
+  // Yıl/ay/gün TEK bir state'te tutulur. Daha önce üç ayrı state vardı ve
+  // changeDay, changeMonth'u çağırdığında changeMonth hâlâ render anındaki
+  // bayat `selectedDay`'i okuyordu: 31 Ocak'ta "gün ileri" 1 Şubat yerine
+  // 28 Şubat'a atlıyordu. Tek state + fonksiyonel güncelleme bunu engeller.
+  const [picker, setPicker] = useState<PickerDate>(() => toPickerDate(selectedDate));
 
-  const { year: initialYear, month: initialMonth, day: initialDay } = parseDate(selectedDate);
-
-  const [selectedYear, setSelectedYear] = useState(initialYear);
-  const [selectedMonth, setSelectedMonth] = useState(initialMonth);
-  const [selectedDay, setSelectedDay] = useState(initialDay);
+  // Modal her açıldığında dışarıdaki seçili tarihle senkronlanır. Aksi halde
+  // state yalnız ilk mount'ta kuruluyor ve ekranın gösterdiği tarihten
+  // farklı bir gün açılıyordu.
+  useEffect(() => {
+    if (visible) setPicker(toPickerDate(selectedDate));
+  }, [visible, selectedDate]);
 
   const monthNames = [
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
     'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
   ];
 
-  const getDaysInMonth = (year: number, month: number): number => {
-    return new Date(year, month, 0).getDate();
-  };
-
-  const maxDay = getDaysInMonth(selectedYear, selectedMonth);
+  const { year: selectedYear, month: selectedMonth, day: selectedDay } = picker;
 
   const changeYear = (increment: number) => {
-    const newYear = selectedYear + increment;
-    if (newYear >= 2025 && newYear <= 2030) {
-      setSelectedYear(newYear);
-    }
+    setPicker(prev => {
+      const year = prev.year + increment;
+      if (year < MIN_YEAR || year > MAX_YEAR) return prev;
+      // Gün kırpılmazsa 29 Şubat 2028 → "2029-02-29" gibi olmayan bir tarih kaydedilir
+      return { year, month: prev.month, day: clampDayToMonth(year, prev.month, prev.day) };
+    });
   };
 
   const changeMonth = (increment: number) => {
-    let newMonth = selectedMonth + increment;
-    let newYear = selectedYear;
+    setPicker(prev => {
+      let month = prev.month + increment;
+      let year = prev.year;
 
-    if (newMonth > 12) {
-      newMonth = 1;
-      newYear++;
-      if (newYear <= 2030) { setSelectedYear(newYear); } else { return; }
-    } else if (newMonth < 1) {
-      newMonth = 12;
-      newYear--;
-      if (newYear >= 2025) { setSelectedYear(newYear); } else { return; }
-    }
+      if (month > 12) { month = 1; year++; }
+      else if (month < 1) { month = 12; year--; }
 
-    setSelectedMonth(newMonth);
-    const newMaxDay = getDaysInMonth(newYear, newMonth);
-    if (selectedDay > newMaxDay) { setSelectedDay(newMaxDay); }
+      if (year < MIN_YEAR || year > MAX_YEAR) return prev;
+      return { year, month, day: clampDayToMonth(year, month, prev.day) };
+    });
   };
 
   const changeDay = (increment: number) => {
-    const newDay = selectedDay + increment;
+    setPicker(prev => {
+      const day = prev.day + increment;
 
-    if (increment > 0 && newDay > maxDay) {
-      setSelectedDay(1);
-      changeMonth(1);
-    } else if (increment < 0 && newDay < 1) {
-      const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
-      const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
-      const prevMaxDay = getDaysInMonth(prevYear, prevMonth);
-      setSelectedDay(prevMaxDay);
-      changeMonth(-1);
-    } else if (newDay >= 1 && newDay <= maxDay) {
-      setSelectedDay(newDay);
-    }
+      if (day > getDaysInMonth(prev.year, prev.month)) {
+        const year = prev.month === 12 ? prev.year + 1 : prev.year;
+        const month = prev.month === 12 ? 1 : prev.month + 1;
+        if (year > MAX_YEAR) return prev;
+        return { year, month, day: 1 };
+      }
+
+      if (day < 1) {
+        const year = prev.month === 1 ? prev.year - 1 : prev.year;
+        const month = prev.month === 1 ? 12 : prev.month - 1;
+        if (year < MIN_YEAR) return prev;
+        return { year, month, day: getDaysInMonth(year, month) };
+      }
+
+      return { ...prev, day };
+    });
   };
 
   const handleSave = () => {
-    const month = String(selectedMonth).padStart(2, '0');
-    const day = String(selectedDay).padStart(2, '0');
-    const dateStr = `${selectedYear}-${month}-${day}`;
-    onSelectDate(dateStr);
+    onSelectDate(toDateString(selectedYear, selectedMonth, selectedDay));
     onClose();
   };
 
