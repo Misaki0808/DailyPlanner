@@ -20,7 +20,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { usePlansContext, useSettingsContext, useRecurringContext } from '../context/AppContext';
 import { useNavigation } from '@react-navigation/native';
 import { modifyPlanWithAI } from '../utils/aiService';
-import { formatDateDisplay, getToday, addDays, generateId, parseDate } from '../utils/dateUtils';
+import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
+import { getWeekDates } from '../utils/weekUtils';
 import { Task } from '../types';
 import CopyPlanModal from '../components/CopyPlanModal';
 import ShareModal from '../components/ShareModal';
@@ -334,19 +335,9 @@ export default function MultiDayViewScreen() {
     const flexibleTasks = recurringTasks.filter(rt => rt.isActive && rt.frequency === 'flexible' && rt.flexibleTarget);
     if (flexibleTasks.length === 0) return [];
 
-    const todayObj = parseDate(selectedDate);
-    const dayOfWeek = todayObj.getDay() === 0 ? 7 : todayObj.getDay();
-    const mondayObj = new Date(todayObj);
-    mondayObj.setDate(todayObj.getDate() - dayOfWeek + 1);
-
-    const weekDates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(mondayObj);
-      d.setDate(mondayObj.getDate() + i);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    });
+    // Hafta Pazartesi başlar; hesap weekUtils'te tek kaynakta duruyor
+    // (takvimlerdeki firstDay={1} ve haftalık hedef ile aynı tanım).
+    const weekDates = getWeekDates(selectedDate);
 
     return flexibleTasks.map(rt => {
       let currentCount = 0;

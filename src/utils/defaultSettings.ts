@@ -21,6 +21,8 @@ export const defaultSettings: Settings = {
   // dayanıyor; kullanıcı açıkça istemedikçe hiçbir plan silinmez.
   autoCleanOldPlans: false,
   autoCleanThresholdDays: 365,
+  // Haftada tamamlanması hedeflenen görev sayısı; 0 rozeti tamamen gizler.
+  weeklyTaskGoal: 20,
 };
 
 /**

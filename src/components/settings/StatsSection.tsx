@@ -14,7 +14,8 @@ import WeeklyStatsChart from '../WeeklyStatsChart';
 import { generateWeeklySummary, checkApiKey } from '../../utils/aiService';
 import { getToday, addDays } from '../../utils/dateUtils';
 import { calculatePomodoroStreak } from '../../utils/pomodoroStats';
-import { useTheme, usePomodoroContext } from '../../context/AppContext';
+import { calculateTaskStreak, getWeeklyGoalProgress } from '../../utils/weeklyGoal';
+import { useTheme, usePomodoroContext, useSettingsContext } from '../../context/AppContext';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
@@ -28,6 +29,7 @@ interface StatsSectionProps {
 export default function StatsSection({ plans, username }: StatsSectionProps) {
   const theme = useTheme();
   const { pomodoroStats } = usePomodoroContext();
+  const { settings } = useSettingsContext();
   const themed = createSharedStyles(theme);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -38,6 +40,8 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
   // tarihe göre yazılıyor. UTC+3'te akşam saatlerinde bugünün anahtarı yarına
   // kaydığı için seri 0 görünüyor, Pomodoro ekranı ise doğru sayıyı gösteriyordu.
   const streak = calculatePomodoroStreak(pomodoroStats, getToday());
+  const taskStreak = calculateTaskStreak(plans);
+  const weeklyGoal = getWeeklyGoalProgress(plans, settings.weeklyTaskGoal ?? 0);
 
   const calculateStats = () => {
     const planDates = Object.keys(plans);
@@ -180,11 +184,42 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
 
       <View collapsable={false} ref={dashboardRef} style={{ backgroundColor: theme.background, paddingVertical: 10, borderRadius: 16 }}>
         <View style={styles.statsGrid}>
+          {/* Haftalık Hedef */}
+          {weeklyGoal.goal > 0 && (
+            <View style={[styles.statCardWrapper, { width: '100%', marginBottom: 4 }]}>
+              <LinearGradient
+                colors={weeklyGoal.reached ? theme.successGradient : theme.accentGradient}
+                style={styles.statCardGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.statValue}>
+                  {weeklyGoal.reached ? '🏆 ' : '🎯 '}{weeklyGoal.completed}/{weeklyGoal.goal}
+                </Text>
+                <Text style={styles.statLabel}>
+                  {weeklyGoal.reached
+                    ? 'Haftalık hedef tamamlandı!'
+                    : `Haftalık Hedef · ${weeklyGoal.remaining} görev kaldı`}
+                </Text>
+                <View style={styles.goalTrack}>
+                  <View style={[styles.goalFill, { width: `${weeklyGoal.percentage}%` }]} />
+                </View>
+              </LinearGradient>
+            </View>
+          )}
+
           {/* Streak Card */}
-          <View style={[styles.statCardWrapper, { width: '100%', marginBottom: 4 }]}>
+          <View style={styles.statCardWrapper}>
             <LinearGradient colors={['#FF512F', '#F09819']} style={styles.statCardGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Text style={styles.statValue}>🔥 {streak} Gün</Text>
+              <Text style={styles.statValue}>🔥 {streak}</Text>
               <Text style={styles.statLabel}>Pomodoro Serisi</Text>
+            </LinearGradient>
+          </View>
+
+          <View style={styles.statCardWrapper}>
+            <LinearGradient colors={['#11998e', '#38ef7d']} style={styles.statCardGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+              <Text style={styles.statValue}>✅ {taskStreak}</Text>
+              <Text style={styles.statLabel}>Görev Serisi</Text>
             </LinearGradient>
           </View>
 
@@ -353,6 +388,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     marginBottom: 4,
+  },
+  goalTrack: {
+    marginTop: 10,
+    height: 6,
+    width: '100%',
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    overflow: 'hidden',
+  },
+  goalFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: '#fff',
   },
   statLabel: {
     fontSize: 14,

@@ -94,6 +94,13 @@ export default function PreferencesSection({
   };
 
   const thresholdDays = settings.autoCleanThresholdDays ?? defaultSettings.autoCleanThresholdDays ?? 365;
+  const weeklyGoal = settings.weeklyTaskGoal ?? defaultSettings.weeklyTaskGoal ?? 0;
+
+  // 0 = rozet tamamen gizli, üst sınır 100
+  const changeWeeklyGoal = (delta: number) => {
+    const next = Math.min(100, Math.max(0, weeklyGoal + delta));
+    if (next !== weeklyGoal) onUpdateSettings({ weeklyTaskGoal: next });
+  };
 
   // Otomatik temizlik geri alınamaz veri sildiği için AÇARKEN onay istenir;
   // kapatmak zararsız olduğu için doğrudan uygulanır.
@@ -287,6 +294,36 @@ export default function PreferencesSection({
             />
           </View>
 
+          <View style={[styles.preferenceItem, { alignItems: 'center' }]}>
+            <View style={styles.preferenceTextContainer}>
+              <Text style={[styles.preferenceTitle, { color: theme.text }]}>Haftalık görev hedefi</Text>
+              <Text style={[styles.preferenceDescription, { color: theme.textSecondary }]}>
+                {weeklyGoal > 0
+                  ? `Bu hafta ${weeklyGoal} görev tamamlamayı hedefliyorsun. İlerleme İstatistikler'de görünür.`
+                  : 'Kapalı. Hedef rozeti gösterilmez.'}
+              </Text>
+            </View>
+            <View style={[styles.goalStepper, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
+              <TouchableOpacity
+                onPress={() => changeWeeklyGoal(-5)}
+                style={styles.goalStepperButton}
+                accessibilityRole="button"
+                accessibilityLabel="Haftalık hedefi azalt"
+              >
+                <Text style={[styles.goalStepperText, { color: theme.text }]}>−</Text>
+              </TouchableOpacity>
+              <Text style={[styles.goalStepperValue, { color: theme.text }]}>{weeklyGoal}</Text>
+              <TouchableOpacity
+                onPress={() => changeWeeklyGoal(5)}
+                style={styles.goalStepperButton}
+                accessibilityRole="button"
+                accessibilityLabel="Haftalık hedefi artır"
+              >
+                <Text style={[styles.goalStepperText, { color: theme.text }]}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <View style={styles.preferenceItem}>
             <View style={styles.preferenceTextContainer}>
               <Text style={[styles.preferenceTitle, { color: theme.text }]}>Eski planları otomatik sil</Text>
@@ -330,6 +367,27 @@ export default function PreferencesSection({
 }
 
 const styles = StyleSheet.create({
+  goalStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 4,
+  },
+  goalStepperButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  goalStepperText: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  goalStepperValue: {
+    minWidth: 28,
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '700',
+  },
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700',
