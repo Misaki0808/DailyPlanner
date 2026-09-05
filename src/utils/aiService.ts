@@ -226,6 +226,13 @@ Görev listesi (sadece JSON array):`;
       .filter((t: any): t is { title: string; category: string } => t !== null && t.title.length > 0)
       .slice(0, 10);
 
+    // AI dizi döndürdü ama içindeki maddeler beklenen formatta değilse
+    // kullanıcı boş liste ile kalmasın; yerel ayrıştırmaya düş.
+    if (convertedTasks.length === 0) {
+      console.warn('AI kullanılabilir görev döndürmedi, paragraf yerel olarak ayrıştırılıyor.');
+      return splitParagraphIntoLocalTasks(paragraph);
+    }
+
     return convertedTasks as ConvertParagraphResult;
 
   } catch (error: any) {

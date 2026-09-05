@@ -1,3 +1,10 @@
+const makeGeminiResponse = (text: string) => ({
+  ok: true,
+  json: jest.fn().mockResolvedValue({
+    candidates: [{ content: { parts: [{ text }] } }],
+  }),
+});
+
 describe('convertParagraphToTasks local fallback', () => {
   const originalApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   const fetchMock = jest.fn();
@@ -33,6 +40,40 @@ describe('convertParagraphToTasks local fallback', () => {
       { title: 'Backend çalış', category: 'diger' },
       { title: 'Market alışverişi yap', category: 'diger' },
       { title: 'Spor yap', category: 'diger' },
+    ]);
+  });
+
+  it('AI beklenen alanları içermeyen bir dizi döndürdüğünde yerel ayrıştırmaya düşer', async () => {
+    // Model şemayı yok sayıp "title" yerine başka bir alan döndürüyor:
+    // dizi geçerli olduğu için eski kod boş liste dönüp paragrafı sessizce kaybediyordu.
+    fetchMock.mockResolvedValue(
+      makeGeminiResponse('[{"gorev":"Backend çalış"},{"gorev":"Spor yap"}]')
+    );
+
+    const { convertParagraphToTasks } = require('../../src/utils/aiService');
+
+    const result = await convertParagraphToTasks('Backend çalış. Spor yap.');
+
+    expect(result.usedFallback).toBe(true);
+    expect(result).toEqual([
+      { title: 'Backend çalış', category: 'diger' },
+      { title: 'Spor yap', category: 'diger' },
+    ]);
+  });
+
+  it('AI boş başlıklar döndürdüğünde de yerel ayrıştırmaya düşer', async () => {
+    fetchMock.mockResolvedValue(
+      makeGeminiResponse('[{"title":"   ","category":"is"},{"title":"","category":"okul"}]')
+    );
+
+    const { convertParagraphToTasks } = require('../../src/utils/aiService');
+
+    const result = await convertParagraphToTasks('Rapor yaz. Sunum hazırla.');
+
+    expect(result.usedFallback).toBe(true);
+    expect(result).toEqual([
+      { title: 'Rapor yaz', category: 'diger' },
+      { title: 'Sunum hazırla', category: 'diger' },
     ]);
   });
 });
