@@ -478,6 +478,9 @@ export default function CreatePlanScreen() {
             style={[styles.saveButton, (tasks.length === 0 || isSaving) && styles.saveButtonDisabled]}
             onPress={handleSavePlan}
             disabled={tasks.length === 0 || isSaving}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: tasks.length === 0 || isSaving }}
+            accessibilityLabel={isSaving ? 'Plan kaydediliyor' : `Planı kaydet, ${tasks.length} görev`}
           >
             <LinearGradient
               colors={(tasks.length === 0 || isSaving) ? [theme.textMuted, theme.textMuted] : (theme.successGradient as [string, string])}

@@ -27,6 +27,8 @@ export default function DateNavigation({
         <TouchableOpacity
           style={[styles.navButton, { backgroundColor: theme.accentLight }]}
           onPress={() => onChangeDate(-1)}
+          accessibilityRole="button"
+          accessibilityLabel="Önceki gün"
         >
           <Text style={[styles.navButtonText, { color: theme.text }]}>←</Text>
         </TouchableOpacity>
@@ -35,6 +37,8 @@ export default function DateNavigation({
           style={styles.currentDateContainer}
           activeOpacity={0.7}
           onPress={onOpenCalendar}
+          accessibilityRole="button"
+          accessibilityLabel={`Seçili gün: ${formatDateDisplay(selectedDate)}. Takvimi aç`}
         >
           <Text style={[styles.currentDate, { color: theme.text }]}>{formatDateDisplay(selectedDate)}</Text>
           {selectedDate === getToday() && (
@@ -47,6 +51,8 @@ export default function DateNavigation({
         <TouchableOpacity
           style={[styles.navButton, { backgroundColor: theme.accentLight }]}
           onPress={() => onChangeDate(1)}
+          accessibilityRole="button"
+          accessibilityLabel="Sonraki gün"
         >
           <Text style={[styles.navButtonText, { color: theme.text }]}>→</Text>
         </TouchableOpacity>

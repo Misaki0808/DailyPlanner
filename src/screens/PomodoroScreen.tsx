@@ -244,7 +244,7 @@ export default function PomodoroScreen() {
       <View style={styles.modeSelector}>
         <Animated.View style={[styles.modeIndicator, { backgroundColor: activeColor + '20', borderColor: activeColor, left: indicatorLeft, width: indicatorWidth }]} />
         {(Object.keys(MODES) as TimerMode[]).map((m) => (
-          <TouchableOpacity key={m} style={styles.modeButton} onPress={() => timer.switchMode(m)} onLayout={(e) => handleModeLayout(m, e)} activeOpacity={0.7}>
+          <TouchableOpacity key={m} style={styles.modeButton} onPress={() => timer.switchMode(m)} onLayout={(e) => handleModeLayout(m, e)} activeOpacity={0.7} accessibilityRole="tab" accessibilityState={{ selected: timer.mode === m }} accessibilityLabel={timer.dynamicModes[m].label}>
             <Text style={styles.modeEmoji}>{MODES[m].emoji}</Text>
             <Animated.Text style={[styles.modeLabel, { color: theme.textSecondary }, timer.mode === m && { color: activeColor, fontWeight: '700' }, timer.mode === m && { transform: [{ scale: activeModePulse }] }]}>
               {MODES[m].label}
@@ -298,17 +298,17 @@ export default function PomodoroScreen() {
 
       {/* ── Control buttons ── */}
       <View style={styles.controls}>
-        <TouchableOpacity onPress={() => bounceAndRun(resetScaleAnim, timer.handleReset)} activeOpacity={1}>
+        <TouchableOpacity onPress={() => bounceAndRun(resetScaleAnim, timer.handleReset)} activeOpacity={1} accessibilityRole="button" accessibilityLabel="Zamanlayıcıyı sıfırla">
           <Animated.View style={[styles.controlButton, { borderColor: theme.border, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', transform: [{ scale: resetScaleAnim }] }]}><ResetIcon size={20} color={theme.textSecondary} /></Animated.View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => bounceAndRun(playScaleAnim, timer.toggleTimer)} activeOpacity={1}>
+        <TouchableOpacity onPress={() => bounceAndRun(playScaleAnim, timer.toggleTimer)} activeOpacity={1} accessibilityRole="button" accessibilityLabel={timer.isRunning ? 'Zamanlayıcıyı duraklat' : 'Zamanlayıcıyı başlat'}>
           <Animated.View style={{ transform: [{ scale: playScaleAnim }] }}>
             <LinearGradient colors={getModeGradient()} style={styles.playButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
               {timer.isRunning ? <PauseIcon size={30} color="#fff" /> : <PlayIcon size={30} color="#fff" />}
             </LinearGradient>
           </Animated.View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => bounceAndRun(skipScaleAnim, timer.handleSkip)} activeOpacity={1}>
+        <TouchableOpacity onPress={() => bounceAndRun(skipScaleAnim, timer.handleSkip)} activeOpacity={1} accessibilityRole="button" accessibilityLabel="Bu oturumu geç">
           <Animated.View style={[styles.controlButton, { borderColor: theme.border, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', transform: [{ scale: skipScaleAnim }] }]}><SkipIcon size={20} color={theme.textSecondary} /></Animated.View>
         </TouchableOpacity>
       </View>

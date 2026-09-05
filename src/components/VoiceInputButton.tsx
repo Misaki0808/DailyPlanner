@@ -266,6 +266,10 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
                 onPress={toggleListening}
                 disabled={disabled || isCorrecting}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: disabled || isCorrecting }}
+                accessibilityLabel={isListening ? 'Sesli girişi durdur' : 'Sesli giriş başlat'}
+                accessibilityHint="Konuştuklarınız görev metnine yazılır"
             >
                 <View style={[
                     styles.button,

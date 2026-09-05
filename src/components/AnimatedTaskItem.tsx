@@ -111,6 +111,8 @@ export default function AnimatedTaskItem({
           triggerRemoveAnimation();
         }}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={`${task.title} görevini sil`}
       >
         <Animated.View style={[styles.swipeActionInner, { transform: [{ scale }], opacity }]}>
           <LinearGradient
@@ -147,6 +149,8 @@ export default function AnimatedTaskItem({
           onToggleDone();
         }}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={task.done ? `${task.title} görevini geri al` : `${task.title} görevini tamamla`}
       >
         <Animated.View style={[styles.swipeActionInner, { transform: [{ scale }], opacity }]}>
           <LinearGradient
@@ -204,6 +208,8 @@ export default function AnimatedTaskItem({
             style={[styles.taskNumberBadge, { backgroundColor: priorityColor }]}
             onPress={onChangePriority}
             disabled={!isEditMode}
+            accessibilityRole="button"
+            accessibilityLabel={`Önceliği değiştir. Şu an: ${task.priority || 'normal'}`}
           >
             <Text style={styles.taskNumber}>{index + 1}</Text>
           </TouchableOpacity>

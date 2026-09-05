@@ -44,6 +44,8 @@ export default function ActionButtonsBar({
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => onSetEditMode(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Planı düzenle"
           >
             <LinearGradient
               colors={theme.accentGradient}
@@ -58,6 +60,8 @@ export default function ActionButtonsBar({
           <TouchableOpacity
             style={styles.actionButton}
             onPress={onAiEditPlan}
+            accessibilityRole="button"
+            accessibilityLabel="Planı yapay zeka ile düzenle"
           >
             <LinearGradient
               colors={['#8a2be2', '#4b0082']}
@@ -72,6 +76,8 @@ export default function ActionButtonsBar({
           <TouchableOpacity
             style={styles.actionButton}
             onPress={onSharePlan}
+            accessibilityRole="button"
+            accessibilityLabel="Planı paylaş"
           >
             <LinearGradient
               colors={theme.blueGradient}
@@ -86,6 +92,8 @@ export default function ActionButtonsBar({
           <TouchableOpacity
             style={styles.actionButton}
             onPress={onCopyPlan}
+            accessibilityRole="button"
+            accessibilityLabel="Planı başka bir güne kopyala"
           >
             <LinearGradient
               colors={theme.purpleGradient}
@@ -125,6 +133,8 @@ export default function ActionButtonsBar({
               disabled={quickAddText.trim() === ''}
               activeOpacity={0.7}
               style={styles.quickAddBtnInline}
+              accessibilityRole="button"
+              accessibilityLabel="Görevi ekle"
             >
               <LinearGradient
                 colors={quickAddText.trim() === '' ? [theme.accentLight, theme.accentLight] : (theme.successGradient as [string, string])}
@@ -141,6 +151,8 @@ export default function ActionButtonsBar({
           <TouchableOpacity
             onPress={() => onSetEditMode(false)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Düzenlemeyi bitir"
           >
             <LinearGradient
               colors={theme.pinkGradient}
@@ -155,6 +167,8 @@ export default function ActionButtonsBar({
           <TouchableOpacity
             onPress={onDeleteDay}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Bu günün tüm görevlerini sil"
           >
             <LinearGradient
               colors={[theme.error, theme.error]}
