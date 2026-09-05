@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/AppContext';
 import { TASK_CATEGORIES } from '../../utils/categories';
 
 interface SearchFilterModalProps {
@@ -35,7 +35,7 @@ export default function SearchFilterModal({
   onApply,
   onClear,
 }: SearchFilterModalProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
 
   const handleToggleCategory = (catId: string) => {
     if (selectedFilterCats.includes(catId)) {

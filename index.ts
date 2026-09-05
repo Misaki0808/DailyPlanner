@@ -13,7 +13,7 @@ try {
     registerWidgetTaskHandler(widgetTaskHandler);
   }
 } catch (e) {
-  console.log('Widget task handler could not be registered (likely running in Expo Go).');
+  console.log('Widget task handler could not be registered (likely running in Expo Go).', e);
 }
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);

@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Platform, AppState, AppStateStatus, Vibration, Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Audio } from 'expo-av';
-import { useApp } from '../context/AppContext';
-import { formatDate, getToday, parseDate } from '../utils/dateUtils';
+import { usePlansContext, usePomodoroContext, useSettingsContext } from '../context/AppContext';
+import { getToday } from '../utils/dateUtils';
+import { calculatePomodoroStreak } from '../utils/pomodoroStats';
 import { Task } from '../types';
 
 export type TimerMode = 'focus' | 'shortBreak' | 'longBreak';
@@ -25,37 +26,23 @@ export const AMBIENT_SOUNDS = [
 
 const DING_SOUND_URL = 'https://cdn.pixabay.com/audio/2021/08/04/audio_c6ccf3232f.mp3';
 
-export const calculatePomodoroStreak = (pomodoroStats: Record<string, number>, today: string): number => {
-  let streak = 0;
-  const date = parseDate(today);
-
-  while (true) {
-    const dateStr = formatDate(date);
-    if ((pomodoroStats[dateStr] || 0) > 0) {
-      streak++;
-      date.setDate(date.getDate() - 1);
-      continue;
-    }
-
-    if (streak === 0 && dateStr === today) {
-      date.setDate(date.getDate() - 1);
-      continue;
-    }
-
-    break;
-  }
-
-  return streak;
-};
+// Saf hesaplama src/utils/pomodoroStats.ts'e taşındı; mevcut import'lar
+// bozulmasın diye buradan yeniden dışa aktarılıyor.
+export { calculatePomodoroStreak };
 
 export function usePomodoroTimer() {
-  const { settings, pomodoroStats, addPomodoroSession, plans, updateTask } = useApp();
+  const { settings } = useSettingsContext();
+  const { pomodoroStats, addPomodoroSession } = usePomodoroContext();
+  const { plans, updateTask } = usePlansContext();
 
-  const dynamicModes = {
+  // useMemo şart: dynamicModes her render'da yeniden üretilirse ona bağlı
+  // switchMode ve handleTimerEnd useCallback'leri de her render'da değişir,
+  // yani memoizasyon tamamen etkisiz kalır.
+  const dynamicModes = useMemo(() => ({
     focus: { ...MODES.focus, duration: (settings?.pomodoroFocusTime || 25) * 60 },
     shortBreak: { ...MODES.shortBreak, duration: (settings?.pomodoroShortBreak || 5) * 60 },
     longBreak: { ...MODES.longBreak, duration: (settings?.pomodoroLongBreak || 15) * 60 },
-  };
+  }), [settings?.pomodoroFocusTime, settings?.pomodoroShortBreak, settings?.pomodoroLongBreak]);
 
   const [mode, setMode] = useState<TimerMode>('focus');
   const [timeLeft, setTimeLeft] = useState(dynamicModes.focus.duration);
@@ -74,6 +61,11 @@ export function usePomodoroTimer() {
   const ambientSoundRef = useRef<Audio.Sound | null>(null);
   const dingSoundRef = useRef<Audio.Sound | null>(null);
   const dingUnloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isRunningRef = useRef(isRunning);
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const notificationIdRef = useRef<string | null>(null);
@@ -143,7 +135,7 @@ export function usePomodoroTimer() {
     }
   }, [isRunning]);
 
-  const playDingSound = async () => {
+  const playDingSound = useCallback(async () => {
     if (settings?.pomodoroSoundEnabled) {
       try {
         if (dingUnloadTimeoutRef.current) {
@@ -166,7 +158,7 @@ export function usePomodoroTimer() {
         console.warn('Süre bitiş zili çalınamadı:', error);
       }
     }
-  };
+  }, [settings?.pomodoroSoundEnabled]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
@@ -188,11 +180,15 @@ export function usePomodoroTimer() {
     return () => subscription.remove();
   }, [isRunning]);
 
+  // Süre ayarları veya mod değiştiğinde kalan zaman sıfırlanır — ama YALNIZ
+  // zamanlayıcı çalışmıyorken. isRunning bilerek bağımlılık DEĞİL: bağımlılığa
+  // eklenirse duraklatma anında efekt yeniden çalışır ve duraklatılan süre
+  // sıfırlanır. Bu yüzden güncel değer ref üzerinden okunur.
   useEffect(() => {
-    if (!isRunning) {
+    if (!isRunningRef.current) {
       setTimeLeft(dynamicModes[mode].duration);
     }
-  }, [settings?.pomodoroFocusTime, settings?.pomodoroShortBreak, settings?.pomodoroLongBreak, mode]);
+  }, [dynamicModes, mode]);
 
   const scheduleTimerNotification = async (seconds: number) => {
     try {
@@ -221,11 +217,13 @@ export function usePomodoroTimer() {
         await Notifications.cancelScheduledNotificationAsync(notificationIdRef.current);
         notificationIdRef.current = null;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Zamanlayıcı bildirimi iptal edilemedi:', e);
+    }
   };
 
   useEffect(() => {
-    if (isRunning && timeLeft > 0) {
+    if (isRunning) {
       intervalRef.current = setInterval(() => {
         setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
       }, 1000);
@@ -269,7 +267,7 @@ export function usePomodoroTimer() {
         { text: 'Kapat', style: 'cancel' },
       ]);
     }
-  }, [mode, completedSessionsCount, selectedTask, today, addPomodoroSession, updateTask, switchMode, settings?.pomodoroSoundEnabled]);
+  }, [mode, completedSessionsCount, selectedTask, today, addPomodoroSession, updateTask, switchMode, settings?.pomodoroSoundEnabled, playDingSound]);
 
   useEffect(() => {
     if (timeLeft === 0 && isRunning) {

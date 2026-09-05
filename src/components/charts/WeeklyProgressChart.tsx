@@ -1,32 +1,23 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
-import { useApp } from '../../context/AppContext';
-import { getToday, addDays } from '../../utils/dateUtils';
-import { Task } from '../../types';
+import { usePlansContext, useTheme } from '../../context/AppContext';
+import { buildWeeklyStats } from '../../utils/weeklyStats';
 
 export default function WeeklyProgressChart() {
-  const { plans, theme } = useApp();
+  const { plans } = usePlansContext();
+  const theme = useTheme();
   
-  // Calculate the last 7 days of data
-  const chartData = useMemo(() => {
-    const today = getToday();
-    const data = [];
-    
-    // Line chart data
-    for (let i = 6; i >= 0; i--) {
-      const date = addDays(today, -i);
-      const dayTasks = plans[date] || [];
-      const completed = dayTasks.filter(t => t.done).length;
-      data.push({ 
-        value: completed, 
-        label: date.substring(8, 10), // just the day part e.g. "12"
-        dataPointText: completed.toString()
-      });
-    }
-    
-    return data;
-  }, [plans]);
+  // Son 7 günün verisi WeeklyStatsChart ile ORTAK kaynaktan gelir; iki
+  // bileşen daha önce bu hesabı ayrı ayrı yazmış ve tarih mantıkları ayrışmıştı.
+  const chartData = useMemo(
+    () => buildWeeklyStats(plans).map(day => ({
+      value: day.completed,
+      label: day.date.substring(8, 10), // just the day part e.g. "12"
+      dataPointText: day.completed.toString(),
+    })),
+    [plans]
+  );
 
   // Calculate overall category distribution for pie chart
   const pieData = useMemo(() => {

@@ -13,26 +13,12 @@ const TECH_TERM_REPLACEMENTS: Replacement[] = [
   { canonical: 'prompt', variants: ['promp', 'pırompt', 'pıromp'] },
   { canonical: 'framework', variants: ['fremvörk', 'freymvörk', 'fremvork', 'freymvork', 'frem work'] },
   { canonical: 'database', variants: ['databeys', 'data beys', 'databeyz', 'databeyis'] },
-  { canonical: 'deploy', variants: ['dıploy', 'diplay', 'diploy', 'deploy et'] },
+  // 'deploy et' BİLEREK yok: doğru Türkçe ifade, variant sayılırsa "et" fiili silinir
+  { canonical: 'deploy', variants: ['dıploy', 'diplay', 'diploy'] },
   { canonical: 'repository', variants: ['ripozitori', 'repozitori', 'repositoryi', 'repo sitori'] },
   { canonical: 'AI', variants: ['hey ay', 'hey ayrı', 'hey ai', 'ey ay'] },
   { canonical: 'API', variants: ['ey pi ay', 'eypiay', 'ey piay', 'apiy'] },
 ];
-
-const COMMON_TURKISH_WORDS = new Set([
-  'akşam',
-  'bugün',
-  'ders',
-  'ev',
-  'iş',
-  'kitap',
-  'okul',
-  'sabah',
-  'spor',
-  'toplantı',
-  'yarın',
-  'yemek',
-]);
 
 const normalizeForMatch = (text: string): string =>
   text
@@ -47,6 +33,31 @@ const normalizeForMatch = (text: string): string =>
     .replace(/ç/g, 'c')
     .replace(/\s+/g, ' ')
     .trim();
+
+/**
+ * Bulanık eşleştirmeden KORUNAN kelimeler.
+ *
+ * Liste `normalizeForMatch` çıktısıyla karşılaştırıldığı için burada da
+ * normalize edilerek kurulur. Daha önce ham hâlleriyle yazılıyordu ve
+ * "akşam", "bugün", "iş", "toplantı", "yarın" gibi Türkçe'ye özgü harf
+ * içeren girdiler ("aksam", "bugun", ...) sette bulunamadığı için hiç
+ * korunmuyordu — yani korumanın asıl hedeflediği kelimeler açıktaydı.
+ */
+const COMMON_TURKISH_WORDS = new Set([
+  'akşam',
+  'başkent', // gerçek bir Türkçe sözcük; "backend"e çevrilmemeli
+  'bugün',
+  'ders',
+  'ev',
+  'iş',
+  'kitap',
+  'okul',
+  'sabah',
+  'spor',
+  'toplantı',
+  'yarın',
+  'yemek',
+].map(normalizeForMatch));
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

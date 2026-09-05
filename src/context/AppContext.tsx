@@ -26,20 +26,19 @@ export const usePlansContext = () => usePlansStore();
 export const usePomodoroContext = () => usePomodoroStore();
 export const useRecurringContext = () => useRecurringStore();
 
-export const useApp = () => {
-  const user = useUserStore();
-  const settings = useSettingsStore();
-  const plans = usePlansStore();
-  const pomodoro = usePomodoroStore();
-  const recurring = useRecurringStore();
-  const app = useAppStore();
+/**
+ * Yalnız TEMAYA abone olur.
+ *
+ * Burada eskiden bir `useApp()` vardı: altı store'u da selector'sız çağırıp
+ * sonucu spread ediyordu. Bu yüzden herhangi bir store'daki herhangi bir
+ * değişiklik — tek bir görevin işaretlenmesi bile — onu kullanan her bileşeni
+ * yeniden render ediyordu. Tüm çağrı yerleri alan bazlı hook'lara geçirildi ve
+ * `useApp()` kaldırıldı; yeni kodda ihtiyaç duyulan alanın hook'u kullanılmalı.
+ *
+ * Tema nesnesi referans olarak sabittir (getTheme iki modül sabitinden birini
+ * döndürür), bu yüzden render yalnız tema gerçekten değiştiğinde tetiklenir.
+ */
+export const useTheme = () => useSettingsStore(s => s.theme);
 
-  return {
-    ...user,
-    ...settings,
-    ...plans,
-    ...pomodoro,
-    ...recurring,
-    isLoading: app.isLoading,
-  };
-};
+/** Yalnız açılış yükleme durumuna abone olur. */
+export const useIsAppLoading = () => useAppStore(s => s.isLoading);

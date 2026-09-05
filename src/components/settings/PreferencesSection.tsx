@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Settings } from '../../types';
 import { createSharedStyles } from '../../utils/sharedStyles';
-import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/AppContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '../../store/userStore';
 import { usePlansStore } from '../../store/plansStore';
@@ -34,21 +34,22 @@ export default function PreferencesSection({
   settings,
   onUpdateSettings,
 }: PreferencesSectionProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
   const themed = createSharedStyles(theme);
-  const [notificationHour, setNotificationHour] = useState('08');
-  const [notificationMinute, setNotificationMinute] = useState('00');
+  const [defaultHour, defaultMinute] = defaultSettings.notificationTime.split(':');
+  const [notificationHour, setNotificationHour] = useState(defaultHour);
+  const [notificationMinute, setNotificationMinute] = useState(defaultMinute);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Bildirim saatini ayarlardan al - sadece ilk yüklemede
   useEffect(() => {
     if (!isInitialized && settings.notificationTime) {
       const [hour, minute] = settings.notificationTime.split(':');
-      setNotificationHour(hour || '08');
-      setNotificationMinute(minute || '00');
+      setNotificationHour(hour || defaultHour);
+      setNotificationMinute(minute || defaultMinute);
       setIsInitialized(true);
     }
-  }, [settings.notificationTime, isInitialized]);
+  }, [settings.notificationTime, isInitialized, defaultHour, defaultMinute]);
 
   // Bildirimleri aç/kapat
   const handleToggleNotifications = async (enabled: boolean) => {
@@ -58,7 +59,7 @@ export default function PreferencesSection({
         Alert.alert('İzin Gerekli', 'Bildirimler için izin vermeniz gerekiyor.');
         return;
       }
-      const [h, m] = (settings.notificationTime || '08:00').split(':').map(Number);
+      const [h, m] = (settings.notificationTime || defaultSettings.notificationTime).split(':').map(Number);
       await scheduleDailySummaryNotification(h, m);
       await onUpdateSettings({ notificationsEnabled: true });
     } else {
@@ -92,6 +93,39 @@ export default function PreferencesSection({
     }
   };
 
+  const thresholdDays = settings.autoCleanThresholdDays ?? defaultSettings.autoCleanThresholdDays ?? 365;
+  const weeklyGoal = settings.weeklyTaskGoal ?? defaultSettings.weeklyTaskGoal ?? 0;
+
+  // 0 = rozet tamamen gizli, üst sınır 100
+  const changeWeeklyGoal = (delta: number) => {
+    const next = Math.min(100, Math.max(0, weeklyGoal + delta));
+    if (next !== weeklyGoal) onUpdateSettings({ weeklyTaskGoal: next });
+  };
+
+  // Otomatik temizlik geri alınamaz veri sildiği için AÇARKEN onay istenir;
+  // kapatmak zararsız olduğu için doğrudan uygulanır.
+  const handleToggleAutoClean = (enabled: boolean) => {
+    if (!enabled) {
+      onUpdateSettings({ autoCleanOldPlans: false });
+      return;
+    }
+
+    const title = 'Eski planlar silinsin mi?';
+    const message = `Açarsan ${thresholdDays} günden eski planların cihazdan kalıcı olarak silinir. Bu işlem geri alınamaz ve istatistiklerin de bu geçmişi kaybeder.`;
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${title}\n\n${message}`)) {
+        onUpdateSettings({ autoCleanOldPlans: true });
+      }
+      return;
+    }
+
+    Alert.alert(title, message, [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'Evet, sil', style: 'destructive', onPress: () => onUpdateSettings({ autoCleanOldPlans: true }) },
+    ]);
+  };
+
   // Tüm Verileri Sıfırla
   const handleClearData = () => {
     const performClear = async () => {
@@ -100,7 +134,9 @@ export default function PreferencesSection({
         // Zustand state'lerini sıfırla
         useUserStore.setState({ username: null, gender: 'male', aboutMe: '' });
         usePlansStore.setState({ plans: {} });
-        useSettingsStore.setState({ settings: defaultSettings, theme: getTheme(defaultSettings.darkMode) });
+        // Kopya konur: paylaşılan modül nesnesinin referansı store'a bağlanırsa
+        // ileride yerinde bir mutasyon fabrika ayarlarını kalıcı olarak bozar.
+        useSettingsStore.setState({ settings: { ...defaultSettings }, theme: getTheme(defaultSettings.darkMode) });
         usePomodoroStore.setState({ pomodoroStats: {} });
         useRecurringStore.setState({ recurringTasks: [] });
         
@@ -110,6 +146,7 @@ export default function PreferencesSection({
           Alert.alert('Sıfırlandı!', 'Tüm verilerin başarıyla silindi ve uygulama ilk haline döndü.');
         }
       } catch (error) {
+        console.error('Veriler sıfırlanırken hata:', error);
         if (Platform.OS === 'web') {
           window.alert('Hata: Veriler sıfırlanırken hata oluştu.');
         } else {
@@ -257,6 +294,53 @@ export default function PreferencesSection({
               thumbColor={settings.askBeforeDeleteAll ? theme.switchThumbOn : theme.switchThumbOff}
             />
           </View>
+
+          <View style={[styles.preferenceItem, { alignItems: 'center' }]}>
+            <View style={styles.preferenceTextContainer}>
+              <Text style={[styles.preferenceTitle, { color: theme.text }]}>Haftalık görev hedefi</Text>
+              <Text style={[styles.preferenceDescription, { color: theme.textSecondary }]}>
+                {weeklyGoal > 0
+                  ? `Bu hafta ${weeklyGoal} görev tamamlamayı hedefliyorsun. İlerleme İstatistikler'de görünür.`
+                  : 'Kapalı. Hedef rozeti gösterilmez.'}
+              </Text>
+            </View>
+            <View style={[styles.goalStepper, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
+              <TouchableOpacity
+                onPress={() => changeWeeklyGoal(-5)}
+                style={styles.goalStepperButton}
+                accessibilityRole="button"
+                accessibilityLabel="Haftalık hedefi azalt"
+              >
+                <Text style={[styles.goalStepperText, { color: theme.text }]}>−</Text>
+              </TouchableOpacity>
+              <Text style={[styles.goalStepperValue, { color: theme.text }]}>{weeklyGoal}</Text>
+              <TouchableOpacity
+                onPress={() => changeWeeklyGoal(5)}
+                style={styles.goalStepperButton}
+                accessibilityRole="button"
+                accessibilityLabel="Haftalık hedefi artır"
+              >
+                <Text style={[styles.goalStepperText, { color: theme.text }]}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.preferenceItem}>
+            <View style={styles.preferenceTextContainer}>
+              <Text style={[styles.preferenceTitle, { color: theme.text }]}>Eski planları otomatik sil</Text>
+              <Text style={[styles.preferenceDescription, { color: theme.textSecondary }]}>
+                {settings.autoCleanOldPlans
+                  ? `${thresholdDays} günden eski planlar cihazdan kalıcı olarak silinir. İstatistiklerin de bu geçmişi kaybeder.`
+                  : 'Kapalı. Planların cihazda süresiz saklanır.'}
+              </Text>
+            </View>
+            <Switch
+              value={Boolean(settings.autoCleanOldPlans)}
+              onValueChange={handleToggleAutoClean}
+              trackColor={{ false: theme.switchTrackOff, true: theme.switchTrackOn }}
+              thumbColor={settings.autoCleanOldPlans ? theme.switchThumbOn : theme.switchThumbOff}
+            />
+          </View>
         </View>
 
         {/* --- TEHLİKELİ ALAN --- */}
@@ -284,6 +368,27 @@ export default function PreferencesSection({
 }
 
 const styles = StyleSheet.create({
+  goalStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 4,
+  },
+  goalStepperButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  goalStepperText: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  goalStepperValue: {
+    minWidth: 28,
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '700',
+  },
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700',

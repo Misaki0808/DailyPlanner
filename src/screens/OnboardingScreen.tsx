@@ -5,17 +5,13 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Dimensions,
   Animated,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUserContext, useSettingsContext } from '../context/AppContext';
 import { Gender } from '../types';
-
-const { width, height } = Dimensions.get('window');
 
 const SLIDES = [
   {
@@ -67,7 +63,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         Animated.timing(floatAnim, { toValue: 0, duration: 1500, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [floatAnim]);
 
   const isSlidePhase = currentSlide < SLIDES.length;
   const isNamePhase = currentSlide === SLIDES.length;

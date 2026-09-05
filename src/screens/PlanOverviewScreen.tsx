@@ -7,7 +7,7 @@ import WeeklyProgressChart from '../components/charts/WeeklyProgressChart';
 
 export default function PlanOverviewScreen() {
   const { plans } = usePlansContext();
-  const { settings, theme } = useSettingsContext();
+  const { theme } = useSettingsContext();
   const { width, height } = useWindowDimensions();
   const [centerDate, setCenterDate] = useState(getToday());
   const [isStatsModalVisible, setIsStatsModalVisible] = useState(false);

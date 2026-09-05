@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Plans, Task, Settings, RecurringTask } from '../types';
+import { defaultSettings, withSettingsDefaults } from './defaultSettings';
+import { getToday } from './dateUtils';
 
 // Storage anahtarları - tek yerden yönetmek için
 const STORAGE_KEYS = {
@@ -55,12 +57,20 @@ export const getAllPlans = async (): Promise<Plans> => {
     const plans: Plans = {};
     
     keyValuePairs.forEach(([key, value]) => {
-      if (value) {
-        const date = key.replace(STORAGE_KEYS.PLAN_PREFIX, '');
-        plans[date] = JSON.parse(value);
+      if (!value) return;
+      const date = key.replace(STORAGE_KEYS.PLAN_PREFIX, '');
+      // Parse KAYIT BAŞINA korunur. Tek bir bozuk gün (yarım yazma, disk
+      // hatası) daha önce dıştaki catch'i tetikleyip {} döndürüyor, kullanıcı
+      // tüm plan geçmişini kaybetmiş gibi boş ekran görüyordu. Artık yalnız
+      // bozuk gün atlanır, kalan günler normal yüklenir.
+      try {
+        const parsed = JSON.parse(value);
+        plans[date] = Array.isArray(parsed) ? parsed : [];
+      } catch (parseError) {
+        console.error(`Bozuk plan kaydı atlandı: ${date}`, parseError);
       }
     });
-    
+
     return plans;
   } catch (error) {
     console.error('Planlar okunurken hata:', error);
@@ -136,6 +146,7 @@ export const saveUserName = async (name: string) => {
     await AsyncStorage.setItem(STORAGE_KEYS.USER_NAME, name);
     return true;
   } catch (error) {
+    console.error('Kullanıcı adı kaydedilirken hata:', error);
     return false;
   }
 };
@@ -144,6 +155,7 @@ export const getUserName = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem(STORAGE_KEYS.USER_NAME);
   } catch (error) {
+    console.error('Kullanıcı adı okunurken hata:', error);
     return null;
   }
 };
@@ -153,6 +165,7 @@ export const saveGender = async (gender: 'male' | 'female') => {
     await AsyncStorage.setItem(STORAGE_KEYS.GENDER, gender);
     return true;
   } catch (error) {
+    console.error('Profil kaydedilirken hata:', error);
     return false;
   }
 };
@@ -162,6 +175,7 @@ export const getGender = async (): Promise<'male' | 'female'> => {
     const gender = await AsyncStorage.getItem(STORAGE_KEYS.GENDER);
     return gender === 'female' ? 'female' : 'male';
   } catch (error) {
+    console.error('Profil okunurken hata:', error);
     return 'male';
   }
 };
@@ -171,27 +185,19 @@ export const saveSettings = async (settings: Settings) => {
     await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
     return true;
   } catch (error) {
+    console.error('Ayarlar kaydedilirken hata:', error);
     return false;
   }
 };
 
 export const getSettings = async (): Promise<Settings> => {
-  const defaultSettings: Settings = {
-    askBeforeDeleteAll: true,
-    darkMode: true,
-    notificationsEnabled: true,
-    notificationTime: '08:00',
-    pomodoroFocusTime: 25,
-    pomodoroShortBreak: 5,
-    pomodoroLongBreak: 15,
-    pomodoroSoundEnabled: false,
-  };
   try {
     const settingsJson = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS);
-    if (settingsJson === null) return defaultSettings;
-    return JSON.parse(settingsJson);
+    if (settingsJson === null) return { ...defaultSettings };
+    return withSettingsDefaults(JSON.parse(settingsJson));
   } catch (error) {
-    return defaultSettings;
+    console.error('Ayarlar okunurken hata, varsayılanlara dönülüyor:', error);
+    return { ...defaultSettings };
   }
 };
 
@@ -200,6 +206,7 @@ export const getRecurringTasks = async (): Promise<RecurringTask[]> => {
     const json = await AsyncStorage.getItem(STORAGE_KEYS.RECURRING_TASKS);
     return json ? JSON.parse(json) : [];
   } catch (error) {
+    console.error('Tekrarlayan görevler okunurken hata:', error);
     return [];
   }
 };
@@ -209,6 +216,7 @@ export const saveRecurringTasks = async (tasks: RecurringTask[]) => {
     await AsyncStorage.setItem(STORAGE_KEYS.RECURRING_TASKS, JSON.stringify(tasks));
     return true;
   } catch (error) {
+    console.error('Tekrarlayan görevler kaydedilirken hata:', error);
     return false;
   }
 };
@@ -235,6 +243,7 @@ export const clearAllData = async () => {
     await AsyncStorage.clear();
     return true;
   } catch (error) {
+    console.error('Veriler silinirken hata:', error);
     return false;
   }
 };
@@ -243,10 +252,12 @@ export const clearAllData = async () => {
  * ESKİ PLANLARI TEMİZLE
  * Her gün 1 kez çalışması sağlanarak performans korunur.
  */
-export const cleanOldPlans = async (daysThreshold: number = 90) => {
+export const cleanOldPlans = async (daysThreshold: number = defaultSettings.autoCleanThresholdDays ?? 365) => {
   try {
-    // Sadece günde 1 kez çalışsın
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Sadece günde 1 kez çalışsın. Gün, uygulamanın geri kalanıyla aynı
+    // biçimde YEREL saate göre belirlenir; toISOString() UTC'ye kaydığı için
+    // kilit yerel günle örtüşmüyordu.
+    const todayStr = getToday();
     const lastCleanup = await AsyncStorage.getItem(STORAGE_KEYS.LAST_CLEANUP_DATE);
     if (lastCleanup === todayStr) return false;
 
@@ -261,10 +272,13 @@ export const cleanOldPlans = async (daysThreshold: number = 90) => {
       const dateStr = key.replace(STORAGE_KEYS.PLAN_PREFIX, '');
       const [year, month, day] = dateStr.split('-').map(Number);
       const planDate = new Date(year, month - 1, day);
-      
+
+      // Math.round kullanılır: iki yerel gece yarısı arasındaki fark, yaz
+      // saati geçişlerinde tam 24 saatin katı olmaz. Math.ceil ile 90.04 gün
+      // 91'e yuvarlanıyor ve planlar eşikten bir gün önce siliniyordu.
       const diffTime = now.getTime() - planDate.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
       if (diffDays > daysThreshold) {
         keysToRemove.push(key);
       }
@@ -287,6 +301,7 @@ export const saveAboutMe = async (text: string): Promise<boolean> => {
     await AsyncStorage.setItem(STORAGE_KEYS.ABOUT_ME, text);
     return true;
   } catch (error) {
+    console.error('Hakkımda kaydedilirken hata:', error);
     return false;
   }
 };
@@ -295,6 +310,7 @@ export const getAboutMe = async (): Promise<string> => {
   try {
     return (await AsyncStorage.getItem(STORAGE_KEYS.ABOUT_ME)) || '';
   } catch (error) {
+    console.error('Hakkımda okunurken hata:', error);
     return '';
   }
 };
@@ -304,6 +320,7 @@ export const getPomodoroStats = async (): Promise<Record<string, number>> => {
     const json = await AsyncStorage.getItem(STORAGE_KEYS.POMODORO_STATS);
     return json ? JSON.parse(json) : {};
   } catch (error) {
+    console.error('Pomodoro istatistikleri okunurken hata:', error);
     return {};
   }
 };
@@ -313,6 +330,7 @@ export const savePomodoroStats = async (stats: Record<string, number>) => {
     await AsyncStorage.setItem(STORAGE_KEYS.POMODORO_STATS, JSON.stringify(stats));
     return true;
   } catch (error) {
+    console.error('Pomodoro istatistikleri kaydedilirken hata:', error);
     return false;
   }
 };

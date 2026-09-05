@@ -1,9 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator, StackNavigationOptions } from '@react-navigation/stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AppProvider, useApp, useSettingsContext, useUserContext } from './src/context/AppContext';
+import { AppProvider, useTheme, useIsAppLoading, useSettingsContext, useUserContext } from './src/context/AppContext';
 import { DrawerProvider, useDrawer } from './src/context/DrawerContext';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import JSDrawer from './src/components/JSDrawer';
@@ -29,7 +29,7 @@ const Stack = createStackNavigator<RootTabParamList>();
 // Header'daki Menü Butonu (Modern Icon)
 function MenuButton() {
   const { openDrawer } = useDrawer();
-  const { theme } = useApp();
+  const theme = useTheme();
   return (
     <TouchableOpacity onPress={openDrawer} style={{ paddingLeft: 15 }}>
       <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -43,7 +43,7 @@ function MenuButton() {
 
 // Ana uygulama içeriği
 function AppContent() {
-  const { isLoading } = useApp();
+  const isLoading = useIsAppLoading();
   const { theme, settings } = useSettingsContext();
   const { username } = useUserContext();
   const [onboardingDone, setOnboardingDone] = useState(false);

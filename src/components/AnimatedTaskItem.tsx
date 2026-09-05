@@ -5,12 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Alert,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Task } from '../types';
-import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/AppContext';
 import TaskEditModal from './TaskEditModal';
 import { sharedStyles } from '../utils/sharedStyles';
 import { getCategoryEmoji, getCategoryLabel, getCategoryColor } from '../utils/categories';
@@ -18,7 +17,6 @@ import { getCategoryEmoji, getCategoryLabel, getCategoryColor } from '../utils/c
 interface AnimatedTaskItemProps {
   task: Task;
   index: number;
-  totalCount?: number;
   isEditMode: boolean;
   onToggleDone: () => void;
   onChangePriority: () => void;
@@ -30,7 +28,6 @@ interface AnimatedTaskItemProps {
 export default function AnimatedTaskItem({
   task,
   index,
-  totalCount = 0,
   isEditMode,
   onToggleDone,
   onChangePriority,
@@ -38,7 +35,7 @@ export default function AnimatedTaskItem({
   onNoteEdit,
   onToggleSubtask,
 }: AnimatedTaskItemProps) {
-  const { settings, theme } = useApp();
+  const theme = useTheme();
   const [showNoteModal, setShowNoteModal] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
@@ -63,7 +60,7 @@ export default function AnimatedTaskItem({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [task.id]);
+  }, [task.id, index, fadeAnim, scaleAnim]);
 
   const priorityColor =
     task.priority === 'high' ? theme.priorityHigh :
@@ -111,6 +108,8 @@ export default function AnimatedTaskItem({
           triggerRemoveAnimation();
         }}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={`${task.title} görevini sil`}
       >
         <Animated.View style={[styles.swipeActionInner, { transform: [{ scale }], opacity }]}>
           <LinearGradient
@@ -147,6 +146,8 @@ export default function AnimatedTaskItem({
           onToggleDone();
         }}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={task.done ? `${task.title} görevini geri al` : `${task.title} görevini tamamla`}
       >
         <Animated.View style={[styles.swipeActionInner, { transform: [{ scale }], opacity }]}>
           <LinearGradient
@@ -204,6 +205,8 @@ export default function AnimatedTaskItem({
             style={[styles.taskNumberBadge, { backgroundColor: priorityColor }]}
             onPress={onChangePriority}
             disabled={!isEditMode}
+            accessibilityRole="button"
+            accessibilityLabel={`Önceliği değiştir. Şu an: ${task.priority || 'normal'}`}
           >
             <Text style={styles.taskNumber}>{index + 1}</Text>
           </TouchableOpacity>

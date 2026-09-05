@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RecurringTask } from '../../types';
-import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/AppContext';
 
 interface FlexibleTaskProgress extends RecurringTask {
   currentCount: number;
@@ -24,7 +24,7 @@ export default function FlexibleTaskPool({
   flexibleProgress,
   onAddFlexibleTask,
 }: FlexibleTaskPoolProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
   if (flexibleProgress.length === 0) return null;
 
   return (

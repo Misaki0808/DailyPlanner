@@ -10,7 +10,6 @@ import {
   Share,
   TextInput,
   Animated as RNAnimated,
-  Keyboard,
   Modal,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -20,7 +19,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { usePlansContext, useSettingsContext, useRecurringContext } from '../context/AppContext';
 import { useNavigation } from '@react-navigation/native';
 import { modifyPlanWithAI } from '../utils/aiService';
-import { formatDateDisplay, getToday, addDays, generateId, parseDate } from '../utils/dateUtils';
+import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
+import { getWeekDates } from '../utils/weekUtils';
 import { Task } from '../types';
 import CopyPlanModal from '../components/CopyPlanModal';
 import ShareModal from '../components/ShareModal';
@@ -40,7 +40,7 @@ let RNShare: any = null;
 if (Platform.OS !== 'web') {
   try {
     RNShare = require('react-native-share').default;
-  } catch (e) {
+  } catch {
     // react-native-share not available on web
   }
 }
@@ -66,7 +66,7 @@ const inferCategoryForFlexibleTask = (title: string, explicitCategory?: string) 
 };
 
 export default function MultiDayViewScreen() {
-  const { plans, updateTask, savePlan, deletePlan } = usePlansContext();
+  const { plans, savePlan, deletePlan } = usePlansContext();
   const { settings, theme } = useSettingsContext();
   const { recurringTasks } = useRecurringContext();
   const [selectedDate, setSelectedDate] = useState(getToday());
@@ -75,7 +75,9 @@ export default function MultiDayViewScreen() {
   const [isCopyModalVisible, setIsCopyModalVisible] = useState(false);
   const [isShareModalVisible, setIsShareModalVisible] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
-  const [deletedTask, setDeletedTask] = useState<Task | null>(null);
+  // Silinen görev, geri alma sırasında doğru güne dönebilmek için kaynak
+  // tarihiyle birlikte tutulur.
+  const [deletedTask, setDeletedTask] = useState<{ task: Task; date: string } | null>(null);
   const [quickAddText, setQuickAddText] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -160,7 +162,7 @@ export default function MultiDayViewScreen() {
     await savePlan(selectedDate, updatedTasks);
 
     if (taskToDelete) {
-      setDeletedTask(taskToDelete);
+      setDeletedTask({ task: taskToDelete, date: selectedDate });
       if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
       RNAnimated.timing(undoAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
       undoTimeoutRef.current = setTimeout(() => {
@@ -175,8 +177,16 @@ export default function MultiDayViewScreen() {
   const handleUndoDelete = async () => {
     if (!deletedTask) return;
     if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-    const restoredTasks = [...currentTasks, deletedTask];
-    await savePlan(selectedDate, restoredTasks);
+
+    // Görev silindiği güne geri konur. Daha önce `selectedDate` ve
+    // `currentTasks` kullanılıyordu; kullanıcı 5 saniyelik geri alma
+    // penceresinde başka bir güne geçerse görev yanlış güne kopyalanıyor,
+    // asıl gününde eksik kalıyordu.
+    const { task, date } = deletedTask;
+    const tasksForDate = plans[date] || [];
+    if (!tasksForDate.some(t => t.id === task.id)) {
+      await savePlan(date, [...tasksForDate, task]);
+    }
 
     RNAnimated.timing(undoAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
     setDeletedTask(null);
@@ -324,19 +334,9 @@ export default function MultiDayViewScreen() {
     const flexibleTasks = recurringTasks.filter(rt => rt.isActive && rt.frequency === 'flexible' && rt.flexibleTarget);
     if (flexibleTasks.length === 0) return [];
 
-    const todayObj = parseDate(selectedDate);
-    const dayOfWeek = todayObj.getDay() === 0 ? 7 : todayObj.getDay();
-    const mondayObj = new Date(todayObj);
-    mondayObj.setDate(todayObj.getDate() - dayOfWeek + 1);
-
-    const weekDates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(mondayObj);
-      d.setDate(mondayObj.getDate() + i);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    });
+    // Hafta Pazartesi başlar; hesap weekUtils'te tek kaynakta duruyor
+    // (takvimlerdeki firstDay={1} ve haftalık hedef ile aynı tanım).
+    const weekDates = getWeekDates(selectedDate);
 
     return flexibleTasks.map(rt => {
       let currentCount = 0;
@@ -429,6 +429,7 @@ export default function MultiDayViewScreen() {
         window.alert('❌ Kopyalama desteklenmiyor');
       }
     } catch (error) {
+      console.error('Panoya kopyalama hatası:', error);
       window.alert('❌ Kopyalama başarısız');
     }
   };
@@ -593,7 +594,6 @@ export default function MultiDayViewScreen() {
                 <AnimatedTaskItem
                   task={item}
                   index={getIndex() || 0}
-                  totalCount={currentTasks.length}
                   isEditMode={isEditMode}
                   onToggleDone={() => toggleTaskDone(item.id, item.done)}
                   onChangePriority={() => handleChangePriority(item.id)}
@@ -644,7 +644,7 @@ export default function MultiDayViewScreen() {
               transform: [{ translateY: undoAnim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }],
             },
           ]}>
-            <Text style={[styles.undoText, { color: theme.text }]} numberOfLines={1}>{deletedTask.title} silindi</Text>
+            <Text style={[styles.undoText, { color: theme.text }]} numberOfLines={1}>{deletedTask.task.title} silindi</Text>
             <TouchableOpacity onPress={handleUndoDelete} activeOpacity={0.7}>
               <LinearGradient
                 colors={theme.accentGradient}

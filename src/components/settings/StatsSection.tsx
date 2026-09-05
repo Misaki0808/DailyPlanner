@@ -13,11 +13,14 @@ import { createSharedStyles } from '../../utils/sharedStyles';
 import WeeklyStatsChart from '../WeeklyStatsChart';
 import { generateWeeklySummary, checkApiKey } from '../../utils/aiService';
 import { getToday, addDays } from '../../utils/dateUtils';
-import { useApp, usePomodoroContext } from '../../context/AppContext';
+import { calculatePomodoroStreak } from '../../utils/pomodoroStats';
+import { calculateTaskStreak, getWeeklyGoalProgress } from '../../utils/weeklyGoal';
+import { useTheme, usePomodoroContext, useSettingsContext } from '../../context/AppContext';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
-import { getCategoryLabel, TASK_CATEGORIES, getCategoryColor, getCategoryEmoji } from '../../utils/categories';
+import { TASK_CATEGORIES } from '../../utils/categories';
+import { buildPlansCsv } from '../../utils/csvExport';
 
 interface StatsSectionProps {
   plans: Plans;
@@ -25,32 +28,21 @@ interface StatsSectionProps {
 }
 
 export default function StatsSection({ plans, username }: StatsSectionProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
   const { pomodoroStats } = usePomodoroContext();
+  const { settings } = useSettingsContext();
   const themed = createSharedStyles(theme);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const dashboardRef = useRef<View>(null);
 
-  const streak = (() => {
-    let s = 0;
-    const d = new Date();
-    const today = getToday();
-    while (true) {
-      const dateStr = d.toISOString().split('T')[0];
-      if (pomodoroStats[dateStr] > 0) {
-        s++;
-        d.setDate(d.getDate() - 1);
-      } else {
-        if (s === 0 && dateStr === today) {
-           d.setDate(d.getDate() - 1);
-           continue;
-        }
-        break;
-      }
-    }
-    return s;
-  })();
+  // Seri hesabı Pomodoro ekranıyla aynı kaynaktan gelir. Buradaki eski kopya
+  // günleri toISOString() ile (UTC) anahtarlıyordu; pomodoroStats ise yerel
+  // tarihe göre yazılıyor. UTC+3'te akşam saatlerinde bugünün anahtarı yarına
+  // kaydığı için seri 0 görünüyor, Pomodoro ekranı ise doğru sayıyı gösteriyordu.
+  const streak = calculatePomodoroStreak(pomodoroStats, getToday());
+  const taskStreak = calculateTaskStreak(plans);
+  const weeklyGoal = getWeeklyGoalProgress(plans, settings.weeklyTaskGoal ?? 0);
 
   const calculateStats = () => {
     const planDates = Object.keys(plans);
@@ -102,7 +94,7 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
   const handleShareDashboard = async () => {
     try {
       if (Platform.OS === 'web') {
-        Alert.alert('Bilgi', 'Dashboard ekran görüntüsü alma özelliği şu an sadece mobil cihazlarda (Android/iOS) desteklenmektedir. Lütfen telefondan deneyin.');
+        window.alert('Bilgi: Dashboard ekran görüntüsü alma özelliği şu an sadece mobil cihazlarda (Android/iOS) desteklenmektedir. Lütfen telefondan deneyin.');
         return;
       }
       
@@ -120,29 +112,18 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
       }
     } catch (error) {
       console.log(error);
-      Alert.alert('Hata', 'Dashboard resmi oluşturulurken bir hata oluştu');
+      if (Platform.OS === 'web') {
+        window.alert('Hata: Dashboard resmi oluşturulurken bir hata oluştu');
+      } else {
+        Alert.alert('Hata', 'Dashboard resmi oluşturulurken bir hata oluştu');
+      }
     }
   };
 
   const handleExportCSV = async () => {
     try {
-      // CSV Header
-      let csvString = 'Tarih,Gorev Basligi,Oncelik,Kategori,Durum,Not\n';
-      
-      const dates = Object.keys(plans).sort((a, b) => b.localeCompare(a));
-      
-      dates.forEach(date => {
-        const tasks = plans[date];
-        tasks.forEach(task => {
-          const safeTitle = `"${(task.title || '').replace(/"/g, '""')}"`;
-          const priority = task.priority || 'low';
-          const category = getCategoryLabel(task.category || 'diger');
-          const isDone = task.done ? 'Tamamlandi' : 'Bekliyor';
-          const safeNote = `"${(task.note || '').replace(/"/g, '""')}"`;
-          
-          csvString += `${date},${safeTitle},${priority},${category},${isDone},${safeNote}\n`;
-        });
-      });
+      // CSV metnini üretmek saf bir işlem; testlenebilmesi için ayrı modülde.
+      const csvString = buildPlansCsv(plans);
 
       const fileName = `DailyPlanner_DisaAktarim_${getToday()}.csv`;
 
@@ -189,11 +170,42 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
 
       <View collapsable={false} ref={dashboardRef} style={{ backgroundColor: theme.background, paddingVertical: 10, borderRadius: 16 }}>
         <View style={styles.statsGrid}>
+          {/* Haftalık Hedef */}
+          {weeklyGoal.goal > 0 && (
+            <View style={[styles.statCardWrapper, { width: '100%', marginBottom: 4 }]}>
+              <LinearGradient
+                colors={weeklyGoal.reached ? theme.successGradient : theme.accentGradient}
+                style={styles.statCardGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.statValue}>
+                  {weeklyGoal.reached ? '🏆 ' : '🎯 '}{weeklyGoal.completed}/{weeklyGoal.goal}
+                </Text>
+                <Text style={styles.statLabel}>
+                  {weeklyGoal.reached
+                    ? 'Haftalık hedef tamamlandı!'
+                    : `Haftalık Hedef · ${weeklyGoal.remaining} görev kaldı`}
+                </Text>
+                <View style={styles.goalTrack}>
+                  <View style={[styles.goalFill, { width: `${weeklyGoal.percentage}%` }]} />
+                </View>
+              </LinearGradient>
+            </View>
+          )}
+
           {/* Streak Card */}
-          <View style={[styles.statCardWrapper, { width: '100%', marginBottom: 4 }]}>
+          <View style={styles.statCardWrapper}>
             <LinearGradient colors={['#FF512F', '#F09819']} style={styles.statCardGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-              <Text style={styles.statValue}>🔥 {streak} Gün</Text>
+              <Text style={styles.statValue}>🔥 {streak}</Text>
               <Text style={styles.statLabel}>Pomodoro Serisi</Text>
+            </LinearGradient>
+          </View>
+
+          <View style={styles.statCardWrapper}>
+            <LinearGradient colors={['#11998e', '#38ef7d']} style={styles.statCardGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+              <Text style={styles.statValue}>✅ {taskStreak}</Text>
+              <Text style={styles.statLabel}>Görev Serisi</Text>
             </LinearGradient>
           </View>
 
@@ -362,6 +374,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     marginBottom: 4,
+  },
+  goalTrack: {
+    marginTop: 10,
+    height: 6,
+    width: '100%',
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    overflow: 'hidden',
+  },
+  goalFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: '#fff',
   },
   statLabel: {
     fontSize: 14,

@@ -11,7 +11,13 @@ type TimeMatch = {
   minute: number;
 };
 
-const PERIOD_HOUR_REGEX = /\b(sabah|öğlen|öğle|akşam|gece)\s+(?:saat\s+)?(\d{1,2})(?:[:.](\d{2}))?(?:\s*['’]?(?:de|da|te|ta))?\b/giu;
+/**
+ * DİKKAT: `\b` JavaScript'te ASCII kelime sınırıdır; "ö" ASCII harf olmadığı
+ * için `\böğlen` HİÇ eşleşmez. Bu yüzden buradaki sınırlar NOON_REGEX'teki
+ * gibi Unicode-güvenli yazılmıştır (grup 1 = önek). Aksi halde "öğlen 3'te"
+ * bu kalıba düşmez, SUFFIX_HOUR_REGEX'e takılır ve 15:00 yerine 03:00 olur.
+ */
+const PERIOD_HOUR_REGEX = /(^|[^\p{L}\p{N}_])(sabah|öğlen|öğle|akşam|gece)\s+(?:saat\s+)?(\d{1,2})(?:[:.](\d{2}))?(?:\s*['’]?(?:de|da|te|ta))?(?=$|[^\p{L}\p{N}_])/giu;
 const CLOCK_REGEX = /(?:\bsaat\s+)?\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:\s*['’]?(?:de|da|te|ta))?\b/giu;
 const SUFFIX_HOUR_REGEX = /(?:\bsaat\s+)?\b(\d{1,2})(?:[:.](\d{2}))?\s*['’]?(?:de|da|te|ta)\b/giu;
 const NOON_REGEX = /(^|[^\p{L}\p{N}_])(öğlen|öğle)(?:\s*['’]?(?:de|da))?(?=$|[^\p{L}\p{N}_])/giu;
@@ -54,10 +60,16 @@ const collectMatches = (text: string): TimeMatch[] => {
   const matches: TimeMatch[] = [];
 
   for (const match of text.matchAll(PERIOD_HOUR_REGEX)) {
-    const hour = normalizePeriodHour(match[1], Number(match[2]));
-    const minute = match[3] ? Number(match[3]) : 0;
+    const prefixLength = match[1]?.length || 0;
+    const hour = normalizePeriodHour(match[2], Number(match[3]));
+    const minute = match[4] ? Number(match[4]) : 0;
     if (hour === null || minute > 59) continue;
-    matches.push({ start: match.index || 0, end: (match.index || 0) + match[0].length, hour, minute });
+    matches.push({
+      start: (match.index || 0) + prefixLength,
+      end: (match.index || 0) + match[0].length,
+      hour,
+      minute,
+    });
   }
 
   for (const match of text.matchAll(CLOCK_REGEX)) {

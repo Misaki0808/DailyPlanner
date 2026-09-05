@@ -56,6 +56,9 @@ export interface Settings {
   pomodoroShortBreak?: number; // dk cinsinden
   pomodoroLongBreak?: number; // dk cinsinden
   pomodoroSoundEnabled?: boolean; // Süre bitince bildirim sesi çal
+  autoCleanOldPlans?: boolean; // Eski planları otomatik sil (varsayılan kapalı)
+  autoCleanThresholdDays?: number; // Kaç günden eski planlar silinsin
+  weeklyTaskGoal?: number; // Haftalık tamamlama hedefi (0 = kapalı)
 }
 
 // Navigation için tip tanımları

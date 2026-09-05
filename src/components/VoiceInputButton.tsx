@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     TouchableOpacity,
     Text,
@@ -7,7 +7,6 @@ import {
     Alert,
     Animated,
     View,
-    ActivityIndicator,
 } from 'react-native';
 import { correctTranscriptLocal } from '../utils/voiceParser';
 
@@ -36,6 +35,9 @@ interface SpeechRecognitionInstance {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
+// Uygulama Türkçe; web ve native tanıma aynı dili kullanmalı.
+const SPEECH_LANG = 'tr-TR';
+
 // Web window üzerinde SpeechRecognition erişimi
 const getWebSpeechRecognition = (): SpeechRecognitionConstructor | null => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
@@ -47,7 +49,7 @@ let ExpoSpeechRecognitionModule: { addListener: (event: string, cb: (event: { re
 if (Platform.OS !== 'web') {
     try {
         ExpoSpeechRecognitionModule = require('expo-speech-recognition').ExpoSpeechRecognitionModule;
-    } catch (e) {
+    } catch {
         // Native module not found (e.g. running in Expo Go instead of custom dev client)
     }
 }
@@ -60,26 +62,36 @@ interface VoiceInputButtonProps {
 
 export default function VoiceInputButton({ onTranscript, disabled, mode = 'paragraph' }: VoiceInputButtonProps) {
     const [isListening, setIsListening] = useState(false);
-    const [isCorrecting, setIsCorrecting] = useState(false);
-    const [isSupported, setIsSupported] = useState(false);
     const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
     const finalTranscriptRef = useRef('');
+    const isListeningRef = useRef(false);
     const pulseAnim = useRef(new Animated.Value(1)).current;
 
-    const emitFinalTranscript = (rawText: string) => {
+    useEffect(() => {
+        isListeningRef.current = isListening;
+    }, [isListening]);
+
+    // Dinleme sürerken ekrandan çıkılırsa mikrofon açık kalmasın
+    useEffect(() => {
+        return () => {
+            if (!isListeningRef.current) return;
+            try {
+                if (Platform.OS === 'web') {
+                    recognitionRef.current?.stop();
+                    recognitionRef.current = null;
+                } else {
+                    ExpoSpeechRecognitionModule?.stop();
+                }
+            } catch {
+                // Tanıma zaten durmuş olabilir
+            }
+        };
+    }, []);
+
+    const emitFinalTranscript = useCallback((rawText: string) => {
         const corrected = correctTranscriptLocal(rawText);
         onTranscript(corrected, true);
-    };
-
-    useEffect(() => {
-        if (Platform.OS === 'web') {
-            const SR = getWebSpeechRecognition();
-            setIsSupported(!!SR);
-        } else {
-            // Native is supported via expo-speech-recognition
-            setIsSupported(true);
-        }
-    }, []);
+    }, [onTranscript]);
 
     // --- Native Speech Recognition Events ---
     useEffect(() => {
@@ -113,7 +125,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
             endSub.remove();
             errorSub.remove();
         };
-    }, [mode, onTranscript]);
+    }, [mode, onTranscript, emitFinalTranscript]);
     // ----------------------------------------
 
     useEffect(() => {
@@ -129,7 +141,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         } else {
             pulseAnim.setValue(1);
         }
-    }, [isListening]);
+    }, [isListening, pulseAnim]);
 
     const startListening = () => {
         if (Platform.OS !== 'web') return;
@@ -138,10 +150,14 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         if (!SR) return;
 
         const recognition = new SR();
+        recognition.lang = SPEECH_LANG;
         recognition.interimResults = true;
         recognition.continuous = true;
         recognition.maxAlternatives = 1;
 
+        // Önceki oturumdan kalan metin yeni oturumun sonunda tekrar
+        // gönderilmesin diye sıfırlanır (native tarafla aynı davranış).
+        finalTranscriptRef.current = '';
         let finalTranscript = '';
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -194,7 +210,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
             setIsListening(true);
             finalTranscriptRef.current = '';
             ExpoSpeechRecognitionModule.start({
-                lang: 'tr-TR',
+                lang: SPEECH_LANG,
                 interimResults: true,
                 maxAlternatives: 1,
                 continuous: true,
@@ -235,19 +251,15 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
             <TouchableOpacity
                 onPress={toggleListening}
-                disabled={disabled || isCorrecting}
+                disabled={disabled}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: Boolean(disabled) }}
+                accessibilityLabel={isListening ? 'Sesli girişi durdur' : 'Sesli giriş başlat'}
+                accessibilityHint="Konuştuklarınız görev metnine yazılır"
             >
-                <View style={[
-                    styles.button,
-                    isListening && styles.buttonActive,
-                    isCorrecting && styles.buttonCorrecting,
-                ]}>
-                    {isCorrecting ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                        <Text style={styles.icon}>{isListening ? '⏹' : '🎤'}</Text>
-                    )}
+                <View style={[styles.button, isListening && styles.buttonActive]}>
+                    <Text style={styles.icon}>{isListening ? '⏹' : '🎤'}</Text>
                 </View>
             </TouchableOpacity>
         </Animated.View>
@@ -265,9 +277,6 @@ const styles = StyleSheet.create({
     },
     buttonActive: {
         backgroundColor: 'rgba(245, 87, 108, 0.8)',
-    },
-    buttonCorrecting: {
-        backgroundColor: 'rgba(102, 126, 234, 0.6)',
     },
     icon: {
         fontSize: 18,

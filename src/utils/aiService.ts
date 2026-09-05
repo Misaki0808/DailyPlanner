@@ -68,10 +68,16 @@ const splitParagraphIntoLocalTasks = (paragraph: string): ConvertParagraphResult
     .replace(/\r/g, '\n')
     .replace(/[•·]/g, '\n')
     .replace(/^\s*[-*]\s+/gm, '')
+    // Numaralı liste işaretleri BÖLMEDEN ÖNCE atılır. Aksi halde "1." içindeki
+    // nokta cümle sonu sanılıp satır ikiye ayrılıyor ve "1", "Rapor yaz" gibi
+    // anlamsız görevler üretiliyordu.
+    .replace(/^\s*\d+[.)]\s+/gm, '')
     .trim();
 
   const primaryParts = normalized
-    .split(/\n+|[.!?;]+/g)
+    // Nokta yalnız ardından rakam GELMİYORSA ayraç sayılır; böylece "2.5 saat"
+    // gibi ondalık sayılar ikiye bölünmez.
+    .split(/\n+|[!?;]+|\.(?!\d)/g)
     .map(part => part.trim())
     .filter(Boolean);
 
@@ -83,6 +89,8 @@ const splitParagraphIntoLocalTasks = (paragraph: string): ConvertParagraphResult
     .map(part => part
       .replace(/^\d+[.)]\s*/, '')
       .replace(/^[-*]\s*/, '')
+      // Bölme sonrası başta kalan bağlaçlar görev başlığına yapışmasın
+      .replace(/^(?:ve sonra|ve|sonra|ardından|daha sonra)\s+/iu, '')
       .replace(/\s+/g, ' ')
       .trim()
     )
@@ -100,12 +108,19 @@ const splitParagraphIntoLocalTasks = (paragraph: string): ConvertParagraphResult
 };
 
 /**
+ * Yalnız geçici hatalar yeniden denenir. 400/401/403 gibi kalıcı hatalarda
+ * (ör. geçersiz API anahtarı) tekrar denemek kullanıcıyı 1+2+4 saniye boşuna
+ * bekletiyor ve kotayı gereksiz tüketiyordu.
+ */
+const isRetryableStatus = (status: number) => status === 408 || status === 429 || status >= 500;
+
+/**
  * Otomatik tekrar deneme (retry) mekanizması ile API isteği atar.
  */
 const fetchWithRetry = async (url: string, options: RequestInit, retries = 3, backoff = 1000): Promise<Response> => {
   try {
     const response = await fetch(url, options);
-    if (!response.ok && retries > 0) {
+    if (!response.ok && retries > 0 && isRetryableStatus(response.status)) {
       console.warn(`API isteği ${response.status} hatası döndürdü. ${backoff}ms sonra tekrar deneniyor... (Kalan: ${retries})`);
       await new Promise(resolve => setTimeout(resolve, backoff));
       return fetchWithRetry(url, options, retries - 1, backoff * 2);
@@ -226,6 +241,13 @@ Görev listesi (sadece JSON array):`;
       .filter((t: any): t is { title: string; category: string } => t !== null && t.title.length > 0)
       .slice(0, 10);
 
+    // AI dizi döndürdü ama içindeki maddeler beklenen formatta değilse
+    // kullanıcı boş liste ile kalmasın; yerel ayrıştırmaya düş.
+    if (convertedTasks.length === 0) {
+      console.warn('AI kullanılabilir görev döndürmedi, paragraf yerel olarak ayrıştırılıyor.');
+      return splitParagraphIntoLocalTasks(paragraph);
+    }
+
     return convertedTasks as ConvertParagraphResult;
 
   } catch (error: any) {
@@ -233,6 +255,18 @@ Görev listesi (sadece JSON array):`;
     return splitParagraphIntoLocalTasks(paragraph);
   }
 };
+
+/**
+ * ────────────────────────────────────────────────────────────────────────
+ * NOT: Aşağıdaki "...WithAI" fonksiyonları ve onları saran
+ * correctVoiceTranscript / extractTimesFromText şu an UYGULAMADA HİÇBİR
+ * YERDEN ÇAĞRILMIYOR. Sesli giriş `voiceParser.correctTranscriptLocal`,
+ * alarm çıkarımı ise `timeParser.extractTimesLocal` üzerinden yerel olarak
+ * yapılıyor (API maliyetini azaltmak için). Buradaki prompt'lar ileride
+ * yeniden açılmak üzere korunuyor; silinip silinmeyeceği PM kararıdır.
+ * Yeniden açılırlarsa model çıktısının doğrulanması zorunludur.
+ * ────────────────────────────────────────────────────────────────────────
+ */
 
 /**
  * API key kontrolü
@@ -507,8 +541,15 @@ JSON:`;
       console.warn('Saat çıkarma AI JSON array döndürmedi, boş liste dönülüyor.');
       return extractTimesLocal(paragraph);
     }
+    // Tip kontrolü yetmez: model 99 gibi bir saat döndürürse
+    // `alarmDate.setHours(99, ...)` tarihi günlerce ileri kaydırır ve
+    // kullanıcı anlamsız bir zamana alarm alır. Yerel ayrıştırıcı zaten
+    // aralık denetimi yapıyor; AI yolu da aynı sıkılıkta olmalı.
     return times.filter(
-      (t: any) => typeof t.hour === 'number' && typeof t.minute === 'number' && typeof t.label === 'string'
+      (t: any) =>
+        typeof t.hour === 'number' && Number.isInteger(t.hour) && t.hour >= 0 && t.hour <= 23 &&
+        typeof t.minute === 'number' && Number.isInteger(t.minute) && t.minute >= 0 && t.minute <= 59 &&
+        typeof t.label === 'string' && t.label.trim().length > 0
     );
   } catch (e) {
     console.warn('Saat çıkarma hatası, boş liste dönülüyor:', e);

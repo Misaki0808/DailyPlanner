@@ -11,9 +11,9 @@ import {
     ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/AppContext';
 import { Task, Subtask } from '../types';
-import { TASK_CATEGORIES, getCategoryById } from '../utils/categories';
+import { TASK_CATEGORIES } from '../utils/categories';
 import { generateId } from '../utils/dateUtils';
 
 interface TaskEditModalProps {
@@ -29,7 +29,7 @@ export default function TaskEditModal({
     onSave,
     onClose,
 }: TaskEditModalProps) {
-    const { theme } = useApp();
+    const theme = useTheme();
     const [titleText, setTitleText] = useState(task.title);
     const [noteText, setNoteText] = useState(task.note || '');
     const [selectedCategory, setSelectedCategory] = useState(task.category || 'diger');

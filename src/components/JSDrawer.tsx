@@ -7,10 +7,9 @@ import {
     TouchableOpacity,
     TouchableWithoutFeedback,
     ScrollView,
-    useWindowDimensions,
 } from 'react-native';
 import { useDrawer } from '../context/DrawerContext';
-import { useApp } from '../context/AppContext';
+import { useUserContext, useTheme } from '../context/AppContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { navigationRef } from '../utils/navigationRef';
 
@@ -48,8 +47,8 @@ function MenuItem({ label, icon, onPress, isActive, theme }: MenuItemProps) {
 
 export default function JSDrawer({ children }: { children: React.ReactNode }) {
     const { isDrawerOpen, closeDrawer } = useDrawer();
-    const { username, gender, theme } = useApp();
-    const { width: screenWidth } = useWindowDimensions();
+    const { username, gender } = useUserContext();
+    const theme = useTheme();
 
     // Animasyon değeri: 0 (kapalı) -> 1 (açık)
     const animValue = useRef(new Animated.Value(0)).current;
@@ -61,7 +60,7 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
             duration: 300,
             useNativeDriver: true,
         }).start();
-    }, [isDrawerOpen]);
+    }, [isDrawerOpen, animValue]);
 
     const translateX = animValue.interpolate({
         inputRange: [0, 1],

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/AppContext';
+import { toDateString } from '../utils/dateUtils';
+import { PickerDate, stepDay, stepMonth, stepYear, toPickerDate } from '../utils/datePicker';
 
 interface CalendarModalProps {
   visible: boolean;
@@ -23,86 +25,36 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
   selectedDate,
   onSelectDate,
 }) => {
-  const { theme } = useApp();
+  const theme = useTheme();
 
-  const parseDate = (dateStr: string) => {
-    if (!dateStr || dateStr === '') {
-      const today = new Date();
-      return {
-        year: today.getFullYear(),
-        month: today.getMonth() + 1,
-        day: today.getDate()
-      };
-    }
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return { year, month, day };
-  };
+  // Yıl/ay/gün TEK bir state'te tutulur. Daha önce üç ayrı state vardı ve
+  // changeDay, changeMonth'u çağırdığında changeMonth hâlâ render anındaki
+  // bayat `selectedDay`'i okuyordu: 31 Ocak'ta "gün ileri" 1 Şubat yerine
+  // 28 Şubat'a atlıyordu. Tek state + fonksiyonel güncelleme bunu engeller.
+  const [picker, setPicker] = useState<PickerDate>(() => toPickerDate(selectedDate));
 
-  const { year: initialYear, month: initialMonth, day: initialDay } = parseDate(selectedDate);
-
-  const [selectedYear, setSelectedYear] = useState(initialYear);
-  const [selectedMonth, setSelectedMonth] = useState(initialMonth);
-  const [selectedDay, setSelectedDay] = useState(initialDay);
+  // Modal her açıldığında dışarıdaki seçili tarihle senkronlanır. Aksi halde
+  // state yalnız ilk mount'ta kuruluyor ve ekranın gösterdiği tarihten
+  // farklı bir gün açılıyordu.
+  useEffect(() => {
+    if (visible) setPicker(toPickerDate(selectedDate));
+  }, [visible, selectedDate]);
 
   const monthNames = [
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
     'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
   ];
 
-  const getDaysInMonth = (year: number, month: number): number => {
-    return new Date(year, month, 0).getDate();
-  };
+  const { year: selectedYear, month: selectedMonth, day: selectedDay } = picker;
 
-  const maxDay = getDaysInMonth(selectedYear, selectedMonth);
-
-  const changeYear = (increment: number) => {
-    const newYear = selectedYear + increment;
-    if (newYear >= 2025 && newYear <= 2030) {
-      setSelectedYear(newYear);
-    }
-  };
-
-  const changeMonth = (increment: number) => {
-    let newMonth = selectedMonth + increment;
-    let newYear = selectedYear;
-
-    if (newMonth > 12) {
-      newMonth = 1;
-      newYear++;
-      if (newYear <= 2030) { setSelectedYear(newYear); } else { return; }
-    } else if (newMonth < 1) {
-      newMonth = 12;
-      newYear--;
-      if (newYear >= 2025) { setSelectedYear(newYear); } else { return; }
-    }
-
-    setSelectedMonth(newMonth);
-    const newMaxDay = getDaysInMonth(newYear, newMonth);
-    if (selectedDay > newMaxDay) { setSelectedDay(newMaxDay); }
-  };
-
-  const changeDay = (increment: number) => {
-    const newDay = selectedDay + increment;
-
-    if (increment > 0 && newDay > maxDay) {
-      setSelectedDay(1);
-      changeMonth(1);
-    } else if (increment < 0 && newDay < 1) {
-      const prevMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
-      const prevYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
-      const prevMaxDay = getDaysInMonth(prevYear, prevMonth);
-      setSelectedDay(prevMaxDay);
-      changeMonth(-1);
-    } else if (newDay >= 1 && newDay <= maxDay) {
-      setSelectedDay(newDay);
-    }
-  };
+  // Adım mantığı src/utils/datePicker.ts içinde saf fonksiyonlar olarak durur
+  // ve orada test edilir; burada yalnız state'e bağlanır.
+  const changeYear = (increment: number) => setPicker(prev => stepYear(prev, increment));
+  const changeMonth = (increment: number) => setPicker(prev => stepMonth(prev, increment));
+  const changeDay = (increment: number) => setPicker(prev => stepDay(prev, increment));
 
   const handleSave = () => {
-    const month = String(selectedMonth).padStart(2, '0');
-    const day = String(selectedDay).padStart(2, '0');
-    const dateStr = `${selectedYear}-${month}-${day}`;
-    onSelectDate(dateStr);
+    onSelectDate(toDateString(selectedYear, selectedMonth, selectedDay));
     onClose();
   };
 

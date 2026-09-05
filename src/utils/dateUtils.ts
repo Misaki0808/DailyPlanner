@@ -44,6 +44,31 @@ export const addDays = (dateString: string, days: number): string => {
 };
 
 /**
+ * Verilen ayın kaç gün çektiğini döndürür (month: 1-12)
+ */
+export const getDaysInMonth = (year: number, month: number): number => {
+  return new Date(year, month, 0).getDate();
+};
+
+/**
+ * Günü, ayın gerçek uzunluğuna kırpar.
+ * 31 Ocak'tan Şubat'a geçerken günün 31 kalıp "2026-02-31" gibi
+ * var olmayan bir tarih üretmesini engeller.
+ */
+export const clampDayToMonth = (year: number, month: number, day: number): number => {
+  return Math.min(Math.max(day, 1), getDaysInMonth(year, month));
+};
+
+/**
+ * Yıl/ay/gün üçlüsünü YYYY-MM-DD'ye çevirir.
+ * Gün ayın uzunluğuna kırpıldığı için sonuç her zaman geçerli bir takvim günüdür.
+ */
+export const toDateString = (year: number, month: number, day: number): string => {
+  const safeDay = clampDayToMonth(year, month, day);
+  return `${year}-${String(month).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
+};
+
+/**
  * Tarihi güzel formatta gösterir (örn: "24 Aralık 2025")
  */
 export const formatDateDisplay = (dateString: string): string => {

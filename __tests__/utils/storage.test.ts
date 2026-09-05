@@ -82,5 +82,32 @@ describe('storage utility', () => {
       expect(allPlans[mockDate]).toEqual(mockTasks);
       expect(allPlans['2025-05-31']).toEqual([mockTasks[0]]);
     });
+
+    // Regresyon (R-007): JSON.parse döngü içindeydi ama try/catch dıştaydı.
+    // Tek bir bozuk gün tüm fonksiyonun {} döndürmesine yol açıyor, kullanıcı
+    // sağlam planlarını da göremiyordu.
+    it('bozuk tek bir kayıt diğer planları düşürmez', async () => {
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        await savePlan(mockDate, mockTasks);
+        await savePlan('2025-05-31', [mockTasks[0]]);
+        await AsyncStorage.setItem('@dp_plan_2025-06-01', '{bozuk-json');
+
+        const allPlans = await getAllPlans();
+
+        expect(allPlans[mockDate]).toEqual(mockTasks);
+        expect(allPlans['2025-05-31']).toEqual([mockTasks[0]]);
+        expect(allPlans['2025-06-01']).toBeUndefined();
+        expect(errorSpy).toHaveBeenCalled();
+      } finally {
+        errorSpy.mockRestore();
+      }
+    });
+
+    it('dizi olmayan bir kaydı boş listeye çevirir', async () => {
+      await AsyncStorage.setItem('@dp_plan_2025-06-02', '{"gorevler":[]}');
+      const allPlans = await getAllPlans();
+      expect(allPlans['2025-06-02']).toEqual([]);
+    });
   });
 });

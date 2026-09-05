@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { AppState as ReactNativeAppState } from 'react-native';
 import * as storage from '../utils/storage';
-import { getToday } from '../utils/dateUtils';
+import { clampDayToMonth, getToday } from '../utils/dateUtils';
+import { defaultSettings } from '../utils/defaultSettings';
 import { requestNotificationPermissions, scheduleDailySummaryNotification } from '../utils/notificationService';
 import { useUserStore } from './userStore';
 import { useSettingsStore } from './settingsStore';
-import { usePlansStore } from './plansStore';
+import { usePlansStore, requestDailyPlannerWidgetUpdate } from './plansStore';
 import { usePomodoroStore } from './pomodoroStore';
 import { useRecurringStore } from './recurringStore';
 import { backupToCloudSilently, fetchCloudBackupRecord } from '../hooks/useCloudSync';
@@ -62,8 +63,12 @@ export const syncRecurringForToday = async ({ force = false }: SyncRecurringOpti
     else if (rt.frequency === 'weekly') {
       if (rt.weekDays && rt.weekDays.includes(dayOfWeek)) shouldAdd = true;
       else if (rt.weekDay !== undefined && rt.weekDay === dayOfWeek) shouldAdd = true;
-    } else if (rt.frequency === 'monthly' && rt.monthDay === dayOfMonth) {
-      shouldAdd = true;
+    } else if (rt.frequency === 'monthly' && rt.monthDay) {
+      // Hedef gün ayın uzunluğuna kırpılır. Arayüz 31'e kadar seçime izin
+      // veriyor; tam eşitlik arandığında "her ayın 31'i" Şubat, Nisan,
+      // Haziran, Eylül ve Kasım'da hiç tetiklenmiyordu.
+      const targetDay = clampDayToMonth(dateObj.getFullYear(), dateObj.getMonth() + 1, rt.monthDay);
+      if (targetDay === dayOfMonth) shouldAdd = true;
     }
 
     if (shouldAdd) {
@@ -107,12 +112,21 @@ const registerAppStateListeners = () => {
       const today = getToday();
       if (lastObservedDate === today) return;
 
-      lastObservedDate = today;
       try {
         await syncRecurringForToday();
+        // Bayrak yalnız sync BAŞARILI olduğunda ilerletilir. Önceden önce
+        // ilerletiliyordu; sync hata verirse koruma bir daha çalışmasına izin
+        // vermiyor ve tekrarlayan görevler uygulama tamamen kapanana kadar
+        // hiç eklenmiyordu.
+        lastObservedDate = today;
       } catch (error) {
         console.warn('Recurring sync on app foreground failed:', error);
       }
+
+      // Gün değişti: widget dünün planını göstermeye devam etmesin. Widget
+      // yalnız plan yazıldığında ve 30 dakikada bir kendiliğinden yenileniyor;
+      // o gün hiç plan değişmezse gece yarısı geçişi widget'a yansımıyordu.
+      await requestDailyPlannerWidgetUpdate();
       return;
     }
 
@@ -140,8 +154,6 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   },
   initializeApp: async () => {
     try {
-      await storage.cleanOldPlans(90);
-
       // We read everything from storage
       const [
         savedPlans,
@@ -172,23 +184,42 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       useRecurringStore.getState()._hydrate(savedRecurring);
       usePomodoroStore.getState()._hydrate(savedPomodoro);
 
+      // Eski plan temizliği artık AYARLARA BAĞLI ve varsayılan olarak KAPALI.
+      // Önceden her açılışta koşulsuz çalışıp 90 günden eski tüm planları
+      // uyarısız, geri alınamaz biçimde siliyordu; İstatistikler ekranı bu
+      // geçmişe dayandığı için veri sessizce eriyordu. Ayarlar okunduktan
+      // SONRA çalıştırılır, aksi halde kullanıcının tercihi bilinemez.
+      if (savedSettings.autoCleanOldPlans) {
+        const removed = await storage.cleanOldPlans(savedSettings.autoCleanThresholdDays);
+        if (removed) {
+          const refreshed = await storage.getAllPlans();
+          usePlansStore.getState()._hydrate(refreshed);
+        }
+      }
+
       // Notification setup
       if (savedSettings?.notificationsEnabled) {
         const hasPermission = await requestNotificationPermissions();
         if (hasPermission) {
-          const [h, m] = (savedSettings.notificationTime || '20:00').split(':').map(Number);
+          const [h, m] = (savedSettings.notificationTime || defaultSettings.notificationTime).split(':').map(Number);
           await scheduleDailySummaryNotification(h, m);
         }
       }
 
       registerAppStateListeners();
       await syncRecurringForToday();
-      await get().checkCloudBackupStatus();
 
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
     } finally {
       set({ isLoading: false });
     }
+
+    // Bulut durumu açılışı BLOKLAMAMALI. Sonuç yalnız store'da tutuluyor ve
+    // ekranlar tarafından okunmuyor; buna karşılık zinciri (oturum -> profil
+    // upsert -> household -> yedek kaydı) supabase-js'in fetch zaman aşımı
+    // olmadığı için yavaş ağda "Yükleniyor..." ekranını dakikalarca açık
+    // tutabiliyordu. Artık arka planda, isLoading kapandıktan sonra çalışır.
+    get().checkCloudBackupStatus();
   }
 }));

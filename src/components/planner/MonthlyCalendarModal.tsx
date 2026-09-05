@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import { View, StyleSheet, Modal, TouchableWithoutFeedback } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { useApp } from '../../context/AppContext';
+import { usePlansContext, useTheme } from '../../context/AppContext';
 import { getCategoryColor } from '../../utils/categories';
 
 // Takvim Türkçe Dil Ayarları
@@ -25,7 +25,8 @@ interface MonthlyCalendarModalProps {
 }
 
 export default function MonthlyCalendarModal({ visible, onClose, selectedDate, onSelectDate }: MonthlyCalendarModalProps) {
-  const { plans, theme } = useApp();
+  const { plans } = usePlansContext();
+  const theme = useTheme();
 
   // Takvimde gösterilecek renkli noktaları (dots) plans objesinden hesapla
   const markedDates = useMemo(() => {
@@ -71,6 +72,9 @@ export default function MonthlyCalendarModal({ visible, onClose, selectedDate, o
                 }}
                 markingType={'multi-dot'}
                 markedDates={markedDates}
+                // Türkiye'de hafta Pazartesi başlar; esnek görev haftası da
+                // (MultiDayViewScreen) Pazartesi'ye göre hesaplanıyor.
+                firstDay={1}
                 theme={{
                   backgroundColor: theme.background,
                   calendarBackground: theme.background,

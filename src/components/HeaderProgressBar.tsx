@@ -12,9 +12,6 @@ export const HeaderProgressBar = () => {
   
   if (todayTasks.length === 0) return null;
 
-  const completedCount = todayTasks.filter((t: Task) => t.done).length;
-  const totalCount = todayTasks.length;
-  
   // Yüzdelik hesaplama (priority'ye göre ağırlıklı)
   const totalWeight = todayTasks.reduce((sum: number, task: Task) => {
     const weight = task.priority === 'high' ? 3 : task.priority === 'medium' ? 2 : 1;
