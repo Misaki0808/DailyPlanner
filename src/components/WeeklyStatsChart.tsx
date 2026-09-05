@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Task } from '../types';
-import { formatDate } from '../utils/dateUtils';
+import { buildWeeklyStats } from '../utils/weeklyStats';
 import { useApp } from '../context/AppContext';
 
 interface WeeklyStatsChartProps {
@@ -12,35 +12,7 @@ interface WeeklyStatsChartProps {
 export default function WeeklyStatsChart({ plans }: WeeklyStatsChartProps) {
     const { theme } = useApp();
 
-    const chartData = useMemo(() => {
-        const today = new Date();
-        const data = [];
-
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
-
-            // Planlar YEREL tarihe göre anahtarlanır; toISOString() UTC'ye
-            // kaydığı için çubuklar komşu günün verisini gösteriyordu.
-            const dateString = formatDate(date);
-            const dayName = new Intl.DateTimeFormat('tr-TR', { weekday: 'short' }).format(date);
-
-            const dayTasks = plans[dateString] || [];
-            const total = dayTasks.length;
-            const completed = dayTasks.filter(t => t.done).length;
-            const percentage = total > 0 ? (completed / total) * 100 : 0;
-
-            data.push({
-                dayName,
-                total,
-                completed,
-                percentage,
-                isToday: i === 0,
-            });
-        }
-
-        return data;
-    }, [plans]);
+    const chartData = useMemo(() => buildWeeklyStats(plans), [plans]);
 
     const MAX_HEIGHT = 120;
 
