@@ -10,7 +10,8 @@
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run typecheck && npm run lint && npm test"
+    "verify": "npm run typecheck && npm run lint && npm test",
+    "bundle-check": "expo export --platform web --output-dir dist/bundle-check"
   },
   "jest": {
     "preset": "jest-expo",
