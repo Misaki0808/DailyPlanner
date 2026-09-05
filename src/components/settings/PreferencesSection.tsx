@@ -101,7 +101,9 @@ export default function PreferencesSection({
         // Zustand state'lerini sıfırla
         useUserStore.setState({ username: null, gender: 'male', aboutMe: '' });
         usePlansStore.setState({ plans: {} });
-        useSettingsStore.setState({ settings: defaultSettings, theme: getTheme(defaultSettings.darkMode) });
+        // Kopya konur: paylaşılan modül nesnesinin referansı store'a bağlanırsa
+        // ileride yerinde bir mutasyon fabrika ayarlarını kalıcı olarak bozar.
+        useSettingsStore.setState({ settings: { ...defaultSettings }, theme: getTheme(defaultSettings.darkMode) });
         usePomodoroStore.setState({ pomodoroStats: {} });
         useRecurringStore.setState({ recurringTasks: [] });
         

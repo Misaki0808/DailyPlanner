@@ -57,12 +57,20 @@ export const getAllPlans = async (): Promise<Plans> => {
     const plans: Plans = {};
     
     keyValuePairs.forEach(([key, value]) => {
-      if (value) {
-        const date = key.replace(STORAGE_KEYS.PLAN_PREFIX, '');
-        plans[date] = JSON.parse(value);
+      if (!value) return;
+      const date = key.replace(STORAGE_KEYS.PLAN_PREFIX, '');
+      // Parse KAYIT BAŞINA korunur. Tek bir bozuk gün (yarım yazma, disk
+      // hatası) daha önce dıştaki catch'i tetikleyip {} döndürüyor, kullanıcı
+      // tüm plan geçmişini kaybetmiş gibi boş ekran görüyordu. Artık yalnız
+      // bozuk gün atlanır, kalan günler normal yüklenir.
+      try {
+        const parsed = JSON.parse(value);
+        plans[date] = Array.isArray(parsed) ? parsed : [];
+      } catch (parseError) {
+        console.error(`Bozuk plan kaydı atlandı: ${date}`, parseError);
       }
     });
-    
+
     return plans;
   } catch (error) {
     console.error('Planlar okunurken hata:', error);

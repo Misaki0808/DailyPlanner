@@ -1,4 +1,5 @@
 import { getCurrentUser, HouseholdMember, HouseholdWithMembers, isSupabaseConfigured, supabase } from './supabase';
+import { normalizeInviteCode } from '../utils/normalize';
 
 const INVITE_CODE_LENGTH = 6;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -11,7 +12,6 @@ const generateInviteCode = () => {
   return code;
 };
 
-const normalizeInviteCode = (code: string) => code.trim().toLocaleUpperCase('tr-TR');
 
 const fetchHouseholdById = async (householdId: string): Promise<HouseholdWithMembers | null> => {
   if (!isSupabaseConfigured || !supabase) return null;

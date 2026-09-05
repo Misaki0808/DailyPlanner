@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, Session, SupabaseClient, User } from '@supabase/supabase-js';
 import { Plans, RecurringTask, Settings, Gender } from '../types';
+import { normalizeEmail } from '../utils/normalize';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -66,7 +67,6 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
 
 const getConfiguredClient = () => supabase;
 
-const normalizeEmail = (email: string) => email.trim().toLocaleLowerCase('tr-TR');
 
 export async function signInWithEmailOtp(email: string): Promise<boolean> {
   const client = getConfiguredClient();

@@ -14,7 +14,9 @@ export const defaultSettings: Settings = {
   pomodoroFocusTime: 25,
   pomodoroShortBreak: 5,
   pomodoroLongBreak: 15,
-  pomodoroSoundEnabled: true,
+  // Onaylanmış ürün panosu gereği KAPALI gelir (task.md 3.5 "Varsayılan: KAPALI"
+  // ve öncelik tablosu satır 9). Kullanıcı ayarlardan açar.
+  pomodoroSoundEnabled: false,
 };
 
 /**
