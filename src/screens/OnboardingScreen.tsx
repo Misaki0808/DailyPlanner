@@ -5,17 +5,13 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Dimensions,
   Animated,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUserContext, useSettingsContext } from '../context/AppContext';
 import { Gender } from '../types';
-
-const { width, height } = Dimensions.get('window');
 
 const SLIDES = [
   {

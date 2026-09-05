@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Alert,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,7 +17,6 @@ import { getCategoryEmoji, getCategoryLabel, getCategoryColor } from '../utils/c
 interface AnimatedTaskItemProps {
   task: Task;
   index: number;
-  totalCount?: number;
   isEditMode: boolean;
   onToggleDone: () => void;
   onChangePriority: () => void;
@@ -30,7 +28,6 @@ interface AnimatedTaskItemProps {
 export default function AnimatedTaskItem({
   task,
   index,
-  totalCount = 0,
   isEditMode,
   onToggleDone,
   onChangePriority,
@@ -38,7 +35,7 @@ export default function AnimatedTaskItem({
   onNoteEdit,
   onToggleSubtask,
 }: AnimatedTaskItemProps) {
-  const { settings, theme } = useApp();
+  const { theme } = useApp();
   const [showNoteModal, setShowNoteModal] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;

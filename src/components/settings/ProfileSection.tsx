@@ -47,6 +47,7 @@ export default function ProfileSection({
       await onSaveUsername(nameInput.trim());
       setIsEditing(false);
     } catch (error) {
+      console.error('İsim kaydedilirken hata:', error);
       Alert.alert('Hata', 'İsim kaydedilemedi');
     }
   };

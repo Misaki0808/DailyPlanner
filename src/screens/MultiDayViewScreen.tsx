@@ -10,7 +10,6 @@ import {
   Share,
   TextInput,
   Animated as RNAnimated,
-  Keyboard,
   Modal,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -41,7 +40,7 @@ let RNShare: any = null;
 if (Platform.OS !== 'web') {
   try {
     RNShare = require('react-native-share').default;
-  } catch (e) {
+  } catch {
     // react-native-share not available on web
   }
 }
@@ -67,7 +66,7 @@ const inferCategoryForFlexibleTask = (title: string, explicitCategory?: string) 
 };
 
 export default function MultiDayViewScreen() {
-  const { plans, updateTask, savePlan, deletePlan } = usePlansContext();
+  const { plans, savePlan, deletePlan } = usePlansContext();
   const { settings, theme } = useSettingsContext();
   const { recurringTasks } = useRecurringContext();
   const [selectedDate, setSelectedDate] = useState(getToday());
@@ -430,6 +429,7 @@ export default function MultiDayViewScreen() {
         window.alert('❌ Kopyalama desteklenmiyor');
       }
     } catch (error) {
+      console.error('Panoya kopyalama hatası:', error);
       window.alert('❌ Kopyalama başarısız');
     }
   };
@@ -594,7 +594,6 @@ export default function MultiDayViewScreen() {
                 <AnimatedTaskItem
                   task={item}
                   index={getIndex() || 0}
-                  totalCount={currentTasks.length}
                   isEditMode={isEditMode}
                   onToggleDone={() => toggleTaskDone(item.id, item.done)}
                   onChangePriority={() => handleChangePriority(item.id)}

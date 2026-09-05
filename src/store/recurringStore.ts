@@ -3,7 +3,6 @@ import { RecurringTask } from '../types';
 import * as storage from '../utils/storage';
 import { generateId, getToday } from '../utils/dateUtils';
 import { persistOrNotify } from '../utils/persistence';
-import { usePlansStore } from './plansStore';
 
 interface RecurringState {
   recurringTasks: RecurringTask[];

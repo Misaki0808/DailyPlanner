@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     TouchableWithoutFeedback,
     ScrollView,
-    useWindowDimensions,
 } from 'react-native';
 import { useDrawer } from '../context/DrawerContext';
 import { useApp } from '../context/AppContext';
@@ -49,7 +48,6 @@ function MenuItem({ label, icon, onPress, isActive, theme }: MenuItemProps) {
 export default function JSDrawer({ children }: { children: React.ReactNode }) {
     const { isDrawerOpen, closeDrawer } = useDrawer();
     const { username, gender, theme } = useApp();
-    const { width: screenWidth } = useWindowDimensions();
 
     // Animasyon değeri: 0 (kapalı) -> 1 (açık)
     const animValue = useRef(new Animated.Value(0)).current;

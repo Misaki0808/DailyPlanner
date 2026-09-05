@@ -128,6 +128,7 @@ export const getScheduledNotifications = async () => {
   try {
     return await Notifications.getAllScheduledNotificationsAsync();
   } catch (e) {
+    console.log('Planlı bildirimler okunamadı:', e);
     return [];
   }
 };

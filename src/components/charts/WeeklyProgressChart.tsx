@@ -3,7 +3,6 @@ import { View, Text, StyleSheet } from 'react-native';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
 import { useApp } from '../../context/AppContext';
 import { buildWeeklyStats } from '../../utils/weeklyStats';
-import { Task } from '../../types';
 
 export default function WeeklyProgressChart() {
   const { plans, theme } = useApp();

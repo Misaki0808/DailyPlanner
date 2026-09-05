@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import { View, StyleSheet, Modal, TouchableWithoutFeedback } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { useApp } from '../../context/AppContext';
 import { getCategoryColor } from '../../utils/categories';

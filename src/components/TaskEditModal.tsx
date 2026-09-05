@@ -13,7 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/AppContext';
 import { Task, Subtask } from '../types';
-import { TASK_CATEGORIES, getCategoryById } from '../utils/categories';
+import { TASK_CATEGORIES } from '../utils/categories';
 import { generateId } from '../utils/dateUtils';
 
 interface TaskEditModalProps {

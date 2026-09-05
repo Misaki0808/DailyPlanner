@@ -2,18 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
   ScrollView,
   Alert,
-  Platform,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { LinearGradient } from 'expo-linear-gradient';
-import { usePlansContext, useSettingsContext, useRecurringContext, useUserContext } from '../context/AppContext';
+import { usePlansContext, useSettingsContext, useUserContext } from '../context/AppContext';
 import { formatDateDisplay, generateId } from '../utils/dateUtils';
 import { findFirstEmptyDate } from '../utils/planUtils';
 import { Task } from '../types';
@@ -32,7 +29,6 @@ import { styles } from './styles/CreatePlanScreen.styles';
 export default function CreatePlanScreen() {
   const { plans, savePlan } = usePlansContext();
   const { settings, theme } = useSettingsContext();
-  const { recurringTasks } = useRecurringContext();
   const { aboutMe } = useUserContext();
   const themed = createSharedStyles(theme);
 
@@ -118,6 +114,7 @@ export default function CreatePlanScreen() {
       setSavedDate(selectedDate);
       setShowSuccessModal(true);
     } catch (error) {
+      console.error('Plan kaydedilirken hata:', error);
       Toast.show({ type: 'error', text1: 'Hata', text2: 'Plan kaydedilemedi' });
     } finally {
       setIsSaving(false);
@@ -228,6 +225,7 @@ export default function CreatePlanScreen() {
         }
       } catch (e) {
         // Alarm kurulamazsa sadece görev başarı mesajı göster
+        console.warn('Alarm kurulamadı:', e);
         Toast.show({
           type: 'success',
           text1: usedFallback ? 'Basit ayrıştırma' : 'Başarılı',

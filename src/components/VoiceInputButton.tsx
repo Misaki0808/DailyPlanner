@@ -7,7 +7,6 @@ import {
     Alert,
     Animated,
     View,
-    ActivityIndicator,
 } from 'react-native';
 import { correctTranscriptLocal } from '../utils/voiceParser';
 
@@ -50,7 +49,7 @@ let ExpoSpeechRecognitionModule: { addListener: (event: string, cb: (event: { re
 if (Platform.OS !== 'web') {
     try {
         ExpoSpeechRecognitionModule = require('expo-speech-recognition').ExpoSpeechRecognitionModule;
-    } catch (e) {
+    } catch {
         // Native module not found (e.g. running in Expo Go instead of custom dev client)
     }
 }
@@ -63,8 +62,6 @@ interface VoiceInputButtonProps {
 
 export default function VoiceInputButton({ onTranscript, disabled, mode = 'paragraph' }: VoiceInputButtonProps) {
     const [isListening, setIsListening] = useState(false);
-    const [isCorrecting, setIsCorrecting] = useState(false);
-    const [isSupported, setIsSupported] = useState(false);
     const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
     const finalTranscriptRef = useRef('');
     const isListeningRef = useRef(false);
@@ -95,16 +92,6 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         const corrected = correctTranscriptLocal(rawText);
         onTranscript(corrected, true);
     };
-
-    useEffect(() => {
-        if (Platform.OS === 'web') {
-            const SR = getWebSpeechRecognition();
-            setIsSupported(!!SR);
-        } else {
-            // Native is supported via expo-speech-recognition
-            setIsSupported(true);
-        }
-    }, []);
 
     // --- Native Speech Recognition Events ---
     useEffect(() => {
@@ -264,23 +251,15 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
             <TouchableOpacity
                 onPress={toggleListening}
-                disabled={disabled || isCorrecting}
+                disabled={disabled}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityState={{ disabled: disabled || isCorrecting }}
+                accessibilityState={{ disabled: Boolean(disabled) }}
                 accessibilityLabel={isListening ? 'Sesli girişi durdur' : 'Sesli giriş başlat'}
                 accessibilityHint="Konuştuklarınız görev metnine yazılır"
             >
-                <View style={[
-                    styles.button,
-                    isListening && styles.buttonActive,
-                    isCorrecting && styles.buttonCorrecting,
-                ]}>
-                    {isCorrecting ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                        <Text style={styles.icon}>{isListening ? '⏹' : '🎤'}</Text>
-                    )}
+                <View style={[styles.button, isListening && styles.buttonActive]}>
+                    <Text style={styles.icon}>{isListening ? '⏹' : '🎤'}</Text>
                 </View>
             </TouchableOpacity>
         </Animated.View>
@@ -298,9 +277,6 @@ const styles = StyleSheet.create({
     },
     buttonActive: {
         backgroundColor: 'rgba(245, 87, 108, 0.8)',
-    },
-    buttonCorrecting: {
-        backgroundColor: 'rgba(102, 126, 234, 0.6)',
     },
     icon: {
         fontSize: 18,

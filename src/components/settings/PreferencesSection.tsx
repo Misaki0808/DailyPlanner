@@ -146,6 +146,7 @@ export default function PreferencesSection({
           Alert.alert('Sıfırlandı!', 'Tüm verilerin başarıyla silindi ve uygulama ilk haline döndü.');
         }
       } catch (error) {
+        console.error('Veriler sıfırlanırken hata:', error);
         if (Platform.OS === 'web') {
           window.alert('Hata: Veriler sıfırlanırken hata oluştu.');
         } else {

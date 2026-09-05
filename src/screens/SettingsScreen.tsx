@@ -24,6 +24,7 @@ export default function SettingsScreen() {
     try {
       await setGender(newGender);
     } catch (error) {
+      console.error('Profil resmi değiştirilirken hata:', error);
       Alert.alert('Hata', 'Profil resmi değiştirilemedi');
     }
   };

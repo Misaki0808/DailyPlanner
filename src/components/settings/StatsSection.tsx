@@ -19,7 +19,7 @@ import { useTheme, usePomodoroContext, useSettingsContext } from '../../context/
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
-import { getCategoryLabel, TASK_CATEGORIES, getCategoryColor, getCategoryEmoji } from '../../utils/categories';
+import { getCategoryLabel, TASK_CATEGORIES } from '../../utils/categories';
 
 interface StatsSectionProps {
   plans: Plans;

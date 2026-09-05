@@ -203,7 +203,9 @@ export function usePomodoroTimer() {
         await Notifications.cancelScheduledNotificationAsync(notificationIdRef.current);
         notificationIdRef.current = null;
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Zamanlayıcı bildirimi iptal edilemedi:', e);
+    }
   };
 
   useEffect(() => {

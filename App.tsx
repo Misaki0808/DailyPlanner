@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator, StackNavigationOptions } from '@react-navigation/stack';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider, useApp, useSettingsContext, useUserContext } from './src/context/AppContext';
