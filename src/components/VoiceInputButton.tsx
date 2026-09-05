@@ -36,6 +36,9 @@ interface SpeechRecognitionInstance {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
+// Uygulama Türkçe; web ve native tanıma aynı dili kullanmalı.
+const SPEECH_LANG = 'tr-TR';
+
 // Web window üzerinde SpeechRecognition erişimi
 const getWebSpeechRecognition = (): SpeechRecognitionConstructor | null => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
@@ -64,7 +67,29 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
     const [isSupported, setIsSupported] = useState(false);
     const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
     const finalTranscriptRef = useRef('');
+    const isListeningRef = useRef(false);
     const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        isListeningRef.current = isListening;
+    }, [isListening]);
+
+    // Dinleme sürerken ekrandan çıkılırsa mikrofon açık kalmasın
+    useEffect(() => {
+        return () => {
+            if (!isListeningRef.current) return;
+            try {
+                if (Platform.OS === 'web') {
+                    recognitionRef.current?.stop();
+                    recognitionRef.current = null;
+                } else {
+                    ExpoSpeechRecognitionModule?.stop();
+                }
+            } catch {
+                // Tanıma zaten durmuş olabilir
+            }
+        };
+    }, []);
 
     const emitFinalTranscript = (rawText: string) => {
         const corrected = correctTranscriptLocal(rawText);
@@ -138,10 +163,14 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         if (!SR) return;
 
         const recognition = new SR();
+        recognition.lang = SPEECH_LANG;
         recognition.interimResults = true;
         recognition.continuous = true;
         recognition.maxAlternatives = 1;
 
+        // Önceki oturumdan kalan metin yeni oturumun sonunda tekrar
+        // gönderilmesin diye sıfırlanır (native tarafla aynı davranış).
+        finalTranscriptRef.current = '';
         let finalTranscript = '';
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -194,7 +223,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
             setIsListening(true);
             finalTranscriptRef.current = '';
             ExpoSpeechRecognitionModule.start({
-                lang: 'tr-TR',
+                lang: SPEECH_LANG,
                 interimResults: true,
                 maxAlternatives: 1,
                 continuous: true,
