@@ -146,6 +146,7 @@ export const saveUserName = async (name: string) => {
     await AsyncStorage.setItem(STORAGE_KEYS.USER_NAME, name);
     return true;
   } catch (error) {
+    console.error('Kullanıcı adı kaydedilirken hata:', error);
     return false;
   }
 };
@@ -154,6 +155,7 @@ export const getUserName = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem(STORAGE_KEYS.USER_NAME);
   } catch (error) {
+    console.error('Kullanıcı adı okunurken hata:', error);
     return null;
   }
 };
@@ -163,6 +165,7 @@ export const saveGender = async (gender: 'male' | 'female') => {
     await AsyncStorage.setItem(STORAGE_KEYS.GENDER, gender);
     return true;
   } catch (error) {
+    console.error('Profil kaydedilirken hata:', error);
     return false;
   }
 };
@@ -172,6 +175,7 @@ export const getGender = async (): Promise<'male' | 'female'> => {
     const gender = await AsyncStorage.getItem(STORAGE_KEYS.GENDER);
     return gender === 'female' ? 'female' : 'male';
   } catch (error) {
+    console.error('Profil okunurken hata:', error);
     return 'male';
   }
 };
@@ -181,6 +185,7 @@ export const saveSettings = async (settings: Settings) => {
     await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
     return true;
   } catch (error) {
+    console.error('Ayarlar kaydedilirken hata:', error);
     return false;
   }
 };
@@ -191,6 +196,7 @@ export const getSettings = async (): Promise<Settings> => {
     if (settingsJson === null) return { ...defaultSettings };
     return withSettingsDefaults(JSON.parse(settingsJson));
   } catch (error) {
+    console.error('Ayarlar okunurken hata, varsayılanlara dönülüyor:', error);
     return { ...defaultSettings };
   }
 };
@@ -200,6 +206,7 @@ export const getRecurringTasks = async (): Promise<RecurringTask[]> => {
     const json = await AsyncStorage.getItem(STORAGE_KEYS.RECURRING_TASKS);
     return json ? JSON.parse(json) : [];
   } catch (error) {
+    console.error('Tekrarlayan görevler okunurken hata:', error);
     return [];
   }
 };
@@ -209,6 +216,7 @@ export const saveRecurringTasks = async (tasks: RecurringTask[]) => {
     await AsyncStorage.setItem(STORAGE_KEYS.RECURRING_TASKS, JSON.stringify(tasks));
     return true;
   } catch (error) {
+    console.error('Tekrarlayan görevler kaydedilirken hata:', error);
     return false;
   }
 };
@@ -235,6 +243,7 @@ export const clearAllData = async () => {
     await AsyncStorage.clear();
     return true;
   } catch (error) {
+    console.error('Veriler silinirken hata:', error);
     return false;
   }
 };
@@ -292,6 +301,7 @@ export const saveAboutMe = async (text: string): Promise<boolean> => {
     await AsyncStorage.setItem(STORAGE_KEYS.ABOUT_ME, text);
     return true;
   } catch (error) {
+    console.error('Hakkımda kaydedilirken hata:', error);
     return false;
   }
 };
@@ -300,6 +310,7 @@ export const getAboutMe = async (): Promise<string> => {
   try {
     return (await AsyncStorage.getItem(STORAGE_KEYS.ABOUT_ME)) || '';
   } catch (error) {
+    console.error('Hakkımda okunurken hata:', error);
     return '';
   }
 };
@@ -309,6 +320,7 @@ export const getPomodoroStats = async (): Promise<Record<string, number>> => {
     const json = await AsyncStorage.getItem(STORAGE_KEYS.POMODORO_STATS);
     return json ? JSON.parse(json) : {};
   } catch (error) {
+    console.error('Pomodoro istatistikleri okunurken hata:', error);
     return {};
   }
 };
@@ -318,6 +330,7 @@ export const savePomodoroStats = async (stats: Record<string, number>) => {
     await AsyncStorage.setItem(STORAGE_KEYS.POMODORO_STATS, JSON.stringify(stats));
     return true;
   } catch (error) {
+    console.error('Pomodoro istatistikleri kaydedilirken hata:', error);
     return false;
   }
 };
