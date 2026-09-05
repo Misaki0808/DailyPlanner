@@ -59,7 +59,7 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
             duration: 300,
             useNativeDriver: true,
         }).start();
-    }, [isDrawerOpen]);
+    }, [isDrawerOpen, animValue]);
 
     const translateX = animValue.interpolate({
         inputRange: [0, 1],

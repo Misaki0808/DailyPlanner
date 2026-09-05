@@ -63,7 +63,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         Animated.timing(floatAnim, { toValue: 0, duration: 1500, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [floatAnim]);
 
   const isSlidePhase = currentSlide < SLIDES.length;
   const isNamePhase = currentSlide === SLIDES.length;

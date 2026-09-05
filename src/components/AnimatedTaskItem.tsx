@@ -60,7 +60,7 @@ export default function AnimatedTaskItem({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [task.id]);
+  }, [task.id, index, fadeAnim, scaleAnim]);
 
   const priorityColor =
     task.priority === 'high' ? theme.priorityHigh :

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     TouchableOpacity,
     Text,
@@ -88,10 +88,10 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         };
     }, []);
 
-    const emitFinalTranscript = (rawText: string) => {
+    const emitFinalTranscript = useCallback((rawText: string) => {
         const corrected = correctTranscriptLocal(rawText);
         onTranscript(corrected, true);
-    };
+    }, [onTranscript]);
 
     // --- Native Speech Recognition Events ---
     useEffect(() => {
@@ -125,7 +125,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
             endSub.remove();
             errorSub.remove();
         };
-    }, [mode, onTranscript]);
+    }, [mode, onTranscript, emitFinalTranscript]);
     // ----------------------------------------
 
     useEffect(() => {
@@ -141,7 +141,7 @@ export default function VoiceInputButton({ onTranscript, disabled, mode = 'parag
         } else {
             pulseAnim.setValue(1);
         }
-    }, [isListening]);
+    }, [isListening, pulseAnim]);
 
     const startListening = () => {
         if (Platform.OS !== 'web') return;

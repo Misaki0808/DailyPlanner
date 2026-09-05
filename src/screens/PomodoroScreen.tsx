@@ -160,7 +160,7 @@ export default function PomodoroScreen() {
     } else {
       Animated.timing(glowAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start();
     }
-  }, [timer.isRunning]);
+  }, [timer.isRunning, glowAnim]);
 
   // ─── Session dot heartbeat ───
   useEffect(() => {
@@ -174,7 +174,7 @@ export default function PomodoroScreen() {
     } else {
       sessionDotPulse.setValue(1);
     }
-  }, [timer.isRunning, timer.mode]);
+  }, [timer.isRunning, timer.mode, sessionDotPulse]);
 
   // ─── Background gradient crossfade ─────────────
   useEffect(() => {
@@ -182,7 +182,7 @@ export default function PomodoroScreen() {
     Animated.parallel((Object.keys(map) as TimerMode[]).map((m) =>
       Animated.timing(map[m], { toValue: m === timer.mode ? 1 : 0, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
     )).start();
-  }, [timer.mode]);
+  }, [timer.mode, focusBgOpacity, shortBreakBgOpacity, longBreakBgOpacity]);
 
   // ─── Sliding indicator ──────────────
   useEffect(() => {
@@ -193,7 +193,7 @@ export default function PomodoroScreen() {
         Animated.spring(indicatorWidth, { toValue: layout.width, useNativeDriver: false, friction: 8, tension: 80 }),
       ]).start();
     }
-  }, [timer.mode, buttonLayouts]);
+  }, [timer.mode, buttonLayouts, indicatorLeft, indicatorWidth]);
 
   // ─── Animations for active elements ──────────────────────────────
   useEffect(() => {
@@ -203,7 +203,7 @@ export default function PomodoroScreen() {
     ]));
     activePulse.start();
     return () => activePulse.stop();
-  }, []);
+  }, [activeModePulse]);
 
   const bounceAndRun = (anim: Animated.Value, fn: () => void) => {
     Animated.sequence([
