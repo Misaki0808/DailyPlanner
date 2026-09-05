@@ -6,7 +6,7 @@ import { defaultSettings } from '../utils/defaultSettings';
 import { requestNotificationPermissions, scheduleDailySummaryNotification } from '../utils/notificationService';
 import { useUserStore } from './userStore';
 import { useSettingsStore } from './settingsStore';
-import { usePlansStore } from './plansStore';
+import { usePlansStore, requestDailyPlannerWidgetUpdate } from './plansStore';
 import { usePomodoroStore } from './pomodoroStore';
 import { useRecurringStore } from './recurringStore';
 import { backupToCloudSilently, fetchCloudBackupRecord } from '../hooks/useCloudSync';
@@ -122,6 +122,11 @@ const registerAppStateListeners = () => {
       } catch (error) {
         console.warn('Recurring sync on app foreground failed:', error);
       }
+
+      // Gün değişti: widget dünün planını göstermeye devam etmesin. Widget
+      // yalnız plan yazıldığında ve 30 dakikada bir kendiliğinden yenileniyor;
+      // o gün hiç plan değişmezse gece yarısı geçişi widget'a yansımıyordu.
+      await requestDailyPlannerWidgetUpdate();
       return;
     }
 

@@ -102,8 +102,17 @@ export async function signOut(): Promise<boolean> {
 
   const { error } = await client.auth.signOut();
   if (error) throw error;
+  lastEnsuredProfileUserId = null;
   return true;
 }
+
+/**
+ * En son profili yazılan kullanıcı. getSession; refresh, yedekleme, geri
+ * yükleme ve getCurrentUser üzerinden sık çağrılıyor ve her çağrı bir
+ * `profiles` upsert isteği üretiyordu. Profil yalnız oturum kimliği
+ * değiştiğinde yazılır.
+ */
+let lastEnsuredProfileUserId: string | null = null;
 
 export async function getSession(): Promise<Session | null> {
   const client = getConfiguredClient();
@@ -111,7 +120,15 @@ export async function getSession(): Promise<Session | null> {
 
   const { data, error } = await client.auth.getSession();
   if (error) throw error;
-  await ensureProfile(data.session?.user ?? null);
+
+  const user = data.session?.user ?? null;
+  if (!user) {
+    lastEnsuredProfileUserId = null;
+  } else if (user.id !== lastEnsuredProfileUserId) {
+    await ensureProfile(user);
+    lastEnsuredProfileUserId = user.id;
+  }
+
   return data.session;
 }
 

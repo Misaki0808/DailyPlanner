@@ -102,10 +102,17 @@ const splitParagraphIntoLocalTasks = (paragraph: string): ConvertParagraphResult
 /**
  * Otomatik tekrar deneme (retry) mekanizması ile API isteği atar.
  */
+/**
+ * Yalnız geçici hatalar yeniden denenir. 400/401/403 gibi kalıcı hatalarda
+ * (ör. geçersiz API anahtarı) tekrar denemek kullanıcıyı 1+2+4 saniye boşuna
+ * bekletiyor ve kotayı gereksiz tüketiyordu.
+ */
+const isRetryableStatus = (status: number) => status === 408 || status === 429 || status >= 500;
+
 const fetchWithRetry = async (url: string, options: RequestInit, retries = 3, backoff = 1000): Promise<Response> => {
   try {
     const response = await fetch(url, options);
-    if (!response.ok && retries > 0) {
+    if (!response.ok && retries > 0 && isRetryableStatus(response.status)) {
       console.warn(`API isteği ${response.status} hatası döndürdü. ${backoff}ms sonra tekrar deneniyor... (Kalan: ${retries})`);
       await new Promise(resolve => setTimeout(resolve, backoff));
       return fetchWithRetry(url, options, retries - 1, backoff * 2);

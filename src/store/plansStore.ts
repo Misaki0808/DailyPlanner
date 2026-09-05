@@ -15,7 +15,7 @@ const mapWidgetTasks = (tasks: Task[]) => tasks.map(t => ({
   priority: t.priority,
 }));
 
-const requestDailyPlannerWidgetUpdate = async () => {
+export const requestDailyPlannerWidgetUpdate = async () => {
   if (Platform.OS !== 'android') return;
 
   try {
