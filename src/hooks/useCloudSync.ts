@@ -16,8 +16,18 @@ const PLAN_PREFIX = '@dp_plan_';
 type BackupResult = {
   ok: boolean;
   record?: CloudBackupRecord | null;
-  reason?: 'not-configured' | 'not-signed-in' | 'not-paired' | 'no-backup' | 'error';
+  reason?: 'not-configured' | 'not-signed-in' | 'not-paired' | 'no-backup' | 'empty-local' | 'error';
   error?: unknown;
+};
+
+/** Yedeklenmeye değer bir kullanıcı verisi var mı? */
+export const hasUserData = (data?: CloudBackupData | null): boolean => {
+  if (!data) return false;
+  return (
+    Object.values(data.plans || {}).some(tasks => (tasks?.length || 0) > 0) ||
+    (data.recurringTasks?.length || 0) > 0 ||
+    Object.keys(data.pomodoroStats || {}).length > 0
+  );
 };
 
 const buildCloudBackupData = (): CloudBackupData => ({
@@ -34,13 +44,13 @@ const buildCloudBackupData = (): CloudBackupData => ({
 });
 
 const persistRestoredData = async (backup: CloudBackupData) => {
-  const planKeys = (await AsyncStorage.getAllKeys()).filter(key => key.startsWith(PLAN_PREFIX));
-  if (planKeys.length > 0) {
-    await AsyncStorage.multiRemove(planKeys);
-  }
+  const incomingPlans = backup.plans || {};
 
+  // ÖNCE yaz, SONRA yalnız yedekte bulunmayan eski günleri sil. Eskiden tüm
+  // plan anahtarları silinip ardından yazılıyordu; araya bir hata girerse
+  // cihazda hiç plan kalmıyordu.
   await Promise.all([
-    ...Object.entries(backup.plans || {}).map(([date, tasks]) => storage.savePlan(date, tasks)),
+    ...Object.entries(incomingPlans).map(([date, tasks]) => storage.savePlan(date, tasks)),
     storage.saveSettings(backup.settings),
     storage.saveRecurringTasks(backup.recurringTasks || []),
     backup.user?.username !== undefined && backup.user?.username !== null
@@ -50,6 +60,13 @@ const persistRestoredData = async (backup: CloudBackupData) => {
     backup.user?.aboutMe !== undefined ? storage.saveAboutMe(backup.user.aboutMe) : Promise.resolve(true),
     storage.savePomodoroStats(backup.pomodoroStats || {}),
   ]);
+
+  const incomingKeys = new Set(Object.keys(incomingPlans).map(date => `${PLAN_PREFIX}${date}`));
+  const staleKeys = (await AsyncStorage.getAllKeys())
+    .filter(key => key.startsWith(PLAN_PREFIX) && !incomingKeys.has(key));
+  if (staleKeys.length > 0) {
+    await AsyncStorage.multiRemove(staleKeys);
+  }
 };
 
 const hydrateStoresFromBackup = (backup: CloudBackupData) => {
@@ -85,7 +102,21 @@ export async function backupToCloudSilently(): Promise<BackupResult> {
     const household = await getMyHousehold();
     if (!household || !isHouseholdPaired(household)) return { ok: false, reason: 'not-paired' };
 
-    const success = await supabaseService.backupData(household.id, buildCloudBackupData());
+    const payload = buildCloudBackupData();
+
+    // Yedek, household başına TEK bir satırda tutuluyor ve son yazan kazanıyor.
+    // Bu yedekleme her arka plana geçişte otomatik tetiklendiği için, henüz
+    // geri yükleme yapmamış taze bir cihaz eşin aylarca birikmiş verisini
+    // uyarısız boş veriyle ezebiliyordu. Yerelde veri yokken bulutta veri
+    // varsa yazma yapılmaz.
+    if (!hasUserData(payload)) {
+      const existing = await supabaseService.restoreData(household.id);
+      if (hasUserData(existing?.data)) {
+        return { ok: false, reason: 'empty-local', record: existing };
+      }
+    }
+
+    const success = await supabaseService.backupData(household.id, payload);
     if (!success) return { ok: false, reason: 'error' };
 
     const record = await supabaseService.restoreData(household.id);
@@ -256,7 +287,10 @@ export const useCloudSync = () => {
     try {
       const result = await backupToCloudSilently();
       if (!result.ok) {
-        Toast.show({ type: 'error', text1: 'Yedekleme Başarısız', text2: 'Giriş ve eşleştirme durumunu kontrol edin.' });
+        const text2 = result.reason === 'empty-local'
+          ? 'Bu cihazda yedeklenecek veri yok. Buluttaki yedeğin üzerine yazılmadı; önce "Buluttan Geri Yükle" yapın.'
+          : 'Giriş ve eşleştirme durumunu kontrol edin.';
+        Toast.show({ type: 'error', text1: 'Yedekleme Yapılmadı', text2 });
         return false;
       }
 

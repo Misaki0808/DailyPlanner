@@ -192,12 +192,18 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
       registerAppStateListeners();
       await syncRecurringForToday();
-      await get().checkCloudBackupStatus();
 
     } catch (error) {
       console.error('Veri yükleme hatası:', error);
     } finally {
       set({ isLoading: false });
     }
+
+    // Bulut durumu açılışı BLOKLAMAMALI. Sonuç yalnız store'da tutuluyor ve
+    // ekranlar tarafından okunmuyor; buna karşılık zinciri (oturum -> profil
+    // upsert -> household -> yedek kaydı) supabase-js'in fetch zaman aşımı
+    // olmadığı için yavaş ağda "Yükleniyor..." ekranını dakikalarca açık
+    // tutabiliyordu. Artık arka planda, isLoading kapandıktan sonra çalışır.
+    get().checkCloudBackupStatus();
   }
 }));
