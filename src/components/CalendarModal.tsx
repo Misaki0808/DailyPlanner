@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/AppContext';
-import { clampDayToMonth, getDaysInMonth, toDateString } from '../utils/dateUtils';
+import { toDateString } from '../utils/dateUtils';
+import { PickerDate, stepDay, stepMonth, stepYear, toPickerDate } from '../utils/datePicker';
 
 interface CalendarModalProps {
   visible: boolean;
@@ -17,23 +18,6 @@ interface CalendarModalProps {
   onSelectDate: (date: string) => void;
   occupiedDates: string[];
 }
-
-const MIN_YEAR = 2025;
-const MAX_YEAR = 2030;
-
-type PickerDate = { year: number; month: number; day: number };
-
-/** YYYY-MM-DD metnini seçici state'ine çevirir; boş/bozuk girdide bugüne düşer. */
-const toPickerDate = (dateStr: string): PickerDate => {
-  const [year, month, day] = (dateStr || '').split('-').map(Number);
-
-  if (!year || !month || !day) {
-    const today = new Date();
-    return { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() };
-  }
-
-  return { year, month, day: clampDayToMonth(year, month, day) };
-};
 
 const CalendarModal: React.FC<CalendarModalProps> = ({
   visible,
@@ -63,49 +47,11 @@ const CalendarModal: React.FC<CalendarModalProps> = ({
 
   const { year: selectedYear, month: selectedMonth, day: selectedDay } = picker;
 
-  const changeYear = (increment: number) => {
-    setPicker(prev => {
-      const year = prev.year + increment;
-      if (year < MIN_YEAR || year > MAX_YEAR) return prev;
-      // Gün kırpılmazsa 29 Şubat 2028 → "2029-02-29" gibi olmayan bir tarih kaydedilir
-      return { year, month: prev.month, day: clampDayToMonth(year, prev.month, prev.day) };
-    });
-  };
-
-  const changeMonth = (increment: number) => {
-    setPicker(prev => {
-      let month = prev.month + increment;
-      let year = prev.year;
-
-      if (month > 12) { month = 1; year++; }
-      else if (month < 1) { month = 12; year--; }
-
-      if (year < MIN_YEAR || year > MAX_YEAR) return prev;
-      return { year, month, day: clampDayToMonth(year, month, prev.day) };
-    });
-  };
-
-  const changeDay = (increment: number) => {
-    setPicker(prev => {
-      const day = prev.day + increment;
-
-      if (day > getDaysInMonth(prev.year, prev.month)) {
-        const year = prev.month === 12 ? prev.year + 1 : prev.year;
-        const month = prev.month === 12 ? 1 : prev.month + 1;
-        if (year > MAX_YEAR) return prev;
-        return { year, month, day: 1 };
-      }
-
-      if (day < 1) {
-        const year = prev.month === 1 ? prev.year - 1 : prev.year;
-        const month = prev.month === 1 ? 12 : prev.month - 1;
-        if (year < MIN_YEAR) return prev;
-        return { year, month, day: getDaysInMonth(year, month) };
-      }
-
-      return { ...prev, day };
-    });
-  };
+  // Adım mantığı src/utils/datePicker.ts içinde saf fonksiyonlar olarak durur
+  // ve orada test edilir; burada yalnız state'e bağlanır.
+  const changeYear = (increment: number) => setPicker(prev => stepYear(prev, increment));
+  const changeMonth = (increment: number) => setPicker(prev => stepMonth(prev, increment));
+  const changeDay = (increment: number) => setPicker(prev => stepDay(prev, increment));
 
   const handleSave = () => {
     onSelectDate(toDateString(selectedYear, selectedMonth, selectedDay));
