@@ -18,6 +18,12 @@ export interface Task {
   category?: string; // Kategori id'si (ör: 'is', 'okul', 'spor')
   pomodoroCount?: number; // Bu göreve bağlı tamamlanan pomodoro sayısı
   subtasks?: Subtask[]; // Alt görevler listesi
+  /**
+   * Son içerik değişikliğinin ISO zamanı. Bulut birleştirmesinde iki cihaz
+   * aynı görevi değiştirdiyse kazananı belirler (bkz. utils/syncMerge).
+   * Eski kayıtlarda ve eski uygulama sürümlerinde bulunmaz.
+   */
+  updatedAt?: string;
 }
 
 // Tekrarlayan görev tipi

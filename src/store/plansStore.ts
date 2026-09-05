@@ -5,6 +5,7 @@ import * as storage from '../utils/storage';
 import { getToday } from '../utils/dateUtils';
 import { DailyPlannerWidget } from '../widgets/DailyPlannerWidget';
 import { persistOrNotify } from '../utils/persistence';
+import { stampTaskUpdates } from '../utils/syncMerge';
 
 const DAILY_PLANNER_WIDGET_NAME = 'DailyPlannerWidget';
 
@@ -49,9 +50,12 @@ interface PlansState {
 export const usePlansStore = create<PlansState>((set, get) => ({
   plans: {},
   savePlan: async (date: string, tasks: Task[]) => {
-    const newPlans = { ...get().plans, [date]: tasks };
+    // Damga bulut birleştirmesinde çakışan görevin kazananını belirliyor;
+    // yalnız içeriği değişen görevlere yazılır (bkz. utils/syncMerge).
+    const stampedTasks = stampTaskUpdates(get().plans[date], tasks);
+    const newPlans = { ...get().plans, [date]: stampedTasks };
     set({ plans: newPlans });
-    await persistOrNotify('Plan', storage.savePlan(date, tasks));
+    await persistOrNotify('Plan', storage.savePlan(date, stampedTasks));
     await requestDailyPlannerWidgetUpdate();
   },
   deletePlan: async (date: string) => {
@@ -63,7 +67,7 @@ export const usePlansStore = create<PlansState>((set, get) => ({
   },
   updateTask: async (date: string, taskId: string, updates: Partial<Task>) => {
     const dayTasks = get().plans[date] || [];
-    const updatedTasks = dayTasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
+    const updatedTasks = stampTaskUpdates(dayTasks, dayTasks.map(t => t.id === taskId ? { ...t, ...updates } : t));
     const newPlans = { ...get().plans, [date]: updatedTasks };
     set({ plans: newPlans });
     await persistOrNotify('Görev', storage.savePlan(date, updatedTasks));
