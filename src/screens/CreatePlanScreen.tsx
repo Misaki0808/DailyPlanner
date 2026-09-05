@@ -14,7 +14,8 @@ import {
 import Toast from 'react-native-toast-message';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePlansContext, useSettingsContext, useRecurringContext, useUserContext } from '../context/AppContext';
-import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
+import { formatDateDisplay, generateId } from '../utils/dateUtils';
+import { findFirstEmptyDate } from '../utils/planUtils';
 import { Task } from '../types';
 import { convertParagraphToTasks } from '../utils/aiService';
 import { extractTimesLocal } from '../utils/timeParser';
@@ -46,30 +47,18 @@ export default function CreatePlanScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false); // Başarı modal
   const [savedDate, setSavedDate] = useState('');
   const [editingNoteTaskId, setEditingNoteTaskId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const voiceBaseTextRef = useRef(''); // Sesli giriş öncesi mevcut metin
+  const defaultDatePickedRef = useRef(false);
 
-  // İlk açılışta default tarihi belirle - boş gün bulana kadar ilerle
+  // Varsayılan tarih YALNIZ ilk açılışta belirlenir. Bu efekt daha önce her
+  // `plans` değişiminde çalışıyordu; başka bir ekranda görev işaretlemek ya da
+  // bir pomodoro bitmek bile kullanıcının seçtiği günü sessizce değiştirip
+  // görevlerin yanlış güne kaydedilmesine yol açıyordu.
   useEffect(() => {
-    const findFirstEmptyDate = () => {
-      let currentDate = getToday();
-      let daysChecked = 0;
-      const maxDays = 365; // Maksimum 1 yıl ileri bak
-
-      // Boş gün bulana kadar ilerle
-      while (daysChecked < maxDays) {
-        if (!plans[currentDate] || plans[currentDate].length === 0) {
-          return currentDate; // Boş gün bulundu
-        }
-        // Bir sonraki güne geç
-        currentDate = addDays(currentDate, 1);
-        daysChecked++;
-      }
-
-      // Hiç boş gün bulunamadıysa bugünü döndür
-      return getToday();
-    };
-
-    setSelectedDate(findFirstEmptyDate());
+    if (defaultDatePickedRef.current) return;
+    defaultDatePickedRef.current = true;
+    setSelectedDate(findFirstEmptyDate(plans));
   }, [plans]);
 
   // Manuel görev ekle
@@ -117,14 +106,21 @@ export default function CreatePlanScreen() {
       Toast.show({ type: 'info', text1: 'Uyarı', text2: 'En az bir görev eklemelisiniz' });
       return;
     }
+    if (isSaving) return; // Çift dokunuşta görevler iki kez eklenmesin
 
+    setIsSaving(true);
     try {
-      await savePlan(selectedDate, tasks);
+      // Seçilen günde zaten görev varsa üzerine YAZMA; ekle. Kullanıcı dolu bir
+      // günü elle seçtiğinde eski görevleri sessizce siliyorduk.
+      const existingTasks = plans[selectedDate] || [];
+      await savePlan(selectedDate, [...existingTasks, ...tasks]);
       // Başarı modal'ını göster
       setSavedDate(selectedDate);
       setShowSuccessModal(true);
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Hata', text2: 'Plan kaydedilemedi' });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -136,22 +132,8 @@ export default function CreatePlanScreen() {
     setTaskInput('');
     setParagraphInput('');
     setSelectedPriority('low');
-    // Yeni boş gün bul
-    const findFirstEmptyDate = () => {
-      let currentDate = addDays(getToday(), 0);
-      let daysChecked = 0;
-      const maxDays = 365;
-
-      while (daysChecked < maxDays) {
-        if (!plans[currentDate] || plans[currentDate].length === 0) {
-          return currentDate;
-        }
-        currentDate = addDays(currentDate, 1);
-        daysChecked++;
-      }
-      return getToday();
-    };
-    setSelectedDate(findFirstEmptyDate());
+    // Kaydetmenin ardından bir sonraki boş güne geç
+    setSelectedDate(findFirstEmptyDate(plans));
   };
 
   // Takvim modaldan tarih seç
@@ -493,17 +475,17 @@ export default function CreatePlanScreen() {
 
           {/* Kaydet Butonu */}
           <TouchableOpacity
-            style={[styles.saveButton, tasks.length === 0 && styles.saveButtonDisabled]}
+            style={[styles.saveButton, (tasks.length === 0 || isSaving) && styles.saveButtonDisabled]}
             onPress={handleSavePlan}
-            disabled={tasks.length === 0}
+            disabled={tasks.length === 0 || isSaving}
           >
             <LinearGradient
-              colors={tasks.length === 0 ? [theme.textMuted, theme.textMuted] : (theme.successGradient as [string, string])}
+              colors={(tasks.length === 0 || isSaving) ? [theme.textMuted, theme.textMuted] : (theme.successGradient as [string, string])}
               style={styles.saveButtonGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Text style={styles.saveButtonText}>💾 Planı Kaydet</Text>
+              <Text style={styles.saveButtonText}>{isSaving ? '💾 Kaydediliyor...' : '💾 Planı Kaydet'}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
