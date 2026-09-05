@@ -74,6 +74,52 @@ describe('CategoryDonutChart', () => {
     expect(data.find((d: any) => d.category === 'saglik').color).toBe(getCategoryColor('saglik'));
   });
 
+  // Regresyon (R-036): tanınmayan kimlik ayrı bir dilim oluşturuyordu;
+  // İstatistikler listesi ise o satırı hiç göstermiyordu. İki ekran da artık
+  // aynı "Diğer" grubunu kullanıyor.
+  it('tanınmayan kategoriyi "diger" ile BİRLEŞTİRİR', () => {
+    const plans: Plans = {
+      '2026-09-05': [task('1', 'bilinmeyen'), task('2', 'diger'), task('3', 'spor')],
+    };
+
+    render(<CategoryDonutChart plans={plans} />);
+
+    const data = pieProps[0].data;
+    expect(data).toHaveLength(2);
+    expect(data.find((d: any) => d.category === 'diger')).toMatchObject({ value: 2 });
+    expect(data.find((d: any) => d.category === 'bilinmeyen')).toBeUndefined();
+  });
+
+  // R-037: halka grafiğin SVG dilimlerinin ekran okuyucuda metin karşılığı yok.
+  describe('erişilebilirlik', () => {
+    it('halkanın özetini ekran okuyucuya verir', () => {
+      const plans: Plans = { '2026-09-05': [task('1', 'is'), task('2', 'spor')] };
+
+      const { getByLabelText } = render(<CategoryDonutChart plans={plans} />);
+
+      expect(getByLabelText('Kategori dağılımı halka grafiği. Toplam 2 görev, 2 kategori.')).toBeTruthy();
+    });
+
+    it('her dilim için ayrı etiket üretir', () => {
+      const plans: Plans = {
+        '2026-09-05': [task('1', 'is'), task('2', 'is'), task('3', 'spor'), task('4', 'spor')],
+      };
+
+      const { getByLabelText } = render(<CategoryDonutChart plans={plans} />);
+
+      expect(getByLabelText('İş: 2 görev, yüzde 50')).toBeTruthy();
+      expect(getByLabelText('Spor: 2 görev, yüzde 50')).toBeTruthy();
+    });
+
+    it('birleştirilen dilim "Diğer" adıyla etiketlenir', () => {
+      const plans: Plans = { '2026-09-05': [task('1', 'bilinmeyen')] };
+
+      const { getByLabelText } = render(<CategoryDonutChart plans={plans} />);
+
+      expect(getByLabelText('Diğer: 1 görev, yüzde 100')).toBeTruthy();
+    });
+  });
+
   it('eksik gün listelerinde çökmez', () => {
     const plans = { '2026-09-05': undefined } as unknown as Plans;
     expect(() => render(<CategoryDonutChart plans={plans} />)).not.toThrow();
