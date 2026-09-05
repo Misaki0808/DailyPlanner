@@ -8,11 +8,12 @@ import {
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../../context/AppContext';
+import { useUserContext, useTheme } from '../../context/AppContext';
 import { createSharedStyles } from '../../utils/sharedStyles';
 
 export default function AboutMeSection() {
-  const { theme, aboutMe, saveAboutMe } = useApp();
+  const { aboutMe, saveAboutMe } = useUserContext();
+  const theme = useTheme();
   const themed = createSharedStyles(theme);
   const [text, setText] = useState(aboutMe);
   const [isEditing, setIsEditing] = useState(false);

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useApp } from '../context/AppContext';
+import { usePlansContext, useTheme } from '../context/AppContext';
 import { getToday } from '../utils/dateUtils';
 import { useNavigation } from '@react-navigation/native';
 
@@ -16,7 +16,8 @@ LocaleConfig.locales['tr'] = {
 LocaleConfig.defaultLocale = 'tr';
 
 export default function CalendarGridScreen() {
-  const { plans, theme } = useApp();
+  const { plans } = usePlansContext();
+  const theme = useTheme();
   const navigation = useNavigation();
   const today = getToday();
 

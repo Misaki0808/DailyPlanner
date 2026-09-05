@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Platform, AppState, AppStateStatus, Vibration, Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Audio } from 'expo-av';
-import { useApp } from '../context/AppContext';
+import { usePlansContext, usePomodoroContext, useSettingsContext } from '../context/AppContext';
 import { getToday } from '../utils/dateUtils';
 import { calculatePomodoroStreak } from '../utils/pomodoroStats';
 import { Task } from '../types';
@@ -31,7 +31,9 @@ const DING_SOUND_URL = 'https://cdn.pixabay.com/audio/2021/08/04/audio_c6ccf3232
 export { calculatePomodoroStreak };
 
 export function usePomodoroTimer() {
-  const { settings, pomodoroStats, addPomodoroSession, plans, updateTask } = useApp();
+  const { settings } = useSettingsContext();
+  const { pomodoroStats, addPomodoroSession } = usePomodoroContext();
+  const { plans, updateTask } = usePlansContext();
 
   // useMemo şart: dynamicModes her render'da yeniden üretilirse ona bağlı
   // switchMode ve handleTimerEnd useCallback'leri de her render'da değişir,

@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
-import { useApp } from '../../context/AppContext';
+import { usePlansContext, useTheme } from '../../context/AppContext';
 import { buildWeeklyStats } from '../../utils/weeklyStats';
 
 export default function WeeklyProgressChart() {
-  const { plans, theme } = useApp();
+  const { plans } = usePlansContext();
+  const theme = useTheme();
   
   // Son 7 günün verisi WeeklyStatsChart ile ORTAK kaynaktan gelir; iki
   // bileşen daha önce bu hesabı ayrı ayrı yazmış ve tarih mantıkları ayrışmıştı.

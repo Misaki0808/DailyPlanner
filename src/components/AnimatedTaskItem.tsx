@@ -9,7 +9,7 @@ import {
 import { Swipeable } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Task } from '../types';
-import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/AppContext';
 import TaskEditModal from './TaskEditModal';
 import { sharedStyles } from '../utils/sharedStyles';
 import { getCategoryEmoji, getCategoryLabel, getCategoryColor } from '../utils/categories';
@@ -35,7 +35,7 @@ export default function AnimatedTaskItem({
   onNoteEdit,
   onToggleSubtask,
 }: AnimatedTaskItemProps) {
-  const { theme } = useApp();
+  const theme = useTheme();
   const [showNoteModal, setShowNoteModal] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;

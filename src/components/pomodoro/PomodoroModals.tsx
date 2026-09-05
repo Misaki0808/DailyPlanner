@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { useApp } from '../../context/AppContext';
+import { useSettingsContext } from '../../context/AppContext';
 import { Task } from '../../types';
 import { AMBIENT_SOUNDS } from '../../hooks/usePomodoroTimer';
 
@@ -38,7 +38,7 @@ export function PomodoroModals({
   savePomodoroSettings, saveSoundSettings,
   sortedTasks, selectedTaskId, setSelectedTaskId
 }: PomodoroModalsProps) {
-  const { theme, settings } = useApp();
+  const { theme, settings } = useSettingsContext();
   const isDark = settings?.darkMode ?? true;
 
   return (
