@@ -20,14 +20,40 @@ type BackupResult = {
   error?: unknown;
 };
 
-/** Yedeklenmeye değer bir kullanıcı verisi var mı? */
-export const hasUserData = (data?: CloudBackupData | null): boolean => {
+/**
+ * Buluta YAZMAYA / buluttan GERİ YÜKLEMEYE değer, gerçek içerik var mı?
+ *
+ * Yalnız kullanıcının ürettiği asıl içeriğe bakar: planlar, tekrarlayan
+ * görevler, pomodoro istatistikleri. Onboarding'de girilen ad gibi alanlar
+ * bilinçli olarak DIŞARIDA: yalnız adı olan taze bir cihaz, eşin aylarca
+ * birikmiş planlarının üzerine boş veri yazmamalı.
+ */
+export const hasSubstantiveContent = (data?: CloudBackupData | null): boolean => {
   if (!data) return false;
   return (
     Object.values(data.plans || {}).some(tasks => (tasks?.length || 0) > 0) ||
     (data.recurringTasks?.length || 0) > 0 ||
     Object.keys(data.pomodoroStats || {}).length > 0
   );
+};
+
+/**
+ * Geri yükleme sırasında ÜZERİNE YAZILACAK herhangi bir kalıcı kullanıcı
+ * verisi var mı?
+ *
+ * persistRestoredData; kullanıcı adını, "Hakkımda" metnini ve profili de
+ * yedekteki değerlerle değiştiriyor. Bu yüzden koruma, asıl içeriğe ek
+ * olarak bu alanları da kapsamalı: yalnız "Hakkımda" metni girmiş bir
+ * cihazda boş bir yedeği geri yüklemek o metni sessizce siliyordu.
+ *
+ * `gender` ve `settings` bilerek sayılmaz: ikisi de her cihazda varsayılan
+ * bir değerle geldiği için sayılsalardı hiçbir cihaz "boş" görünmez ve
+ * koruma tamamen etkisiz kalırdı.
+ */
+export const hasUserData = (data?: CloudBackupData | null): boolean => {
+  if (!data) return false;
+  if (hasSubstantiveContent(data)) return true;
+  return Boolean(data.user?.username?.trim()) || Boolean(data.user?.aboutMe?.trim());
 };
 
 const buildCloudBackupData = (): CloudBackupData => ({
@@ -109,7 +135,7 @@ export async function backupToCloudSilently(): Promise<BackupResult> {
     // geri yükleme yapmamış taze bir cihaz eşin aylarca birikmiş verisini
     // uyarısız boş veriyle ezebiliyordu. Yerelde veri yokken bulutta veri
     // varsa yazma yapılmaz.
-    if (!hasUserData(payload)) {
+    if (!hasSubstantiveContent(payload)) {
       const existing = await supabaseService.restoreData(household.id);
       if (hasUserData(existing?.data)) {
         return { ok: false, reason: 'empty-local', record: existing };
@@ -144,7 +170,7 @@ export async function restoreFromCloudSilently(): Promise<BackupResult> {
     // hiçbir şey yazmamak demektir. Yerelde veri varken buluttaki yedek boşsa
     // bu neredeyse her zaman istenmeyen bir durumdur (eşleşen taze bir cihaz
     // ortak satırı boş veriyle ezmiş olabilir), bu yüzden reddedilir.
-    if (!hasUserData(record.data) && hasUserData(buildCloudBackupData())) {
+    if (!hasSubstantiveContent(record.data) && hasUserData(buildCloudBackupData())) {
       return { ok: false, reason: 'empty-backup', record };
     }
 

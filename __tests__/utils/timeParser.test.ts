@@ -126,4 +126,73 @@ describe('extractTimesLocal', () => {
       expect(extractTimesLocal('1.5 litre su iç')).toEqual([]);
     });
   });
+
+  // Regresyon (R-031): nokta Türkçe'de hem saat hem ondalık ayracı. Eskiden
+  // "3.45" bağlamdan bağımsız saat sayılıyor ve "3.45 TL öde" görevi için
+  // gece 03:45'e alarm kuruluyordu.
+  describe('noktalı yazım: saat mi, ondalık sayı mı', () => {
+    it('para tutarını saat SAYMAZ', () => {
+      expect(extractTimesLocal('3.45 TL öde')).toEqual([]);
+      expect(extractTimesLocal('12.50 lira ver')).toEqual([]);
+      expect(extractTimesLocal('5.25 euro')).toEqual([]);
+      expect(extractTimesLocal('3.45₺ öde')).toEqual([]);
+      expect(extractTimesLocal('3.45 kuruş')).toEqual([]);
+    });
+
+    it('iki haneli saat bile olsa para birimi geliyorsa saat saymaz', () => {
+      // "12.50" tek başına geçerli bir saat yazımı; ayırt eden şey para birimi.
+      expect(extractTimesLocal('12.50 TL ödeme yap')).toEqual([]);
+      expect(extractTimesLocal('12.50 toplantı')).toEqual([
+        { hour: 12, minute: 50, label: 'Toplantı' },
+      ]);
+    });
+
+    it('para birimi olmayan ondalık sayıları da saat saymaz', () => {
+      expect(extractTimesLocal('Sürüm 1.20 çıktı')).toEqual([]);
+      expect(extractTimesLocal('Kilo 75.40 kg')).toEqual([]);
+      expect(extractTimesLocal('Fatura 125.90 TL')).toEqual([]);
+    });
+
+    it('Türkçe bulunma hâli ekiyle yazılanı saat SAYAR', () => {
+      expect(extractTimesLocal("3.45'te toplantı")).toEqual([
+        { hour: 3, minute: 45, label: 'Toplantı' },
+      ]);
+      expect(extractTimesLocal("14.30'da toplantı")).toEqual([
+        { hour: 14, minute: 30, label: 'Toplantı' },
+      ]);
+      expect(extractTimesLocal('14.30 da toplantı')).toEqual([
+        { hour: 14, minute: 30, label: 'Toplantı' },
+      ]);
+    });
+
+    it('"saat" öneki varsa tek haneli olsa da saat SAYAR', () => {
+      expect(extractTimesLocal('saat 3.45 toplantı')).toEqual([
+        { hour: 3, minute: 45, label: 'Toplantı' },
+      ]);
+    });
+
+    it('iki haneli saat yazımını (09.30 / 14.30) saat SAYAR', () => {
+      expect(extractTimesLocal('Toplantı 09.30')).toEqual([
+        { hour: 9, minute: 30, label: 'Toplantı' },
+      ]);
+      expect(extractTimesLocal('14.30 toplantı')).toEqual([
+        { hour: 14, minute: 30, label: 'Toplantı' },
+      ]);
+    });
+
+    it('gün dilimiyle birlikte noktalı yazımı saat SAYAR', () => {
+      expect(extractTimesLocal("sabah 9.30'da kalk")).toEqual([
+        { hour: 9, minute: 30, label: 'Kalk' },
+      ]);
+    });
+
+    it('iki nokta ayracı her zaman saattir (bağlam aranmaz)', () => {
+      expect(extractTimesLocal('14:30 toplantı')).toEqual([
+        { hour: 14, minute: 30, label: 'Toplantı' },
+      ]);
+      expect(extractTimesLocal('3:45 toplantı')).toEqual([
+        { hour: 3, minute: 45, label: 'Toplantı' },
+      ]);
+    });
+  });
 });

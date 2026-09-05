@@ -5,6 +5,7 @@ import {
   getWeeklyGoalProgress,
 } from '../../src/utils/weeklyGoal';
 import { getToday } from '../../src/utils/dateUtils';
+import { defaultSettings, withSettingsDefaults } from '../../src/utils/defaultSettings';
 import { Plans, Task } from '../../src/types';
 
 const task = (id: string, done: boolean): Task => ({ id, title: `Görev ${id}`, done });
@@ -89,6 +90,23 @@ describe('getWeeklyGoalProgress', () => {
   it('hedef 0 veya negatifse kapalı sayılır', () => {
     expect(getWeeklyGoalProgress(plans, 0, '2026-09-10')).toMatchObject({ goal: 0, reached: false });
     expect(getWeeklyGoalProgress(plans, -5, '2026-09-10')).toMatchObject({ goal: 0 });
+  });
+
+  // R-033: özellik varsayılan olarak KAPALI gelmeli; mevcut kullanıcılarda
+  // kendiliğinden bir hedef belirmemeli.
+  it('varsayılan ayarlarda kapalıdır', () => {
+    expect(defaultSettings.weeklyTaskGoal).toBe(0);
+
+    const progress = getWeeklyGoalProgress(plans, defaultSettings.weeklyTaskGoal ?? 0, '2026-09-10');
+    expect(progress.goal).toBe(0);
+    expect(progress.reached).toBe(false);
+    expect(progress.percentage).toBe(0);
+  });
+
+  it('ayarı hiç kaydedilmemiş kullanıcıda da kapalı gelir', () => {
+    // withSettingsDefaults eksik alanı varsayılanla doldurur.
+    const migrated = withSettingsDefaults({ darkMode: true, notificationTime: '20:00' });
+    expect(migrated.weeklyTaskGoal).toBe(0);
   });
 
   it('hiç görev yoksa sıfıra bölme yapmaz', () => {
