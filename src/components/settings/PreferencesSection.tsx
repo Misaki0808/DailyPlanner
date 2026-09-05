@@ -36,19 +36,20 @@ export default function PreferencesSection({
 }: PreferencesSectionProps) {
   const { theme } = useApp();
   const themed = createSharedStyles(theme);
-  const [notificationHour, setNotificationHour] = useState('08');
-  const [notificationMinute, setNotificationMinute] = useState('00');
+  const [defaultHour, defaultMinute] = defaultSettings.notificationTime.split(':');
+  const [notificationHour, setNotificationHour] = useState(defaultHour);
+  const [notificationMinute, setNotificationMinute] = useState(defaultMinute);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Bildirim saatini ayarlardan al - sadece ilk yüklemede
   useEffect(() => {
     if (!isInitialized && settings.notificationTime) {
       const [hour, minute] = settings.notificationTime.split(':');
-      setNotificationHour(hour || '08');
-      setNotificationMinute(minute || '00');
+      setNotificationHour(hour || defaultHour);
+      setNotificationMinute(minute || defaultMinute);
       setIsInitialized(true);
     }
-  }, [settings.notificationTime, isInitialized]);
+  }, [settings.notificationTime, isInitialized, defaultHour, defaultMinute]);
 
   // Bildirimleri aç/kapat
   const handleToggleNotifications = async (enabled: boolean) => {
@@ -58,7 +59,7 @@ export default function PreferencesSection({
         Alert.alert('İzin Gerekli', 'Bildirimler için izin vermeniz gerekiyor.');
         return;
       }
-      const [h, m] = (settings.notificationTime || '08:00').split(':').map(Number);
+      const [h, m] = (settings.notificationTime || defaultSettings.notificationTime).split(':').map(Number);
       await scheduleDailySummaryNotification(h, m);
       await onUpdateSettings({ notificationsEnabled: true });
     } else {

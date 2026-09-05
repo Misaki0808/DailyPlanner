@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { AppState as ReactNativeAppState } from 'react-native';
 import * as storage from '../utils/storage';
 import { getToday } from '../utils/dateUtils';
+import { defaultSettings } from '../utils/defaultSettings';
 import { requestNotificationPermissions, scheduleDailySummaryNotification } from '../utils/notificationService';
 import { useUserStore } from './userStore';
 import { useSettingsStore } from './settingsStore';
@@ -176,7 +177,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       if (savedSettings?.notificationsEnabled) {
         const hasPermission = await requestNotificationPermissions();
         if (hasPermission) {
-          const [h, m] = (savedSettings.notificationTime || '20:00').split(':').map(Number);
+          const [h, m] = (savedSettings.notificationTime || defaultSettings.notificationTime).split(':').map(Number);
           await scheduleDailySummaryNotification(h, m);
         }
       }

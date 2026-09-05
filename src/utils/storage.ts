@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Plans, Task, Settings, RecurringTask } from '../types';
+import { defaultSettings, withSettingsDefaults } from './defaultSettings';
 
 // Storage anahtarları - tek yerden yönetmek için
 const STORAGE_KEYS = {
@@ -176,22 +177,12 @@ export const saveSettings = async (settings: Settings) => {
 };
 
 export const getSettings = async (): Promise<Settings> => {
-  const defaultSettings: Settings = {
-    askBeforeDeleteAll: true,
-    darkMode: true,
-    notificationsEnabled: true,
-    notificationTime: '08:00',
-    pomodoroFocusTime: 25,
-    pomodoroShortBreak: 5,
-    pomodoroLongBreak: 15,
-    pomodoroSoundEnabled: false,
-  };
   try {
     const settingsJson = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS);
-    if (settingsJson === null) return defaultSettings;
-    return JSON.parse(settingsJson);
+    if (settingsJson === null) return { ...defaultSettings };
+    return withSettingsDefaults(JSON.parse(settingsJson));
   } catch (error) {
-    return defaultSettings;
+    return { ...defaultSettings };
   }
 };
 
