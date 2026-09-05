@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, useWindowDimensions, ViewStyle, Tou
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePlansContext, useSettingsContext } from '../context/AppContext';
 import { getToday, formatDateDisplay } from '../utils/dateUtils';
-import WeeklyProgressChart from '../components/charts/WeeklyProgressChart';
+import WeeklyChart from '../components/charts/WeeklyChart';
+import CategoryDonutChart from '../components/charts/CategoryDonutChart';
 
 export default function PlanOverviewScreen() {
   const { plans } = usePlansContext();
@@ -119,7 +120,8 @@ export default function PlanOverviewScreen() {
               <Text style={{ color: theme.textSecondary, fontSize: 16 }}>✕ Kapat</Text>
             </TouchableOpacity>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <WeeklyProgressChart />
+              <WeeklyChart plans={plans} />
+              <CategoryDonutChart plans={plans} />
             </ScrollView>
           </View>
         </View>
