@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plans } from '../../types';
 import { createSharedStyles } from '../../utils/sharedStyles';
-import WeeklyStatsChart from '../WeeklyStatsChart';
+import WeeklyChart from '../charts/WeeklyChart';
 import { generateWeeklySummary, checkApiKey } from '../../utils/aiService';
 import { getToday, addDays } from '../../utils/dateUtils';
 import { calculatePomodoroStreak } from '../../utils/pomodoroStats';
@@ -272,7 +272,7 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
           </View>
         )}
 
-        <WeeklyStatsChart plans={plans} />
+        <WeeklyChart plans={plans} />
       </View>
 
       {/* AI Analiz */}
