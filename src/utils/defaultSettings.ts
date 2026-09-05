@@ -21,8 +21,10 @@ export const defaultSettings: Settings = {
   // dayanıyor; kullanıcı açıkça istemedikçe hiçbir plan silinmez.
   autoCleanOldPlans: false,
   autoCleanThresholdDays: 365,
-  // Haftada tamamlanması hedeflenen görev sayısı; 0 rozeti tamamen gizler.
-  weeklyTaskGoal: 20,
+  // Haftada tamamlanması hedeflenen görev sayısı; 0 = KAPALI, rozet gizli.
+  // Ürün paterni gereği yeni özellikler kapalı gelir (task.md 3.5 emsali):
+  // kullanıcı Ayarlar'dan bir hedef seçerek açar.
+  weeklyTaskGoal: 0,
 };
 
 /**

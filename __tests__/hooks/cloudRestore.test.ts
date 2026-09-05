@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { backupToCloudSilently, restoreFromCloudSilently } from '../../src/hooks/useCloudSync';
 import { supabaseService } from '../../src/services/supabase';
 import { usePlansStore } from '../../src/store/plansStore';
+import { useUserStore } from '../../src/store/userStore';
 import { defaultSettings } from '../../src/utils/defaultSettings';
 import { Plans, Task } from '../../src/types';
 
@@ -36,7 +37,9 @@ jest.mock('react-native-toast-message', () => ({ show: jest.fn() }));
 
 const task = (id: string, title: string): Task => ({ id, title, done: false });
 
-const backupWith = (plans: Plans) => ({
+type BackupUser = { username: string | null; gender: 'male' | 'female'; aboutMe: string };
+
+const backupWith = (plans: Plans, user: BackupUser = { username: 'Eş', gender: 'male', aboutMe: '' }) => ({
   household_id: 'h1',
   updated_at: '2026-09-05T12:00:00.000Z',
   updated_by: 'u2',
@@ -45,10 +48,13 @@ const backupWith = (plans: Plans) => ({
     plans,
     settings: defaultSettings,
     recurringTasks: [],
-    user: { username: 'Eş', gender: 'male' as const, aboutMe: '' },
+    user,
     pomodoroStats: {},
   },
 });
+
+/** Hiçbir kullanıcı verisi taşımayan yedek (ad ve Hakkımda dahil boş). */
+const emptyBackup = () => backupWith({}, { username: null, gender: 'male', aboutMe: '' });
 
 const restoreDataMock = supabaseService.restoreData as jest.Mock;
 const backupDataMock = supabaseService.backupData as jest.Mock;
@@ -60,6 +66,7 @@ describe('bulut geri yükleme', () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
     usePlansStore.setState({ plans: {} });
+    useUserStore.setState({ username: null, gender: 'male', aboutMe: '' });
     restoreDataMock.mockReset();
     backupDataMock.mockReset().mockResolvedValue(true);
   });
@@ -79,11 +86,26 @@ describe('bulut geri yükleme', () => {
   });
 
   it('yerelde de veri yoksa boş yedek reddedilmez', async () => {
-    restoreDataMock.mockResolvedValue(backupWith({}));
+    useUserStore.setState({ username: null, gender: 'male', aboutMe: '' });
+    restoreDataMock.mockResolvedValue(emptyBackup());
 
     const result = await restoreFromCloudSilently();
 
     expect(result.ok).toBe(true);
+  });
+
+  // Regresyon (R-032): persistRestoredData "Hakkımda" metnini de yedekteki
+  // değerle değiştiriyor. Koruma bu alanı saymadığı için, yalnız Hakkımda
+  // metni girmiş bir cihazda boş yedeği geri yüklemek metni siliyordu.
+  it('yerelde yalnız "Hakkımda" metni varken boş yedeği reddeder', async () => {
+    useUserStore.setState({ username: null, gender: 'male', aboutMe: 'React Native öğreniyorum' });
+    restoreDataMock.mockResolvedValue(emptyBackup());
+
+    const result = await restoreFromCloudSilently();
+
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe('empty-backup');
+    expect(useUserStore.getState().aboutMe).toBe('React Native öğreniyorum');
   });
 
   it('dolu yedeği geri yükler ve store ile diski eşitler', async () => {
@@ -128,6 +150,7 @@ describe('bulut yedekleme koruması', () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
     usePlansStore.setState({ plans: {} });
+    useUserStore.setState({ username: null, gender: 'male', aboutMe: '' });
     restoreDataMock.mockReset();
     backupDataMock.mockReset().mockResolvedValue(true);
   });
@@ -156,12 +179,27 @@ describe('bulut yedekleme koruması', () => {
     expect(backupDataMock).toHaveBeenCalledTimes(1);
   });
 
-  it('bulut da boşsa yerel boşken yedeklemeye izin verir', async () => {
-    restoreDataMock.mockResolvedValue(backupWith({}));
+  it('bulut da tamamen boşsa yerel boşken yedeklemeye izin verir', async () => {
+    restoreDataMock.mockResolvedValue(emptyBackup());
 
     const result = await backupToCloudSilently();
 
     expect(result.ok).toBe(true);
     expect(backupDataMock).toHaveBeenCalledTimes(1);
+  });
+
+  // R-032: koruma yalnız plan/rutin/pomodoro'ya bakmıyor artık. Bulutta
+  // yalnız kullanıcı adı ya da "Hakkımda" metni olsa bile, içeriği olmayan
+  // bir yerel durum onun üzerine yazmamalı.
+  it('bulutta yalnız kullanıcı adı varsa bile üzerine yazmaz', async () => {
+    restoreDataMock.mockResolvedValue(
+      backupWith({}, { username: 'Eş', gender: 'male', aboutMe: '' })
+    );
+
+    const result = await backupToCloudSilently();
+
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe('empty-local');
+    expect(backupDataMock).not.toHaveBeenCalled();
   });
 });

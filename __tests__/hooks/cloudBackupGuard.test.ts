@@ -1,4 +1,4 @@
-import { hasUserData } from '../../src/hooks/useCloudSync';
+import { hasSubstantiveContent, hasUserData } from '../../src/hooks/useCloudSync';
 import { CloudBackupData } from '../../src/services/supabase';
 import { defaultSettings } from '../../src/utils/defaultSettings';
 
@@ -82,9 +82,64 @@ describe('hasUserData (bulut yedekleme koruması)', () => {
     expect(hasUserData({ ...empty, pomodoroStats: { '2026-09-05': 4 } })).toBe(true);
   });
 
-  it('kullanıcı adı tek başına yedeklemeyi tetiklemez', () => {
-    // Sadece onboarding tamamlanmış, henüz plan girilmemiş cihaz da
-    // buluttaki dolu yedeği ezmemeli.
-    expect(hasUserData({ ...empty, user: { username: 'Efe', gender: 'male', aboutMe: '' } })).toBe(false);
+  // Regresyon (R-032): koruma yalnız plan/rutin/pomodoro'ya bakıyordu.
+  // persistRestoredData "Hakkımda" metnini ve kullanıcı adını da yedekteki
+  // değerle DEĞİŞTİRDİĞİ için, yalnız Hakkımda metni girmiş bir cihazda boş
+  // bir yedeği geri yüklemek o metni sessizce siliyordu.
+  it('yalnız "Hakkımda" metni olan cihazı boş SAYMAZ', () => {
+    const withAboutMe = { ...empty, user: { username: null, gender: 'male' as const, aboutMe: 'React Native öğreniyorum' } };
+    expect(hasUserData(withAboutMe)).toBe(true);
+  });
+
+  it('yalnız kullanıcı adı olan cihazı boş SAYMAZ', () => {
+    const withName = { ...empty, user: { username: 'Efe', gender: 'male' as const, aboutMe: '' } };
+    expect(hasUserData(withName)).toBe(true);
+  });
+
+  it('yalnız boşluktan oluşan ad/Hakkımda metnini veri saymaz', () => {
+    const blank = { ...empty, user: { username: '   ', gender: 'male' as const, aboutMe: '  ' } };
+    expect(hasUserData(blank)).toBe(false);
+  });
+
+  it('cinsiyet ve ayarlar tek başına veri sayılmaz', () => {
+    // İkisi de her cihazda varsayılan bir değerle gelir; sayılsalardı hiçbir
+    // cihaz "boş" görünmez ve koruma tamamen etkisiz kalırdı.
+    expect(hasUserData({ ...empty, user: { username: null, gender: 'female', aboutMe: '' } })).toBe(false);
+    expect(hasUserData({ ...empty, settings: { ...defaultSettings, darkMode: false } })).toBe(false);
+  });
+});
+
+/**
+ * hasSubstantiveContent, "buluta yazmaya / buluttan geri yüklemeye değer
+ * içerik var mı" sorusunu yanıtlar. hasUserData'dan farkı: onboarding'de
+ * girilen ad gibi alanları saymaz — yalnız adı olan taze bir cihaz eşin
+ * aylarca birikmiş planlarının üzerine boş veri yazmamalı (W-02).
+ */
+describe('hasSubstantiveContent (yükleme koruması)', () => {
+  const empty = {
+    version: 1 as const,
+    plans: {},
+    settings: defaultSettings,
+    recurringTasks: [],
+    user: { username: null, gender: 'male' as const, aboutMe: '' },
+    pomodoroStats: {},
+  };
+
+  it('kullanıcı adı tek başına içerik sayılmaz', () => {
+    expect(hasSubstantiveContent({ ...empty, user: { username: 'Efe', gender: 'male', aboutMe: '' } })).toBe(false);
+  });
+
+  it('"Hakkımda" metni tek başına içerik sayılmaz', () => {
+    expect(hasSubstantiveContent({ ...empty, user: { username: null, gender: 'male', aboutMe: 'metin' } })).toBe(false);
+  });
+
+  it('plan, rutin veya pomodoro varsa içerik sayar', () => {
+    expect(hasSubstantiveContent({ ...empty, plans: { '2026-09-05': [{ id: '1', title: 'A', done: false }] } })).toBe(true);
+    expect(hasSubstantiveContent({ ...empty, pomodoroStats: { '2026-09-05': 1 } })).toBe(true);
+  });
+
+  it('tamamen boş veriyi ve eksik girdiyi boş sayar', () => {
+    expect(hasSubstantiveContent(empty)).toBe(false);
+    expect(hasSubstantiveContent(null)).toBe(false);
   });
 });
