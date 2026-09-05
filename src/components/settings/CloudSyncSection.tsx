@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/AppContext';
 import { useCloudSync } from '../../hooks/useCloudSync';
@@ -7,6 +7,30 @@ import { useCloudSync } from '../../hooks/useCloudSync';
 const formatSyncTime = (value?: string | null) => {
   if (!value) return 'Henüz yok';
   return new Date(value).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatExpiry = (value?: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
+
+/**
+ * Geri alınamaz işlemler için onay. react-native-web'de Alert.alert düğmeleri
+ * çalışmadığı için web'de window.confirm kullanılır (PreferencesSection ile
+ * aynı desen).
+ */
+const confirmDestructive = (title: string, message: string, confirmLabel: string, onConfirm: () => void) => {
+  if (Platform.OS === 'web') {
+    if (window.confirm(`${title}\n\n${message}`)) onConfirm();
+    return;
+  }
+
+  Alert.alert(title, message, [
+    { text: 'Vazgeç', style: 'cancel' },
+    { text: confirmLabel, style: 'destructive', onPress: onConfirm },
+  ]);
 };
 
 export default function CloudSyncSection() {
@@ -18,15 +42,21 @@ export default function CloudSyncSection() {
     sessionEmail,
     household,
     isPaired,
+    isHouseholdCreator,
+    memberLimit,
+    inviteExpiresAt,
+    isInviteExpired,
     backupRecord,
     sendOtp,
     verifyOtp,
     signOut,
     createInvite,
+    refreshInvite,
     joinHousehold,
     leaveHousehold,
     backupToCloud,
     restoreFromCloud,
+    deleteBackup,
   } = useCloudSync();
 
   const [email, setEmail] = useState('');
@@ -56,6 +86,8 @@ export default function CloudSyncSection() {
 
   const lastBackupBy = backupRecord?.updatedByProfile?.email || backupRecord?.updated_by;
   const isBusy = isLoading || isSyncing;
+  // 0002 migration'ı uygulanmadan önce kolon yok; o durumda süre satırı hiç çizilmez.
+  const inviteExpiryText = formatExpiry(inviteExpiresAt);
 
   const handleSendOtp = async () => {
     if (!email.trim()) return;
@@ -97,13 +129,38 @@ export default function CloudSyncSection() {
   const confirmLeave = () => {
     Alert.alert(
       'Eşleştirme kaldırılsın mı?',
-      'Bu cihaz bulut household üyeliğinden ayrılır. Yerel veriler silinmez.',
+      'Bu cihaz bulut household üyeliğinden ayrılır. Yerel veriler silinmez. Ortak bulut yedeği de silinmez; silmek istiyorsan ayrılmadan önce "Bulut Yedeğini Sil" düğmesini kullan.',
       [
         { text: 'Vazgeç', style: 'cancel' },
         { text: 'Ayrıl', style: 'destructive', onPress: leaveHousehold },
       ]
     );
   };
+
+  // Yedek, ev grubunun ORTAK yedeği: silmek eşi de etkiler, bu yüzden onay
+  // metninde açıkça yazıyor (R-009).
+  const confirmDeleteBackup = () => {
+    confirmDestructive(
+      'Bulut yedeği silinsin mi?',
+      'Bu yedek ev grubunun ORTAK yedeğidir: silersen eşin de buluttan geri yükleme yapamaz. Bu cihazdaki planların, ayarların ve istatistiklerin silinmez. İşlem geri alınamaz.',
+      'Yedeği Sil',
+      () => { deleteBackup(); }
+    );
+  };
+
+  const renderDeleteBackup = () => (
+    backupRecord ? (
+      <View style={styles.buttonRow}>
+        <SecondaryButton
+          disabled={isBusy}
+          label="Bulut Yedeğini Sil"
+          textColor={theme.error}
+          backgroundColor={theme.accentLight}
+          onPress={confirmDeleteBackup}
+        />
+      </View>
+    ) : null
+  );
 
   const renderSetupRequired = () => (
     <View style={[styles.noticeBox, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
@@ -154,6 +211,11 @@ export default function CloudSyncSection() {
       <View style={[styles.inviteBox, { backgroundColor: theme.accentLight, borderColor: theme.border }]}>
         <Text style={[styles.inviteLabel, { color: theme.textSecondary }]}>Davet Kodunuz</Text>
         <Text selectable style={[styles.inviteCodeText, { color: theme.text }]}>{household?.invite_code || 'Oluşturuluyor...'}</Text>
+        {inviteExpiryText && (
+          <Text style={[styles.inviteMeta, { color: isInviteExpired ? theme.error : theme.textSecondary }]}>
+            {isInviteExpired ? 'Kodun süresi doldu, yenileyin' : `Son geçerlilik: ${inviteExpiryText}`}
+          </Text>
+        )}
       </View>
       <TextInput
         style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
@@ -169,6 +231,12 @@ export default function CloudSyncSection() {
         <GradientButton disabled={inviteCode.trim().length !== 6 || isBusy} colors={theme.accentGradient} label="Eşleştir" onPress={() => joinHousehold(inviteCode)} />
         <SecondaryButton disabled={isBusy} label="Çıkış Yap" textColor={theme.textSecondary} backgroundColor={theme.accentLight} onPress={signOut} />
       </View>
+      {isHouseholdCreator && (
+        <View style={styles.buttonRow}>
+          <SecondaryButton disabled={isBusy} label="Yeni Kod Oluştur" textColor={theme.textSecondary} backgroundColor={theme.accentLight} onPress={refreshInvite} />
+        </View>
+      )}
+      {renderDeleteBackup()}
     </>
   );
 
@@ -177,6 +245,10 @@ export default function CloudSyncSection() {
       <View style={styles.statusRow}>
         <Text style={[styles.metaText, { color: theme.textSecondary }]}>Partner:</Text>
         <Text style={[styles.metaValue, { color: theme.text }]}>{partnerText}</Text>
+      </View>
+      <View style={styles.statusRow}>
+        <Text style={[styles.metaText, { color: theme.textSecondary }]}>Ev grubu:</Text>
+        <Text style={[styles.metaValue, { color: theme.text }]}>{`${household?.members.length ?? 0}/${memberLimit} kişi`}</Text>
       </View>
       <View style={styles.statusRow}>
         <Text style={[styles.metaText, { color: theme.textSecondary }]}>Son senkron:</Text>
@@ -194,6 +266,7 @@ export default function CloudSyncSection() {
         <SecondaryButton disabled={isBusy} label="Eşleştirmeden Ayrıl" textColor={theme.textSecondary} backgroundColor={theme.accentLight} onPress={confirmLeave} />
         <SecondaryButton disabled={isBusy} label="Çıkış Yap" textColor={theme.textSecondary} backgroundColor={theme.accentLight} onPress={signOut} />
       </View>
+      {renderDeleteBackup()}
     </>
   );
 
@@ -336,5 +409,10 @@ const styles = StyleSheet.create({
     fontSize: 28,
     letterSpacing: 5,
     fontWeight: '900',
+  },
+  inviteMeta: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 6,
   },
 });
