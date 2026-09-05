@@ -12,6 +12,54 @@ const generateInviteCode = () => {
   return code;
 };
 
+/**
+ * Davet kodunun ömrü (R-010). SQL karşılığı public.invite_code_ttl();
+ * değer değişecekse ikisi birlikte güncellenmeli.
+ */
+export const INVITE_CODE_TTL_HOURS = 24;
+
+/**
+ * Bir hanedeki azami üye sayısı (R-010). SQL karşılığı
+ * public.household_member_limit(). Asıl zorlama sunucuda (join_household RPC)
+ * yapılır; buradaki sabit arayüz metinleri ve buton durumları içindir.
+ */
+export const HOUSEHOLD_MEMBER_LIMIT = 2;
+
+type DatabaseError = { code?: string; message?: string };
+
+/**
+ * 0002 migration'ı öncesi şemada invite_code_expires_at kolonu yoktur; alan boş
+ * gelirse kod süresiz sayılır ve eski davranış korunur.
+ */
+export const isInviteCodeExpired = (expiresAt?: string | null, now: Date = new Date()): boolean => {
+  if (!expiresAt) return false;
+  const expiry = new Date(expiresAt).getTime();
+  if (Number.isNaN(expiry)) return false;
+  return expiry <= now.getTime();
+};
+
+/**
+ * 0002 uygulanmadan önce yeni RPC ve kolon yoktur. PostgREST bunu şema
+ * önbelleğinden (PGRST202/PGRST204), PostgreSQL ise 42883/42703 ile bildirir.
+ */
+export const isMissingDbObjectError = (error: unknown): boolean => {
+  const code = (error as DatabaseError | null)?.code ?? '';
+  return code === 'PGRST202' || code === 'PGRST204' || code === '42883' || code === '42703';
+};
+
+const JOIN_ERROR_MESSAGES: Record<string, string> = {
+  invite_code_expired: `Davet kodunun süresi dolmuş. Kodu oluşturan kişi "Yeni Kod Oluştur" ile ${INVITE_CODE_TTL_HOURS} saatlik yeni bir kod üretmeli.`,
+  household_full: `Bu ev grubu dolu (en fazla ${HOUSEHOLD_MEMBER_LIMIT} kişi). Önce mevcut üyelerden biri eşleştirmeden ayrılmalı.`,
+  invalid_invite_code: 'Davet kodu geçersiz. Kodu kontrol edip tekrar deneyin.',
+  not_authenticated: 'Oturumunuz sonlanmış. Tekrar giriş yapın.',
+};
+
+/** join_household RPC'sinin ham hatasını kullanıcıya gösterilebilir metne çevirir. */
+export const describeJoinError = (error: unknown): string => {
+  const message = (error as DatabaseError | null)?.message ?? '';
+  const key = Object.keys(JOIN_ERROR_MESSAGES).find(candidate => message.includes(candidate));
+  return key ? JOIN_ERROR_MESSAGES[key] : 'Eşleştirme başarısız. Davet kodunu kontrol edin.';
+};
 
 const fetchHouseholdById = async (householdId: string): Promise<HouseholdWithMembers | null> => {
   if (!isSupabaseConfigured || !supabase) return null;
@@ -19,7 +67,9 @@ const fetchHouseholdById = async (householdId: string): Promise<HouseholdWithMem
 
   const { data: household, error: householdError } = await client
     .from('households')
-    .select('id, invite_code, created_by, created_at')
+    // '*' bilinçli: invite_code_expires_at kolonu yalnız 0002 sonrası var, adıyla
+    // seçmek migration uygulanmamış projelerde isteği hataya düşürürdü.
+    .select('*')
     .eq('id', householdId)
     .maybeSingle();
 
@@ -110,12 +160,52 @@ export async function joinHousehold(code: string): Promise<HouseholdWithMembers 
   if (!normalizedCode) throw new Error('Davet kodu boş olamaz.');
 
   const { data, error } = await client.rpc('join_household', { p_invite_code: normalizedCode });
-  if (error) throw error;
+  // Süresi dolmuş kod ve dolu hane reddi RPC'den ham anahtar olarak gelir.
+  if (error) throw new Error(describeJoinError(error));
 
   const householdId = data?.[0]?.household_id;
   if (!householdId) return null;
 
   return fetchHouseholdById(householdId);
+}
+
+/**
+ * Davet kodunu yeniler ve geçerlilik süresini sıfırdan başlatır (R-010).
+ * Yalnız haneyi kuran kişi yenileyebilir; R-011 ile households UPDATE yetkisi de
+ * kurucuya daraltıldı. 0002 uygulanmamışsa RPC yoktur, eski şemadaki doğrudan
+ * UPDATE yoluna düşülür ve kod (eski davranıştaki gibi) süresiz kalır.
+ */
+export async function refreshInviteCode(): Promise<HouseholdWithMembers | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+  const client = supabase;
+
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const household = await getMyHousehold();
+  if (!household) return null;
+  if (household.created_by !== user.id) {
+    throw new Error('Davet kodunu yalnız ev grubunu kuran kişi yenileyebilir.');
+  }
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const inviteCode = generateInviteCode();
+    const { error } = await client.rpc('rotate_invite_code', { p_invite_code: inviteCode });
+
+    if (!error) return fetchHouseholdById(household.id);
+    if (error.code === '23505') continue;
+    if (!isMissingDbObjectError(error)) throw error;
+
+    const { error: updateError } = await client
+      .from('households')
+      .update({ invite_code: inviteCode })
+      .eq('id', household.id);
+
+    if (!updateError) return fetchHouseholdById(household.id);
+    if (updateError.code !== '23505') throw updateError;
+  }
+
+  throw new Error('Davet kodu oluşturulamadı. Lütfen tekrar deneyin.');
 }
 
 export async function leaveHousehold(): Promise<boolean> {
