@@ -110,9 +110,11 @@ begin
     end if;
   end if;
 
-  delete from public.household_members
-  where user_id = current_user_id
-    and household_id <> target_household_id;
+  -- Niteliksiz household_id, RETURNS TABLE'dan gelen OUT parametresiyle aynı
+  -- ada sahip; takma ad ile kolon olduğu açıkça belirtiliyor (0001'de yoktu).
+  delete from public.household_members hm
+  where hm.user_id = current_user_id
+    and hm.household_id <> target_household_id;
 
   insert into public.household_members (household_id, user_id)
   values (target_household_id, current_user_id)
@@ -162,12 +164,15 @@ begin
     raise exception 'not_household_creator' using errcode = '42501';
   end if;
 
-  return query
   update public.households h
      set invite_code = normalized_code,
          invite_code_expires_at = now() + public.invite_code_ttl()
-   where h.id = target_household_id
-  returning h.id, h.invite_code, h.invite_code_expires_at;
+   where h.id = target_household_id;
+
+  return query
+  select h.id, h.invite_code, h.invite_code_expires_at
+  from public.households h
+  where h.id = target_household_id;
 end;
 $$;
 
