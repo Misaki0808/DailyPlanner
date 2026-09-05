@@ -257,6 +257,18 @@ Görev listesi (sadece JSON array):`;
 };
 
 /**
+ * ────────────────────────────────────────────────────────────────────────
+ * NOT: Aşağıdaki "...WithAI" fonksiyonları ve onları saran
+ * correctVoiceTranscript / extractTimesFromText şu an UYGULAMADA HİÇBİR
+ * YERDEN ÇAĞRILMIYOR. Sesli giriş `voiceParser.correctTranscriptLocal`,
+ * alarm çıkarımı ise `timeParser.extractTimesLocal` üzerinden yerel olarak
+ * yapılıyor (API maliyetini azaltmak için). Buradaki prompt'lar ileride
+ * yeniden açılmak üzere korunuyor; silinip silinmeyeceği PM kararıdır.
+ * Yeniden açılırlarsa model çıktısının doğrulanması zorunludur.
+ * ────────────────────────────────────────────────────────────────────────
+ */
+
+/**
  * API key kontrolü
  */
 export const checkApiKey = (): boolean => {
@@ -529,8 +541,15 @@ JSON:`;
       console.warn('Saat çıkarma AI JSON array döndürmedi, boş liste dönülüyor.');
       return extractTimesLocal(paragraph);
     }
+    // Tip kontrolü yetmez: model 99 gibi bir saat döndürürse
+    // `alarmDate.setHours(99, ...)` tarihi günlerce ileri kaydırır ve
+    // kullanıcı anlamsız bir zamana alarm alır. Yerel ayrıştırıcı zaten
+    // aralık denetimi yapıyor; AI yolu da aynı sıkılıkta olmalı.
     return times.filter(
-      (t: any) => typeof t.hour === 'number' && typeof t.minute === 'number' && typeof t.label === 'string'
+      (t: any) =>
+        typeof t.hour === 'number' && Number.isInteger(t.hour) && t.hour >= 0 && t.hour <= 23 &&
+        typeof t.minute === 'number' && Number.isInteger(t.minute) && t.minute >= 0 && t.minute <= 59 &&
+        typeof t.label === 'string' && t.label.trim().length > 0
     );
   } catch (e) {
     console.warn('Saat çıkarma hatası, boş liste dönülüyor:', e);
