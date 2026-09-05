@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as storage from '../utils/storage';
 import { getToday } from '../utils/dateUtils';
+import { persistOrNotify } from '../utils/persistence';
 
 interface PomodoroState {
   pomodoroStats: Record<string, number>;
@@ -21,7 +22,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     };
     
     set({ pomodoroStats: newStats });
-    await storage.savePomodoroStats(newStats);
+    await persistOrNotify('Pomodoro istatistiği', storage.savePomodoroStats(newStats));
   },
   _hydrate: (data) => set({ pomodoroStats: data }),
 }));

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Gender } from '../types';
 import * as storage from '../utils/storage';
+import { persistOrNotify } from '../utils/persistence';
 
 interface UserState {
   username: string | null;
@@ -18,15 +19,15 @@ export const useUserStore = create<UserState>((set) => ({
   aboutMe: '',
   setUsername: async (name: string) => {
     set({ username: name });
-    await storage.saveUserName(name);
+    await persistOrNotify('Kullanıcı adı', storage.saveUserName(name));
   },
   setGender: async (gender: Gender) => {
     set({ gender });
-    await storage.saveGender(gender);
+    await persistOrNotify('Profil', storage.saveGender(gender));
   },
   saveAboutMe: async (text: string) => {
     set({ aboutMe: text });
-    await storage.saveAboutMe(text);
+    await persistOrNotify('Hakkımda', storage.saveAboutMe(text));
   },
   _hydrate: (data) => set(data),
 }));

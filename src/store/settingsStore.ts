@@ -3,6 +3,7 @@ import { Settings } from '../types';
 import * as storage from '../utils/storage';
 import { Theme, getTheme } from '../utils/theme';
 import { defaultSettings, withSettingsDefaults } from '../utils/defaultSettings';
+import { persistOrNotify } from '../utils/persistence';
 
 interface SettingsState {
   settings: Settings;
@@ -19,7 +20,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   updateSettings: async (newSettings: Partial<Settings>) => {
     const updated = { ...get().settings, ...newSettings };
     set({ settings: updated, theme: getTheme(updated.darkMode) });
-    await storage.saveSettings(updated);
+    await persistOrNotify('Ayarlar', storage.saveSettings(updated));
   },
   _hydrate: (data) => {
     if (data) {

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { RecurringTask } from '../types';
 import * as storage from '../utils/storage';
 import { generateId, getToday } from '../utils/dateUtils';
+import { persistOrNotify } from '../utils/persistence';
 import { usePlansStore } from './plansStore';
 
 interface RecurringState {
@@ -24,7 +25,7 @@ export const useRecurringStore = create<RecurringState>((set, get) => ({
     
     const updated = [...get().recurringTasks, newTask];
     set({ recurringTasks: updated });
-    await storage.saveRecurringTasks(updated);
+    await persistOrNotify('Tekrarlayan görev', storage.saveRecurringTasks(updated));
 
     try {
       const { syncRecurringForToday } = require('./appStore') as typeof import('./appStore');
@@ -37,7 +38,7 @@ export const useRecurringStore = create<RecurringState>((set, get) => ({
   removeRecurringTask: async (id: string) => {
     const updated = get().recurringTasks.filter(t => t.id !== id);
     set({ recurringTasks: updated });
-    await storage.saveRecurringTasks(updated);
+    await persistOrNotify('Tekrarlayan görev silme', storage.saveRecurringTasks(updated));
   },
   
   toggleRecurringTask: async (id: string) => {
@@ -45,7 +46,7 @@ export const useRecurringStore = create<RecurringState>((set, get) => ({
       t.id === id ? { ...t, isActive: !t.isActive } : t
     );
     set({ recurringTasks: updated });
-    await storage.saveRecurringTasks(updated);
+    await persistOrNotify('Tekrarlayan görev', storage.saveRecurringTasks(updated));
   },
   
   _hydrate: (data) => set({ recurringTasks: data }),

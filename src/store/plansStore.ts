@@ -4,6 +4,7 @@ import { Plans, Task } from '../types';
 import * as storage from '../utils/storage';
 import { getToday } from '../utils/dateUtils';
 import { DailyPlannerWidget } from '../widgets/DailyPlannerWidget';
+import { persistOrNotify } from '../utils/persistence';
 
 const DAILY_PLANNER_WIDGET_NAME = 'DailyPlannerWidget';
 
@@ -50,14 +51,14 @@ export const usePlansStore = create<PlansState>((set, get) => ({
   savePlan: async (date: string, tasks: Task[]) => {
     const newPlans = { ...get().plans, [date]: tasks };
     set({ plans: newPlans });
-    await storage.savePlan(date, tasks);
+    await persistOrNotify('Plan', storage.savePlan(date, tasks));
     await requestDailyPlannerWidgetUpdate();
   },
   deletePlan: async (date: string) => {
     const newPlans = { ...get().plans };
     delete newPlans[date];
     set({ plans: newPlans });
-    await storage.deletePlan(date);
+    await persistOrNotify('Plan silme', storage.deletePlan(date));
     await requestDailyPlannerWidgetUpdate();
   },
   updateTask: async (date: string, taskId: string, updates: Partial<Task>) => {
@@ -65,7 +66,7 @@ export const usePlansStore = create<PlansState>((set, get) => ({
     const updatedTasks = dayTasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
     const newPlans = { ...get().plans, [date]: updatedTasks };
     set({ plans: newPlans });
-    await storage.savePlan(date, updatedTasks);
+    await persistOrNotify('Görev', storage.savePlan(date, updatedTasks));
     await requestDailyPlannerWidgetUpdate();
   },
   refreshPlans: async () => {
