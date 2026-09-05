@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import Toast from 'react-native-toast-message';
 import { CloudBackupData, CloudBackupRecord, getSession, isSupabaseConfigured, signInWithEmailOtp, signOut as supabaseSignOut, supabaseService, verifyOtp as supabaseVerifyOtp } from '../services/supabase';
-import { createHousehold, getMyHousehold, joinHousehold as joinHouseholdByCode, leaveHousehold as leaveCurrentHousehold } from '../services/pairing';
+import { createHousehold, getMyHousehold, HOUSEHOLD_MEMBER_LIMIT, INVITE_CODE_TTL_HOURS, isInviteCodeExpired, joinHousehold as joinHouseholdByCode, leaveHousehold as leaveCurrentHousehold, refreshInviteCode } from '../services/pairing';
 import { HouseholdWithMembers } from '../services/supabase';
 import { usePlansStore } from '../store/plansStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -188,12 +188,15 @@ export const useCloudSync = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
+  // Kod yenileme yalnız kurucuya açık olduğu için oturum kimliği de tutulur (R-011).
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [household, setHousehold] = useState<HouseholdWithMembers | null>(null);
   const [backupRecord, setBackupRecord] = useState<CloudBackupRecord | null>(null);
 
   const refresh = useCallback(async () => {
     if (!isSupabaseConfigured) {
       setSessionEmail(null);
+      setSessionUserId(null);
       setHousehold(null);
       setBackupRecord(null);
       return;
@@ -203,6 +206,7 @@ export const useCloudSync = () => {
     try {
       const session = await getSession();
       setSessionEmail(session?.user.email ?? null);
+      setSessionUserId(session?.user.id ?? null);
 
       if (!session) {
         setHousehold(null);
@@ -243,6 +247,7 @@ export const useCloudSync = () => {
     try {
       const session = await supabaseVerifyOtp(email, token);
       setSessionEmail(session?.user.email ?? null);
+      setSessionUserId(session?.user.id ?? null);
       await refresh();
       Toast.show({ type: 'success', text1: 'Giriş Başarılı', text2: 'Bulut hesabınız hazır.' });
       return true;
@@ -306,6 +311,7 @@ export const useCloudSync = () => {
     try {
       await supabaseSignOut();
       setSessionEmail(null);
+      setSessionUserId(null);
       setHousehold(null);
       setBackupRecord(null);
       Toast.show({ type: 'success', text1: 'Çıkış Yapıldı' });
@@ -315,6 +321,49 @@ export const useCloudSync = () => {
       setIsLoading(false);
     }
   }, []);
+
+  const refreshInvite = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const updated = await refreshInviteCode();
+      if (updated) setHousehold(updated);
+      Toast.show({ type: 'success', text1: 'Yeni Davet Kodu Hazır', text2: `Kod ${INVITE_CODE_TTL_HOURS} saat geçerli.` });
+      return true;
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Kod Yenilenemedi', text2: errorMessage(error, 'Lütfen tekrar deneyin.') });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const deleteBackup = useCallback(async () => {
+    if (!household) return false;
+
+    setIsSyncing(true);
+    try {
+      const deleted = await supabaseService.deleteBackup(household.id);
+      if (!deleted) {
+        // Silme isteği hata vermeden 0 satır etkiledi: veritabanında DELETE
+        // politikası yok (0002 migration'ı uygulanmamış).
+        Toast.show({
+          type: 'error',
+          text1: 'Yedek Silinemedi',
+          text2: 'Veritabanında silme yetkisi tanımlı değil. 0002 güvenlik migration\'ı uygulanmalı.',
+        });
+        return false;
+      }
+
+      setBackupRecord(null);
+      Toast.show({ type: 'success', text1: 'Bulut Yedeği Silindi', text2: 'Ortak yedek kaldırıldı. Bu cihazdaki veriler duruyor.' });
+      return true;
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Yedek Silinemedi', text2: errorMessage(error, 'Lütfen tekrar deneyin.') });
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [household]);
 
   const backupToCloud = useCallback(async () => {
     setIsSyncing(true);
@@ -365,15 +414,21 @@ export const useCloudSync = () => {
     sessionEmail,
     household,
     isPaired: isHouseholdPaired(household),
+    isHouseholdCreator: Boolean(household && sessionUserId && household.created_by === sessionUserId),
+    memberLimit: HOUSEHOLD_MEMBER_LIMIT,
+    inviteExpiresAt: household?.invite_code_expires_at ?? null,
+    isInviteExpired: isInviteCodeExpired(household?.invite_code_expires_at),
     backupRecord,
     refresh,
     sendOtp,
     verifyOtp,
     signOut,
     createInvite,
+    refreshInvite,
     joinHousehold,
     leaveHousehold,
     backupToCloud,
     restoreFromCloud,
+    deleteBackup,
   };
 };

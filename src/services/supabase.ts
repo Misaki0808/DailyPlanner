@@ -33,6 +33,12 @@ export type Household = {
   invite_code: string;
   created_by: string;
   created_at: string;
+  /**
+   * Davet kodunun son kullanma zamanı (R-010). Kolon 0002 migration'ı ile
+   * geliyor; migration uygulanmadan önce şemada yok ve alan undefined kalır.
+   * Bu durumda kod süresiz sayılır (bkz. isInviteCodeExpired).
+   */
+  invite_code_expires_at?: string | null;
 };
 
 export type HouseholdMember = {
@@ -198,5 +204,34 @@ export const supabaseService = {
       .maybeSingle();
 
     return { ...data, updatedByProfile: profile ?? null };
+  },
+
+  /**
+   * Hanenin ORTAK bulut yedeğini siler (R-009).
+   *
+   * 0002 migration'ı uygulanmadan önce `plan_backups` için DELETE politikası
+   * yoktur; böyle bir durumda istek hata döndürmez, sessizce 0 satır etkiler.
+   * Bu yüzden silme sonrası satır gerçekten gitmiş mi diye okunur; aksi halde
+   * kullanıcıya yanlışlıkla "silindi" denirdi. Silinemediyse false döner.
+   */
+  async deleteBackup(householdId: string): Promise<boolean> {
+    const client = getConfiguredClient();
+    if (!client) return false;
+
+    const { error } = await client
+      .from('plan_backups')
+      .delete()
+      .eq('household_id', householdId);
+
+    if (error) throw error;
+
+    const { data, error: verifyError } = await client
+      .from('plan_backups')
+      .select('household_id')
+      .eq('household_id', householdId)
+      .maybeSingle();
+
+    if (verifyError) throw verifyError;
+    return !data;
   },
 };

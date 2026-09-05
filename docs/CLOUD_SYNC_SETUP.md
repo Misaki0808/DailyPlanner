@@ -7,9 +7,10 @@ DailyPlanner cloud sync uses Supabase email OTP auth and a two-person household 
 1. Create a Supabase project at https://supabase.com.
 2. Open **SQL Editor** in the Supabase dashboard.
 3. Paste and run `supabase/migrations/0001_init.sql`.
-4. Copy the project URL from **Project Settings → API**.
-5. Copy the anon public key from **Project Settings → API**.
-6. Add EAS project secrets:
+4. Paste and run `supabase/migrations/0002_guvenlik_sertlestirme.sql` (invite code expiry, member limit, backup delete policy). It is idempotent and can be re-run safely.
+5. Copy the project URL from **Project Settings → API**.
+6. Copy the anon public key from **Project Settings → API**.
+7. Add EAS project secrets:
 
 ```bash
 eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL --value <url>
@@ -29,8 +30,12 @@ Do not commit `.env` or any Supabase key values.
 
 - Auth is passwordless Supabase email OTP.
 - The first signed-in user gets a 6-character invite code.
+- An invite code is valid for 24 hours (`public.invite_code_ttl()`); the creator can mint a new one with **Yeni Kod Oluştur**.
+- A household holds at most 2 members (`public.household_member_limit()`); a third join attempt is rejected by `join_household`.
 - A partner joins with that invite code.
 - Both users share one household backup row.
+- Either member can delete the shared backup with **Bulut Yedeğini Sil**; the confirmation states that the partner loses it too. Local data is never touched.
+- Only the household creator can update the `households` row (invite code rotation).
 - Sync is whole-blob last-write-wins.
 - Manual actions are available: **Şimdi Yedekle** and **Buluttan Geri Yükle**.
 - The app silently backs up on `AppState` background when the user is signed in and paired.
@@ -54,9 +59,14 @@ Do not commit `.env` or any Supabase key values.
 13. Put device B in the background, then check Supabase `plan_backups.updated_at` changes after silent backup.
 14. Disable or remove the env vars in a local build and verify Settings shows the setup-required state and the app does not crash.
 15. Try an invalid invite code and verify the UI shows an error without changing local data.
+16. Try an expired invite code (or set `invite_code_expires_at` to a past timestamp in the dashboard) and verify the join is rejected with the "süresi dolmuş" message.
+17. On device A tap **Yeni Kod Oluştur**, verify a new code and a new expiry appear, and that the old code no longer works.
+18. With both devices paired, sign in with a third account and try the code; verify it is rejected because the household is full.
+19. On device A tap **Bulut Yedeğini Sil**, confirm, and verify `plan_backups` no longer has the household row while local plans stay intact.
 
 ## Troubleshooting
 
 - OTP email not received: check Supabase Auth email settings and spam folders.
 - Sync buttons disabled: verify both users are in the same household and `plan_backups` RLS migration ran.
 - Restore has no data: create a backup first from the paired partner device.
+- Delete backup reports "Veritabanında silme yetkisi tanımlı değil": run `supabase/migrations/0002_guvenlik_sertlestirme.sql`.
