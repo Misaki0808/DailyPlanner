@@ -93,6 +93,32 @@ export default function PreferencesSection({
     }
   };
 
+  const thresholdDays = settings.autoCleanThresholdDays ?? defaultSettings.autoCleanThresholdDays ?? 365;
+
+  // Otomatik temizlik geri alınamaz veri sildiği için AÇARKEN onay istenir;
+  // kapatmak zararsız olduğu için doğrudan uygulanır.
+  const handleToggleAutoClean = (enabled: boolean) => {
+    if (!enabled) {
+      onUpdateSettings({ autoCleanOldPlans: false });
+      return;
+    }
+
+    const title = 'Eski planlar silinsin mi?';
+    const message = `Açarsan ${thresholdDays} günden eski planların cihazdan kalıcı olarak silinir. Bu işlem geri alınamaz ve istatistiklerin de bu geçmişi kaybeder.`;
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${title}\n\n${message}`)) {
+        onUpdateSettings({ autoCleanOldPlans: true });
+      }
+      return;
+    }
+
+    Alert.alert(title, message, [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'Evet, sil', style: 'destructive', onPress: () => onUpdateSettings({ autoCleanOldPlans: true }) },
+    ]);
+  };
+
   // Tüm Verileri Sıfırla
   const handleClearData = () => {
     const performClear = async () => {
@@ -258,6 +284,23 @@ export default function PreferencesSection({
               onValueChange={(value) => onUpdateSettings({ askBeforeDeleteAll: value })}
               trackColor={{ false: theme.switchTrackOff, true: theme.switchTrackOn }}
               thumbColor={settings.askBeforeDeleteAll ? theme.switchThumbOn : theme.switchThumbOff}
+            />
+          </View>
+
+          <View style={styles.preferenceItem}>
+            <View style={styles.preferenceTextContainer}>
+              <Text style={[styles.preferenceTitle, { color: theme.text }]}>Eski planları otomatik sil</Text>
+              <Text style={[styles.preferenceDescription, { color: theme.textSecondary }]}>
+                {settings.autoCleanOldPlans
+                  ? `${thresholdDays} günden eski planlar cihazdan kalıcı olarak silinir. İstatistiklerin de bu geçmişi kaybeder.`
+                  : 'Kapalı. Planların cihazda süresiz saklanır.'}
+              </Text>
+            </View>
+            <Switch
+              value={Boolean(settings.autoCleanOldPlans)}
+              onValueChange={handleToggleAutoClean}
+              trackColor={{ false: theme.switchTrackOff, true: theme.switchTrackOn }}
+              thumbColor={settings.autoCleanOldPlans ? theme.switchThumbOn : theme.switchThumbOff}
             />
           </View>
         </View>

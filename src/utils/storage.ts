@@ -243,7 +243,7 @@ export const clearAllData = async () => {
  * ESKİ PLANLARI TEMİZLE
  * Her gün 1 kez çalışması sağlanarak performans korunur.
  */
-export const cleanOldPlans = async (daysThreshold: number = 90) => {
+export const cleanOldPlans = async (daysThreshold: number = defaultSettings.autoCleanThresholdDays ?? 365) => {
   try {
     // Sadece günde 1 kez çalışsın. Gün, uygulamanın geri kalanıyla aynı
     // biçimde YEREL saate göre belirlenir; toISOString() UTC'ye kaydığı için

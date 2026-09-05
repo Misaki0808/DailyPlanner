@@ -17,6 +17,10 @@ export const defaultSettings: Settings = {
   // Onaylanmış ürün panosu gereği KAPALI gelir (task.md 3.5 "Varsayılan: KAPALI"
   // ve öncelik tablosu satır 9). Kullanıcı ayarlardan açar.
   pomodoroSoundEnabled: false,
+  // Eski planların silinmesi geri alınamaz ve İstatistikler ekranı bu geçmişe
+  // dayanıyor; kullanıcı açıkça istemedikçe hiçbir plan silinmez.
+  autoCleanOldPlans: false,
+  autoCleanThresholdDays: 365,
 };
 
 /**

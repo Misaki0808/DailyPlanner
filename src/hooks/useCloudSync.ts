@@ -16,7 +16,7 @@ const PLAN_PREFIX = '@dp_plan_';
 type BackupResult = {
   ok: boolean;
   record?: CloudBackupRecord | null;
-  reason?: 'not-configured' | 'not-signed-in' | 'not-paired' | 'no-backup' | 'empty-local' | 'error';
+  reason?: 'not-configured' | 'not-signed-in' | 'not-paired' | 'no-backup' | 'empty-local' | 'empty-backup' | 'error';
   error?: unknown;
 };
 
@@ -139,6 +139,14 @@ export async function restoreFromCloudSilently(): Promise<BackupResult> {
 
     const record = await supabaseService.restoreData(household.id);
     if (!record) return { ok: false, reason: 'no-backup' };
+
+    // Boş bir yedeği geri yüklemek, cihazdaki tüm planları silip yerine
+    // hiçbir şey yazmamak demektir. Yerelde veri varken buluttaki yedek boşsa
+    // bu neredeyse her zaman istenmeyen bir durumdur (eşleşen taze bir cihaz
+    // ortak satırı boş veriyle ezmiş olabilir), bu yüzden reddedilir.
+    if (!hasUserData(record.data) && hasUserData(buildCloudBackupData())) {
+      return { ok: false, reason: 'empty-backup', record };
+    }
 
     await persistRestoredData(record.data);
     hydrateStoresFromBackup(record.data);
@@ -309,8 +317,10 @@ export const useCloudSync = () => {
       if (!result.ok) {
         const text2 = result.reason === 'no-backup'
           ? 'Bulutta geri yüklenecek yedek bulunamadı.'
-          : 'Giriş ve eşleştirme durumunu kontrol edin.';
-        Toast.show({ type: 'error', text1: 'Geri Yükleme Başarısız', text2 });
+          : result.reason === 'empty-backup'
+            ? 'Buluttaki yedek boş. Bu cihazdaki planlar silinmedi; önce diğer cihazdan yedekleme yapın.'
+            : 'Giriş ve eşleştirme durumunu kontrol edin.';
+        Toast.show({ type: 'error', text1: 'Geri Yükleme Yapılmadı', text2 });
         return false;
       }
 

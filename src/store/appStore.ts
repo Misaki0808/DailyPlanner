@@ -149,8 +149,6 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   },
   initializeApp: async () => {
     try {
-      await storage.cleanOldPlans(90);
-
       // We read everything from storage
       const [
         savedPlans,
@@ -180,6 +178,19 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       useSettingsStore.getState()._hydrate(savedSettings);
       useRecurringStore.getState()._hydrate(savedRecurring);
       usePomodoroStore.getState()._hydrate(savedPomodoro);
+
+      // Eski plan temizliği artık AYARLARA BAĞLI ve varsayılan olarak KAPALI.
+      // Önceden her açılışta koşulsuz çalışıp 90 günden eski tüm planları
+      // uyarısız, geri alınamaz biçimde siliyordu; İstatistikler ekranı bu
+      // geçmişe dayandığı için veri sessizce eriyordu. Ayarlar okunduktan
+      // SONRA çalıştırılır, aksi halde kullanıcının tercihi bilinemez.
+      if (savedSettings.autoCleanOldPlans) {
+        const removed = await storage.cleanOldPlans(savedSettings.autoCleanThresholdDays);
+        if (removed) {
+          const refreshed = await storage.getAllPlans();
+          usePlansStore.getState()._hydrate(refreshed);
+        }
+      }
 
       // Notification setup
       if (savedSettings?.notificationsEnabled) {
