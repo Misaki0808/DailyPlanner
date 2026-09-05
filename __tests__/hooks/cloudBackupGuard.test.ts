@@ -1,3 +1,9 @@
+import { hasUserData } from '../../src/hooks/useCloudSync';
+import { CloudBackupData } from '../../src/services/supabase';
+import { defaultSettings } from '../../src/utils/defaultSettings';
+
+// jest.mock çağrıları import'ların üstüne hoist edilir; bu yüzden burada
+// durmaları güvenlidir (depodaki diğer testlerle aynı düzen).
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
@@ -20,20 +26,18 @@ jest.mock('../../src/services/pairing', () => ({
 
 jest.mock('react-native-toast-message', () => ({ show: jest.fn() }));
 
-import { hasUserData } from '../../src/hooks/useCloudSync';
-
 /**
  * hasUserData, otomatik bulut yedeklemesinin korumasıdır: yerelde veri yokken
  * ortak yedeğin üzerine yazılmasını engeller. Taze kurulmuş bir cihazın arka
  * plana geçmesi, eşin aylarca birikmiş planlarını siliyordu.
  */
 describe('hasUserData (bulut yedekleme koruması)', () => {
-  const empty = {
+  const empty: CloudBackupData = {
     version: 1,
     plans: {},
-    settings: {} as any,
+    settings: defaultSettings,
     recurringTasks: [],
-    user: { username: null, gender: 'male' as const, aboutMe: '' },
+    user: { username: null, gender: 'male', aboutMe: '' },
     pomodoroStats: {},
   };
 
