@@ -19,7 +19,7 @@ import { useTheme, usePomodoroContext, useSettingsContext } from '../../context/
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
-import { TASK_CATEGORIES } from '../../utils/categories';
+import { getCategoryById, normalizeCategoryId } from '../../utils/categories';
 import { buildPlansCsv } from '../../utils/csvExport';
 
 interface StatsSectionProps {
@@ -57,8 +57,10 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
         totalTasks++;
         if (task.done) completedTasks++;
 
-        // Kategori dağılımını hesaplama
-        const cat = task.category || 'diger';
+        // Kategori dağılımını hesaplama. Tanınmayan kimlikler "Diğer"e
+        // indirgenir; aksi halde aşağıdaki liste o satırı atlıyor ve görevler
+        // yüzdelerden sessizce düşüyordu (halka grafikte ise görünüyorlardı).
+        const cat = normalizeCategoryId(task.category);
         if (!categoryCounts[cat]) {
           categoryCounts[cat] = { total: 0, completed: 0 };
         }
@@ -250,8 +252,7 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
               {Object.entries(stats.categoryCounts)
                 .sort((a, b) => b[1].total - a[1].total)
                 .map(([catId, counts]) => {
-                  const catDef = TASK_CATEGORIES.find(c => c.id === catId);
-                  if (!catDef) return null;
+                  const catDef = getCategoryById(catId);
                   const percent = Math.round((counts.completed / counts.total) * 100) || 0;
                   return (
                     <View key={catId} style={styles.categoryItem}>

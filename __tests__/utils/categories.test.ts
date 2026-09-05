@@ -1,4 +1,4 @@
-import { getCategoryById, getCategoryColor, getCategoryEmoji, getCategoryLabel, TASK_CATEGORIES } from '../../src/utils/categories';
+import { getCategoryById, getCategoryColor, getCategoryEmoji, getCategoryLabel, TASK_CATEGORIES, normalizeCategoryId } from '../../src/utils/categories';
 
 describe('categories utility', () => {
   it('should return correct category by id', () => {
@@ -46,5 +46,30 @@ describe('categories utility', () => {
   it('should return default label if id is not provided', () => {
     const label = getCategoryLabel();
     expect(label).toBe('Diğer');
+  });
+});
+
+// Regresyon (R-036): tanımsız kategori kimliği iki ekranda farklı davranıyordu —
+// İstatistikler listesi satırı tamamen atlıyor (görevler yüzdelerden sessizce
+// düşüyor), halka grafik ayrı bir "Diğer" renkli dilim çiziyordu.
+describe('normalizeCategoryId', () => {
+  it('bilinen kimliği olduğu gibi bırakır', () => {
+    expect(normalizeCategoryId('spor')).toBe('spor');
+    expect(normalizeCategoryId('diger')).toBe('diger');
+  });
+
+  it('tanınmayan kimliği "diger"e indirger', () => {
+    expect(normalizeCategoryId('bilinmeyen-kategori')).toBe('diger');
+    expect(normalizeCategoryId('')).toBe('diger');
+  });
+
+  it('kimlik yoksa "diger" döner', () => {
+    expect(normalizeCategoryId(undefined)).toBe('diger');
+  });
+
+  it('indirgenen kimlik her zaman geçerli bir kategori tanımına çözülür', () => {
+    const category = getCategoryById(normalizeCategoryId('yok-boyle-bir-sey'));
+    expect(category.id).toBe('diger');
+    expect(category.label).toBe('Diğer');
   });
 });
