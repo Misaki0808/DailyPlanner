@@ -180,7 +180,6 @@ describe('mergeCloudBackup', () => {
     const result = mergeCloudBackup({ base: null, local, remote: null });
 
     expect(result.merged).toBe(local);
-    expect(result.differsFromRemote).toBe(true);
     expect(result.differsFromLocal).toBe(false);
   });
 
@@ -195,25 +194,23 @@ describe('mergeCloudBackup', () => {
       pomodoroStats: { '2026-09-02': 4 },
     });
 
-    const { merged, differsFromLocal, differsFromRemote } = mergeCloudBackup({ base, local, remote });
+    const { merged, differsFromLocal } = mergeCloudBackup({ base, local, remote });
 
     expect(Object.keys(merged.plans).sort()).toEqual(['2026-09-01', '2026-09-02', '2026-09-03']);
     expect(merged.pomodoroStats).toEqual({ '2026-09-02': 4 });
     expect(differsFromLocal).toBe(true);
-    expect(differsFromRemote).toBe(true);
   });
 
-  it('iki taraf da aynıysa hiçbir yazma gerekmez', () => {
+  it('iki taraf da aynıysa yerele uygulanacak fark yoktur', () => {
     const same = backup({ plans: { '2026-09-05': [task('1', 'Aynı')] } });
 
-    const { differsFromLocal, differsFromRemote } = mergeCloudBackup({
+    const { differsFromLocal } = mergeCloudBackup({
       base: same,
       local: same,
       remote: JSON.parse(JSON.stringify(same)),
     });
 
     expect(differsFromLocal).toBe(false);
-    expect(differsFromRemote).toBe(false);
   });
 
   it('ayarlarda yalnız yerelde değişmemiş alan uzaktan gelir', () => {

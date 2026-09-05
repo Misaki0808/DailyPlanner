@@ -221,16 +221,14 @@ export type CloudMergeInput = {
 
 export type CloudMergeResult = {
   merged: CloudBackupData;
-  /** Buluttaki satırdan farklı mı? (yazmaya değer mi) */
-  differsFromRemote: boolean;
-  /** Cihazdaki veriden farklı mı? (yerele uygulamaya değer mi) */
+  /** Cihazdaki veriden farklı mı? (yerele yazmaya değer mi) */
   differsFromLocal: boolean;
 };
 
 export const mergeCloudBackup = ({ base, local, remote }: CloudMergeInput): CloudMergeResult => {
   // Bulutta satır yoksa birleştirilecek bir şey de yok.
   if (!remote) {
-    return { merged: local, differsFromRemote: true, differsFromLocal: false };
+    return { merged: local, differsFromLocal: false };
   }
 
   const merged: CloudBackupData = {
@@ -242,11 +240,7 @@ export const mergeCloudBackup = ({ base, local, remote }: CloudMergeInput): Clou
     pomodoroStats: mergePomodoroStats(local.pomodoroStats, remote.pomodoroStats),
   };
 
-  return {
-    merged,
-    differsFromRemote: !isSame(merged, remote),
-    differsFromLocal: !isSame(merged, local),
-  };
+  return { merged, differsFromLocal: !isSame(merged, local) };
 };
 
 /**

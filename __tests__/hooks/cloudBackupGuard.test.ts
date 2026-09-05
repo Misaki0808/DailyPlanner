@@ -10,7 +10,14 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 
 jest.mock('../../src/services/supabase', () => ({
   isSupabaseConfigured: false,
-  supabaseService: { backupData: jest.fn(), restoreData: jest.fn() },
+  supabaseService: {
+    backupData: jest.fn(),
+    restoreData: jest.fn(),
+    deleteBackup: jest.fn(),
+    getBackupDeletion: jest.fn().mockResolvedValue(null),
+    markBackupDeleted: jest.fn(),
+    clearBackupDeletion: jest.fn(),
+  },
   getSession: jest.fn(),
   signInWithEmailOtp: jest.fn(),
   signOut: jest.fn(),

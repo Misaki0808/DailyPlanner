@@ -19,6 +19,10 @@ jest.mock('../../src/services/supabase', () => ({
   supabaseService: {
     backupData: jest.fn().mockResolvedValue(true),
     restoreData: jest.fn(),
+    deleteBackup: jest.fn(),
+    getBackupDeletion: jest.fn().mockResolvedValue(null),
+    markBackupDeleted: jest.fn(),
+    clearBackupDeletion: jest.fn(),
   },
 }));
 
