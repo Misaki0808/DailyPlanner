@@ -3,7 +3,8 @@ import { Platform, AppState, AppStateStatus, Vibration, Alert } from 'react-nati
 import * as Notifications from 'expo-notifications';
 import { Audio } from 'expo-av';
 import { useApp } from '../context/AppContext';
-import { formatDate, getToday, parseDate } from '../utils/dateUtils';
+import { getToday } from '../utils/dateUtils';
+import { calculatePomodoroStreak } from '../utils/pomodoroStats';
 import { Task } from '../types';
 
 export type TimerMode = 'focus' | 'shortBreak' | 'longBreak';
@@ -25,28 +26,9 @@ export const AMBIENT_SOUNDS = [
 
 const DING_SOUND_URL = 'https://cdn.pixabay.com/audio/2021/08/04/audio_c6ccf3232f.mp3';
 
-export const calculatePomodoroStreak = (pomodoroStats: Record<string, number>, today: string): number => {
-  let streak = 0;
-  const date = parseDate(today);
-
-  while (true) {
-    const dateStr = formatDate(date);
-    if ((pomodoroStats[dateStr] || 0) > 0) {
-      streak++;
-      date.setDate(date.getDate() - 1);
-      continue;
-    }
-
-    if (streak === 0 && dateStr === today) {
-      date.setDate(date.getDate() - 1);
-      continue;
-    }
-
-    break;
-  }
-
-  return streak;
-};
+// Saf hesaplama src/utils/pomodoroStats.ts'e taşındı; mevcut import'lar
+// bozulmasın diye buradan yeniden dışa aktarılıyor.
+export { calculatePomodoroStreak };
 
 export function usePomodoroTimer() {
   const { settings, pomodoroStats, addPomodoroSession, plans, updateTask } = useApp();

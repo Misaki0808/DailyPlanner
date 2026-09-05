@@ -13,6 +13,7 @@ import { createSharedStyles } from '../../utils/sharedStyles';
 import WeeklyStatsChart from '../WeeklyStatsChart';
 import { generateWeeklySummary, checkApiKey } from '../../utils/aiService';
 import { getToday, addDays } from '../../utils/dateUtils';
+import { calculatePomodoroStreak } from '../../utils/pomodoroStats';
 import { useApp, usePomodoroContext } from '../../context/AppContext';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
@@ -32,25 +33,11 @@ export default function StatsSection({ plans, username }: StatsSectionProps) {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const dashboardRef = useRef<View>(null);
 
-  const streak = (() => {
-    let s = 0;
-    const d = new Date();
-    const today = getToday();
-    while (true) {
-      const dateStr = d.toISOString().split('T')[0];
-      if (pomodoroStats[dateStr] > 0) {
-        s++;
-        d.setDate(d.getDate() - 1);
-      } else {
-        if (s === 0 && dateStr === today) {
-           d.setDate(d.getDate() - 1);
-           continue;
-        }
-        break;
-      }
-    }
-    return s;
-  })();
+  // Seri hesabı Pomodoro ekranıyla aynı kaynaktan gelir. Buradaki eski kopya
+  // günleri toISOString() ile (UTC) anahtarlıyordu; pomodoroStats ise yerel
+  // tarihe göre yazılıyor. UTC+3'te akşam saatlerinde bugünün anahtarı yarına
+  // kaydığı için seri 0 görünüyor, Pomodoro ekranı ise doğru sayıyı gösteriyordu.
+  const streak = calculatePomodoroStreak(pomodoroStats, getToday());
 
   const calculateStats = () => {
     const planDates = Object.keys(plans);

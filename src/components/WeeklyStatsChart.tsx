@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Task } from '../types';
+import { formatDate } from '../utils/dateUtils';
 import { useApp } from '../context/AppContext';
 
 interface WeeklyStatsChartProps {
@@ -19,7 +20,9 @@ export default function WeeklyStatsChart({ plans }: WeeklyStatsChartProps) {
             const date = new Date(today);
             date.setDate(today.getDate() - i);
 
-            const dateString = date.toISOString().split('T')[0];
+            // Planlar YEREL tarihe göre anahtarlanır; toISOString() UTC'ye
+            // kaydığı için çubuklar komşu günün verisini gösteriyordu.
+            const dateString = formatDate(date);
             const dayName = new Intl.DateTimeFormat('tr-TR', { weekday: 'short' }).format(date);
 
             const dayTasks = plans[dateString] || [];

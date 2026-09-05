@@ -75,7 +75,9 @@ export default function MultiDayViewScreen() {
   const [isCopyModalVisible, setIsCopyModalVisible] = useState(false);
   const [isShareModalVisible, setIsShareModalVisible] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
-  const [deletedTask, setDeletedTask] = useState<Task | null>(null);
+  // Silinen görev, geri alma sırasında doğru güne dönebilmek için kaynak
+  // tarihiyle birlikte tutulur.
+  const [deletedTask, setDeletedTask] = useState<{ task: Task; date: string } | null>(null);
   const [quickAddText, setQuickAddText] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -160,7 +162,7 @@ export default function MultiDayViewScreen() {
     await savePlan(selectedDate, updatedTasks);
 
     if (taskToDelete) {
-      setDeletedTask(taskToDelete);
+      setDeletedTask({ task: taskToDelete, date: selectedDate });
       if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
       RNAnimated.timing(undoAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
       undoTimeoutRef.current = setTimeout(() => {
@@ -175,8 +177,16 @@ export default function MultiDayViewScreen() {
   const handleUndoDelete = async () => {
     if (!deletedTask) return;
     if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-    const restoredTasks = [...currentTasks, deletedTask];
-    await savePlan(selectedDate, restoredTasks);
+
+    // Görev silindiği güne geri konur. Daha önce `selectedDate` ve
+    // `currentTasks` kullanılıyordu; kullanıcı 5 saniyelik geri alma
+    // penceresinde başka bir güne geçerse görev yanlış güne kopyalanıyor,
+    // asıl gününde eksik kalıyordu.
+    const { task, date } = deletedTask;
+    const tasksForDate = plans[date] || [];
+    if (!tasksForDate.some(t => t.id === task.id)) {
+      await savePlan(date, [...tasksForDate, task]);
+    }
 
     RNAnimated.timing(undoAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
     setDeletedTask(null);
@@ -644,7 +654,7 @@ export default function MultiDayViewScreen() {
               transform: [{ translateY: undoAnim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }],
             },
           ]}>
-            <Text style={[styles.undoText, { color: theme.text }]} numberOfLines={1}>{deletedTask.title} silindi</Text>
+            <Text style={[styles.undoText, { color: theme.text }]} numberOfLines={1}>{deletedTask.task.title} silindi</Text>
             <TouchableOpacity onPress={handleUndoDelete} activeOpacity={0.7}>
               <LinearGradient
                 colors={theme.accentGradient}
