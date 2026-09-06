@@ -18,6 +18,20 @@ export const TASK_CATEGORIES: TaskCategory[] = [
   { id: 'diger',     label: 'Diğer',     emoji: '📁', color: '#6B7280' },
 ];
 
+export const FALLBACK_CATEGORY_ID = 'diger';
+
+/**
+ * Görevdeki kategori kimliğini BİLİNEN bir kimliğe indirger.
+ *
+ * Eski sürümlerden ya da bulut yedeğinden tanınmayan bir kimlik gelebilir.
+ * Böyle bir görev sayımlarda kendi başına durursa ekranlar ayrışıyordu:
+ * İstatistikler listesi satırı tamamen atlıyor (görevler yüzdelerden sessizce
+ * düşüyor), halka grafik ise ayrı bir "Diğer" renkli dilim çiziyordu.
+ * Sayım öncesi indirgeme, iki ekranı da tek bir "Diğer" altında birleştirir.
+ */
+export const normalizeCategoryId = (id?: string): string =>
+  TASK_CATEGORIES.some(c => c.id === id) ? (id as string) : FALLBACK_CATEGORY_ID;
+
 export const getCategoryById = (id: string): TaskCategory => {
   return TASK_CATEGORIES.find(c => c.id === id) || TASK_CATEGORIES[TASK_CATEGORIES.length - 1]; // fallback: Diğer
 };

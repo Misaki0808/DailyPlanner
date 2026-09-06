@@ -122,8 +122,10 @@ describe('syncRecurringForToday', () => {
       expect(titlesForToday()).toEqual([]);
     });
 
-    // "flexible" bilinçli olarak ele alınmıyor: esnek görevler
-    // FlexibleTaskPool'dan elle ekleniyor.
+    // R-026: esnek görev BİLEREK otomatik eklenmiyor. Kullanıcı haftalık
+    // hedefini koyar ve hangi günlerde yapacağını "ESNEK GÖREV HAVUZU"
+    // kartından kendisi seçer; otomatik eklemek hedefi kullanıcı seçmeden
+    // doldurur ve havuzdaki ekleme düğmesini anlamsız kılardı.
     it('esnek görevi otomatik eklemez', async () => {
       freezeLocalDate(2026, 9, 7);
       useRecurringStore.setState({
@@ -132,6 +134,29 @@ describe('syncRecurringForToday', () => {
 
       await syncRecurringForToday({ force: true });
       expect(titlesForToday()).toEqual([]);
+    });
+
+    it('hedefi eksik esnek görevi de otomatik eklemez', async () => {
+      freezeLocalDate(2026, 9, 7);
+      useRecurringStore.setState({
+        recurringTasks: [recurring({ frequency: 'flexible', flexibleTarget: undefined })],
+      });
+
+      await syncRecurringForToday({ force: true });
+      expect(titlesForToday()).toEqual([]);
+    });
+
+    it('esnek görev diğer frekansların eklenmesini engellemez', async () => {
+      freezeLocalDate(2026, 9, 7);
+      useRecurringStore.setState({
+        recurringTasks: [
+          recurring({ id: 'f', title: 'Yüzme', frequency: 'flexible', flexibleTarget: 2 }),
+          recurring({ id: 'd', title: 'Su iç', frequency: 'daily' }),
+        ],
+      });
+
+      await syncRecurringForToday({ force: true });
+      expect(titlesForToday()).toEqual(['Su iç']);
     });
 
     it('pasif görevi eklemez', async () => {

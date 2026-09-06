@@ -20,7 +20,7 @@ import { usePlansContext, useSettingsContext, useRecurringContext } from '../con
 import { useNavigation } from '@react-navigation/native';
 import { modifyPlanWithAI } from '../utils/aiService';
 import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
-import { getWeekDates } from '../utils/weekUtils';
+import { buildFlexibleTaskProgress, normalizeTaskTitle } from '../utils/flexibleTasks';
 import { Task } from '../types';
 import CopyPlanModal from '../components/CopyPlanModal';
 import ShareModal from '../components/ShareModal';
@@ -47,14 +47,12 @@ if (Platform.OS !== 'web') {
 
 import { styles } from './styles/MultiDayViewScreen.styles';
 
-const normalizeTurkish = (value: string) => value.trim().toLocaleLowerCase('tr-TR');
-
 const inferCategoryForFlexibleTask = (title: string, explicitCategory?: string) => {
   if (explicitCategory && TASK_CATEGORIES.some(category => category.id === explicitCategory)) {
     return explicitCategory;
   }
 
-  const normalizedTitle = normalizeTurkish(title);
+  const normalizedTitle = normalizeTaskTitle(title);
   if (/(okul|ders|ödev|sınav|proje|tez|kampüs|kütüphane)/.test(normalizedTitle)) return 'okul';
   if (/(spor|koş|yürüyüş|antrenman|egzersiz|fitness|yoga)/.test(normalizedTitle)) return 'spor';
   if (/(sağlık|doktor|ilaç|randevu|hastane|terapi|vitamin)/.test(normalizedTitle)) return 'saglik';
@@ -210,16 +208,16 @@ export default function MultiDayViewScreen() {
 
   // Esnek görev havuzundan bugüne ekle
   const handleAddFlexibleTask = async (title: string, priority: 'low' | 'medium' | 'high') => {
-    const normalizedTitle = normalizeTurkish(title);
+    const normalizedTitle = normalizeTaskTitle(title);
     const flexibleTask = recurringTasks.find(rt =>
       rt.isActive &&
       rt.frequency === 'flexible' &&
       rt.priority === priority &&
-      normalizeTurkish(rt.title) === normalizedTitle
+      normalizeTaskTitle(rt.title) === normalizedTitle
     ) || recurringTasks.find(rt =>
       rt.isActive &&
       rt.frequency === 'flexible' &&
-      normalizeTurkish(rt.title) === normalizedTitle
+      normalizeTaskTitle(rt.title) === normalizedTitle
     );
     const explicitCategory = (flexibleTask as { category?: string } | undefined)?.category;
     const newTask: Task & { recurringTaskId?: string } = {
@@ -329,34 +327,9 @@ export default function MultiDayViewScreen() {
     setIsEditMode(false);
   };
 
-  // Esnek görevlerin o haftaki ilerlemesini hesapla
-  const getFlexibleTasksProgress = () => {
-    const flexibleTasks = recurringTasks.filter(rt => rt.isActive && rt.frequency === 'flexible' && rt.flexibleTarget);
-    if (flexibleTasks.length === 0) return [];
-
-    // Hafta Pazartesi başlar; hesap weekUtils'te tek kaynakta duruyor
-    // (takvimlerdeki firstDay={1} ve haftalık hedef ile aynı tanım).
-    const weekDates = getWeekDates(selectedDate);
-
-    return flexibleTasks.map(rt => {
-      let currentCount = 0;
-      let isAddedToday = false;
-      const titleLower = normalizeTurkish(rt.title);
-      weekDates.forEach(date => {
-        const dayTasks = plans[date] || [];
-        if (dayTasks.some(t => {
-          const recurringTaskId = (t as Task & { recurringTaskId?: string }).recurringTaskId;
-          return recurringTaskId === rt.id || (!recurringTaskId && normalizeTurkish(t.title) === titleLower);
-        })) {
-          currentCount++;
-          if (date === selectedDate) isAddedToday = true;
-        }
-      });
-      return { ...rt, currentCount, isAddedToday };
-    }).filter(rt => rt.currentCount < (rt.flexibleTarget || 0) || rt.isAddedToday);
-  };
-
-  const flexibleProgress = getFlexibleTasksProgress();
+  // Esnek görev ilerlemesi saf modülde hesaplanır (src/utils/flexibleTasks.ts);
+  // orada test ediliyor.
+  const flexibleProgress = buildFlexibleTaskProgress(recurringTasks, plans, selectedDate);
 
   // Planı kopyala
   const handleCopyPlan = async (targetDate: string, selectedTasks: Task[]) => {
@@ -540,6 +513,7 @@ export default function MultiDayViewScreen() {
           {!isFiltering && (
             <FlexibleTaskPool
               flexibleProgress={flexibleProgress}
+              isSelectedDayToday={selectedDate === getToday()}
               onAddFlexibleTask={handleAddFlexibleTask}
             />
           )}
