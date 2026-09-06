@@ -17,7 +17,7 @@ import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flat
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePlansContext, useSettingsContext, useRecurringContext } from '../context/AppContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { modifyPlanWithAI } from '../utils/aiService';
 import { formatDateDisplay, getToday, addDays, generateId } from '../utils/dateUtils';
 import { buildFlexibleTaskProgress, normalizeTaskTitle } from '../utils/flexibleTasks';
@@ -67,7 +67,12 @@ export default function MultiDayViewScreen() {
   const { plans, savePlan, deletePlan } = usePlansContext();
   const { settings, theme } = useSettingsContext();
   const { recurringTasks } = useRecurringContext();
-  const [selectedDate, setSelectedDate] = useState(getToday());
+  // Takvim ve Geçmiş ekranları bir gün seçip buraya yönlendiriyor. Parametre
+  // eskiden hiç okunmuyordu: takvimde bir güne dokunmak ekranı açıyor ama
+  // bugüne düşüyordu.
+  const route = useRoute();
+  const routeDate = (route.params as { date?: string } | undefined)?.date;
+  const [selectedDate, setSelectedDate] = useState(routeDate || getToday());
   const [currentTasks, setCurrentTasks] = useState<Task[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isCopyModalVisible, setIsCopyModalVisible] = useState(false);
@@ -104,6 +109,12 @@ export default function MultiDayViewScreen() {
       )
     });
   }, [navigation]);
+
+  // Ekran stack'te mount kalıyor; aynı ekrana yeni bir tarihle dönüldüğünde
+  // state'in de takip etmesi gerekiyor.
+  useEffect(() => {
+    if (routeDate) setSelectedDate(routeDate);
+  }, [routeDate]);
 
   const isFiltering = searchQuery.trim().length > 0 || selectedFilterCats.length > 0;
 

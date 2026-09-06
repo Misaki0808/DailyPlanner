@@ -1,11 +1,11 @@
 import { createNavigationContainerRef } from '@react-navigation/native';
-import { RootTabParamList } from '../types';
+import { AppStackParamList } from '../navigation/routes';
 
-export const navigationRef = createNavigationContainerRef<RootTabParamList>();
+export const navigationRef = createNavigationContainerRef<AppStackParamList>();
 
-export function navigate<RouteName extends keyof RootTabParamList>(
+export function navigate<RouteName extends keyof AppStackParamList>(
     name: RouteName,
-    params?: RootTabParamList[RouteName]
+    params?: AppStackParamList[RouteName]
 ) {
     if (navigationRef.isReady()) {
         // @ts-ignore - React Navigation type union complexity workaround

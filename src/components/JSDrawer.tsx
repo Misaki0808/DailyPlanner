@@ -91,8 +91,9 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
         return unsubscribe;
     }, []);
 
-    const navigateTo = (screenName: keyof import('../types').RootTabParamList) => {
+    const navigateTo = (screenName: import('../navigation/routes').AppRouteName) => {
         if (navigationRef.isReady()) {
+            // @ts-ignore - React Navigation'ın parametreli/parametresiz rota birleşimi
             navigationRef.navigate(screenName);
             closeDrawer();
         }
@@ -171,6 +172,14 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
                         targetScreen="Pomodoro"
                         isActive={activeRouteName === 'Pomodoro'}
                         onPress={() => navigateTo('Pomodoro')}
+                        theme={theme}
+                    />
+                    <MenuItem
+                        label="Geçmiş"
+                        icon="🗂️"
+                        targetScreen="Archive"
+                        isActive={activeRouteName === 'Archive'}
+                        onPress={() => navigateTo('Archive')}
                         theme={theme}
                     />
                     <MenuItem
