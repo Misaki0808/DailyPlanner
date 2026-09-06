@@ -90,25 +90,24 @@ describe('CategoryDonutChart', () => {
     expect(data.find((d: any) => d.category === 'bilinmeyen')).toBeUndefined();
   });
 
-  // R-037: halka grafiğin SVG dilimlerinin ekran okuyucuda metin karşılığı yok.
+  // R-037 + R-038: SVG dilimlerinin ekran okuyucuda metin karşılığı yok.
+  // Dilim detayları önce sıfır yükseklikli kırpılmış bir katmandaydı; ekran
+  // okuyucular böyle düğümleri atlayabildiği için artık hepsi grafiğin TEK
+  // birleşik accessibilityLabel'ında.
   describe('erişilebilirlik', () => {
-    it('halkanın özetini ekran okuyucuya verir', () => {
-      const plans: Plans = { '2026-09-05': [task('1', 'is'), task('2', 'spor')] };
-
-      const { getByLabelText } = render(<CategoryDonutChart plans={plans} />);
-
-      expect(getByLabelText('Kategori dağılımı halka grafiği. Toplam 2 görev, 2 kategori.')).toBeTruthy();
-    });
-
-    it('her dilim için ayrı etiket üretir', () => {
+    it('özeti ve tüm dilimleri tek bir etikette birleştirir', () => {
       const plans: Plans = {
         '2026-09-05': [task('1', 'is'), task('2', 'is'), task('3', 'spor'), task('4', 'spor')],
       };
 
       const { getByLabelText } = render(<CategoryDonutChart plans={plans} />);
 
-      expect(getByLabelText('İş: 2 görev, yüzde 50')).toBeTruthy();
-      expect(getByLabelText('Spor: 2 görev, yüzde 50')).toBeTruthy();
+      expect(
+        getByLabelText(
+          'Kategori dağılımı halka grafiği. Toplam 4 görev, 2 kategori. ' +
+          'İş: 2 görev, yüzde 50. Spor: 2 görev, yüzde 50.'
+        )
+      ).toBeTruthy();
     });
 
     it('birleştirilen dilim "Diğer" adıyla etiketlenir', () => {
@@ -116,7 +115,27 @@ describe('CategoryDonutChart', () => {
 
       const { getByLabelText } = render(<CategoryDonutChart plans={plans} />);
 
-      expect(getByLabelText('Diğer: 1 görev, yüzde 100')).toBeTruthy();
+      expect(getByLabelText(/Diğer: 1 görev, yüzde 100\./)).toBeTruthy();
+    });
+
+    // Grafiğin iç düğümleri okuyucudan gizleniyor ki tek düğüm olarak okunsun.
+    it('grafik alt ağacını erişilebilirlikten gizler', () => {
+      const plans: Plans = { '2026-09-05': [task('1', 'is')] };
+
+      const { getByLabelText } = render(<CategoryDonutChart plans={plans} />);
+      const chart = getByLabelText(/Kategori dağılımı halka grafiği/);
+
+      expect(chart.props.accessible).toBe(true);
+      expect(chart.props.accessibilityRole).toBe('image');
+    });
+
+    it('sıfır yükseklikli gizli etiket katmanı KULLANMAZ', () => {
+      const plans: Plans = { '2026-09-05': [task('1', 'is')] };
+
+      const { queryByText } = render(<CategoryDonutChart plans={plans} />);
+
+      // Eski desende dilim adları görünmez metin olarak da basılıyordu.
+      expect(queryByText('İş 1')).toBeNull();
     });
   });
 

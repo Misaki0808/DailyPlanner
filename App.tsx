@@ -20,11 +20,12 @@ import PlanOverviewScreen from './src/screens/PlanOverviewScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import PomodoroScreen from './src/screens/PomodoroScreen';
 import CalendarGridScreen from './src/screens/CalendarGridScreen';
-import { RootTabParamList } from './src/types';
+import ArchiveScreen from './src/screens/ArchiveScreen';
+import { AppStackParamList } from './src/navigation/routes';
 
 import { navigationRef } from './src/utils/navigationRef';
 
-const Stack = createStackNavigator<RootTabParamList>();
+const Stack = createStackNavigator<AppStackParamList>();
 
 // Header'daki Menü Butonu (Modern Icon)
 function MenuButton() {
@@ -127,6 +128,11 @@ function AppContent() {
             name="CalendarGrid"
             component={CalendarGridScreen}
             options={{ title: '🗓️ Takvim' }}
+          />
+          <Stack.Screen
+            name="Archive"
+            component={ArchiveScreen}
+            options={{ title: '🗂️ Geçmiş' }}
           />
           <Stack.Screen
             name="Settings"

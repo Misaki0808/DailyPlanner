@@ -55,23 +55,35 @@ export default function CategoryDonutChart({ plans }: CategoryDonutChartProps) {
 
   const total = data.reduce((sum, item) => sum + item.value, 0);
 
+  // Özet + her dilim tek bir etikette. Ekran okuyucu grafiği tek düğüm
+  // olarak okuduğu için dilimlerin ayrı düğüm olarak "görünmesine" gerek yok.
+  const accessibilityLabel = [
+    `Kategori dağılımı halka grafiği. Toplam ${total} görev, ${data.length} kategori.`,
+    ...data.map(slice => `${slice.label}: ${slice.value} görev, yüzde ${slice.percent}.`),
+  ].join(' ');
+
   return (
     <View style={styles.container}>
       <Text style={[styles.title, { color: theme.text }]}>🏷️ Kategori Dağılımı (Genel)</Text>
 
       {/*
         Halka grafiğin kendisi ekran okuyucuya hiçbir şey anlatmıyor: SVG
-        dilimlerinin metin karşılığı yok. WeeklyChart'taki çubuk etiketleri
-        deseniyle aynı şekilde, önce halkanın özeti veriliyor, ardından her
-        dilim tek tek etiketleniyor. Görsel liste gerekmediği için dilim
-        etiketleri sıfır yükseklikli bir katmanda duruyor.
+        dilimlerinin metin karşılığı yok.
+
+        Dilim detayları önce sıfır yükseklikli, kırpılmış bir katmanda ayrı
+        Text'ler olarak duruyordu; ekran okuyucular görünmeyen/kırpılmış
+        düğümleri atlayabildiği için bu güvenilir değildi. Artık grafiğin
+        TAMAMI tek bir erişilebilirlik düğümü: özet ve tüm dilimler tek bir
+        accessibilityLabel içinde birleştiriliyor. Alt ağaç
+        `importantForAccessibility="no-hide-descendants"` ile gizleniyor ki
+        okuyucu grafiğin iç düğümlerine dalmasın.
       */}
       <View
         accessible
         accessibilityRole="image"
-        accessibilityLabel={`Kategori dağılımı halka grafiği. Toplam ${total} görev, ${data.length} kategori.`}
+        accessibilityLabel={accessibilityLabel}
       >
-        <View style={styles.chartContainer}>
+        <View style={styles.chartContainer} importantForAccessibility="no-hide-descendants">
           <PieChart
             data={data}
             donut
@@ -88,19 +100,6 @@ export default function CategoryDonutChart({ plans }: CategoryDonutChartProps) {
             )}
           />
         </View>
-      </View>
-
-      <View style={styles.sliceLabels} importantForAccessibility="yes">
-        {data.map(slice => (
-          <Text
-            key={slice.category}
-            accessible
-            accessibilityLabel={`${slice.label}: ${slice.value} görev, yüzde ${slice.percent}`}
-            style={styles.sliceLabelText}
-          >
-            {slice.label} {slice.value}
-          </Text>
-        ))}
       </View>
     </View>
   );
@@ -131,13 +130,5 @@ const styles = StyleSheet.create({
   },
   centerCaption: {
     fontSize: 10,
-  },
-  // Dilim etiketleri yalnız ekran okuyucu için; görsel olarak yer kaplamaz.
-  sliceLabels: {
-    height: 0,
-    overflow: 'hidden',
-  },
-  sliceLabelText: {
-    fontSize: 1,
   },
 });

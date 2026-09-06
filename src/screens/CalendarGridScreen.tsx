@@ -47,10 +47,7 @@ export default function CalendarGridScreen() {
   }, [plans, theme, today]);
 
   const onDayPress = (day: any) => {
-    // Navigate to MultiDayView with selected date, or set global date
-    // Since our architecture sets selectedDate inside MultiDayView locally, 
-    // we should ideally navigate with params or just show toast for now.
-    // Let's just navigate to MultiDay (which defaults to today, but could take params)
+    // MultiDayView artık `date` parametresini okuyor; seçilen güne atlıyoruz.
     (navigation as any).navigate('MultiDayView', { date: day.dateString });
   };
 
