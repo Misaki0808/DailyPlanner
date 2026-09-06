@@ -17,11 +17,17 @@ const formatExpiry = (value?: string | null) => {
 };
 
 /**
- * Geri alınamaz işlemler için onay. react-native-web'de Alert.alert düğmeleri
- * çalışmadığı için web'de window.confirm kullanılır (PreferencesSection ile
- * aynı desen).
+ * Onay diyaloğu. react-native-web'de Alert.alert düğmeleri çalışmadığı için
+ * web'de window.confirm kullanılır (PreferencesSection ile aynı desen);
+ * eskiden bu ekrandaki onaylar web'de sessizce hiçbir şey yapmıyordu.
  */
-const confirmDestructive = (title: string, message: string, confirmLabel: string, onConfirm: () => void) => {
+const confirmAction = (
+  title: string,
+  message: string,
+  confirmLabel: string,
+  onConfirm: () => void,
+  destructive = true,
+) => {
   if (Platform.OS === 'web') {
     if (window.confirm(`${title}\n\n${message}`)) onConfirm();
     return;
@@ -29,7 +35,7 @@ const confirmDestructive = (title: string, message: string, confirmLabel: string
 
   Alert.alert(title, message, [
     { text: 'Vazgeç', style: 'cancel' },
-    { text: confirmLabel, style: 'destructive', onPress: onConfirm },
+    { text: confirmLabel, style: destructive ? 'destructive' : 'default', onPress: onConfirm },
   ]);
 };
 
@@ -43,6 +49,7 @@ export default function CloudSyncSection() {
     household,
     isPaired,
     isHouseholdCreator,
+    isBackupPaused,
     memberLimit,
     inviteExpiresAt,
     isInviteExpired,
@@ -105,48 +112,56 @@ export default function CloudSyncSection() {
   };
 
   const confirmBackup = () => {
-    Alert.alert(
+    confirmAction(
       'Bulut yedeği güncellensin mi?',
       'Bu cihazdaki değişiklikler ortak bulut yedeğiyle BİRLEŞTİRİLİR: eşinin değişiklikleri silinmez, buluttaki yenilikler de bu cihaza uygulanır.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Şimdi Yedekle', onPress: backupToCloud },
-      ]
+      'Şimdi Yedekle',
+      () => { backupToCloud(); },
+      false,
     );
   };
 
   const confirmRestore = () => {
-    Alert.alert(
+    confirmAction(
       'Buluttan geri yüklensin mi?',
       'Bu işlem bu cihazdaki yerel plan, ayar, tekrarlayan görev ve istatistikleri bulut yedeğiyle DEĞİŞTİRİR (birleştirmez). Yalnız birleştirmek istiyorsan "Şimdi Yedekle" düğmesini kullan.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Geri Yükle', style: 'destructive', onPress: restoreFromCloud },
-      ]
+      'Geri Yükle',
+      () => { restoreFromCloud(); },
     );
   };
 
   const confirmLeave = () => {
-    Alert.alert(
+    confirmAction(
       'Eşleştirme kaldırılsın mı?',
       'Bu cihaz bulut household üyeliğinden ayrılır. Yerel veriler silinmez. Ortak bulut yedeği de silinmez; silmek istiyorsan ayrılmadan önce "Bulut Yedeğini Sil" düğmesini kullan.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Ayrıl', style: 'destructive', onPress: leaveHousehold },
-      ]
+      'Ayrıl',
+      () => { leaveHousehold(); },
     );
   };
 
   // Yedek, ev grubunun ORTAK yedeği: silmek eşi de etkiler, bu yüzden onay
   // metninde açıkça yazıyor (R-009).
   const confirmDeleteBackup = () => {
-    confirmDestructive(
+    confirmAction(
       'Bulut yedeği silinsin mi?',
       'Bu yedek ev grubunun ORTAK yedeğidir: silersen eşin de buluttan geri yükleme yapamaz. Bu cihazdaki planların, ayarların ve istatistiklerin silinmez. Otomatik yedekleme, sen "Şimdi Yedekle" diyene kadar duraklatılır. İşlem geri alınamaz.',
       'Yedeği Sil',
       () => { deleteBackup(); }
     );
   };
+
+  // Yedek silindikten sonra otomatik yedekleme duraklıyor; bu görünmezse
+  // kullanıcı cihazı senkron sanır (R2-007).
+  const renderBackupPausedNotice = () => (
+    isBackupPaused ? (
+      <View style={[styles.noticeBox, styles.pausedNotice, { backgroundColor: theme.accentLight, borderColor: theme.error }]}>
+        <Text style={[styles.noticeTitle, { color: theme.error }]}>⏸ Otomatik yedekleme duraklatıldı</Text>
+        <Text style={[styles.pausedText, { color: theme.textSecondary }]}>
+          Bulut yedeğini sildin. Yeniden yedeklemeye başlamak için &quot;Şimdi Yedekle&quot; düğmesine bas.
+        </Text>
+      </View>
+    ) : null
+  );
 
   const renderDeleteBackup = () => (
     backupRecord ? (
@@ -231,6 +246,7 @@ export default function CloudSyncSection() {
         <GradientButton disabled={inviteCode.trim().length !== 6 || isBusy} colors={theme.accentGradient} label="Eşleştir" onPress={() => joinHousehold(inviteCode)} />
         <SecondaryButton disabled={isBusy} label="Çıkış Yap" textColor={theme.textSecondary} backgroundColor={theme.accentLight} onPress={signOut} />
       </View>
+      {renderBackupPausedNotice()}
       {isHouseholdCreator && (
         <View style={styles.buttonRow}>
           <SecondaryButton disabled={isBusy} label="Yeni Kod Oluştur" textColor={theme.textSecondary} backgroundColor={theme.accentLight} onPress={refreshInvite} />
@@ -258,6 +274,7 @@ export default function CloudSyncSection() {
         <Text style={[styles.metaText, { color: theme.textSecondary }]}>Son yedekleyen:</Text>
         <Text style={[styles.metaValue, { color: theme.text }]}>{lastBackupBy || 'Henüz yok'}</Text>
       </View>
+      {renderBackupPausedNotice()}
       <View style={styles.buttonRow}>
         <GradientButton disabled={isBusy} colors={theme.accentGradient} label={isSyncing ? 'Yedekleniyor...' : 'Şimdi Yedekle'} onPress={confirmBackup} />
         <GradientButton disabled={isBusy || !backupRecord} colors={theme.blueGradient} label={isSyncing ? 'İndiriliyor...' : 'Buluttan Geri Yükle'} onPress={confirmRestore} />
@@ -414,5 +431,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginTop: 6,
+  },
+  pausedNotice: {
+    marginBottom: 12,
+  },
+  pausedText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

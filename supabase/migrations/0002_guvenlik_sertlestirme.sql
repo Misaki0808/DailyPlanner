@@ -4,6 +4,11 @@
 -- 0001_init.sql çalıştırıldıktan SONRA, Supabase Dashboard → SQL Editor'da bir
 -- kez çalıştırın. Dosya idempotenttir; tekrar çalıştırmak güvenlidir.
 --
+-- DİKKAT (R2-008): Bu dosyayı 0003'ten SONRA yeniden çalıştırırsan hemen
+-- ardından 0003_sync_birlestirme.sql dosyasını da çalıştır. join_household
+-- burada da tanımlı ve buradaki sürüm, 0003'ün eklediği `for update` kilidini
+-- (eşzamanlı katılmada üye limiti yarışı) sessizce geri alır.
+--
 -- Kapsam:
 --   R-009  plan_backups için DELETE politikası (yalnız o hanenin üyeleri)
 --   R-010  Davet kodlarına geçerlilik süresi + hane başına üye limiti

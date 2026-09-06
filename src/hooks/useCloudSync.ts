@@ -125,18 +125,34 @@ const MAX_SYNC_ATTEMPTS = 3;
 /**
  * Kullanıcı ortak yedeği bilerek sildi mi? (R2-006)
  *
- * Buluttaki işaret eşin cihazını da kapsar; yerel işaret 0003 uygulanmamış
- * olsa bile silen cihazda kuralın işlemesini sağlar.
+ * Buluttaki işaret tek doğruluk kaynağıdır ve eşin cihazını da kapsar; yerel
+ * işaret 0003 uygulanmamışken silen cihazda kuralın işlemesini sağlar.
+ *
+ * R2-007: eskiden yerel işaret varsa bulut hiç sorulmuyordu. Eş "Şimdi
+ * Yedekle" ile buluttaki işareti kaldırdığında bu cihazın otomatik
+ * yedeklemesi süresiz kapalı kalıyor, üstelik birleştirme de bu yoldan
+ * yapıldığı için cihaz eşin değişikliklerini almayı bırakıyordu. Artık bulut
+ * okunabiliyor ve işaret YOKSA bayat yerel işaret temizlenir.
  */
-const isBackupDeletionActive = async (householdId: string): Promise<boolean> => {
-  if (await storage.getBackupDeletedAt(householdId)) return true;
+export const isBackupDeletionActive = async (householdId: string): Promise<boolean> => {
+  const localMarker = await storage.getBackupDeletedAt(householdId);
 
   try {
-    return Boolean(await supabaseService.getBackupDeletion(householdId));
+    const remote = await supabaseService.getBackupDeletion(householdId);
+
+    if (remote.supported) {
+      if (!remote.deletedAt) {
+        if (localMarker) await storage.clearBackupDeletedAt();
+        return false;
+      }
+      return true;
+    }
   } catch (error) {
     console.warn('Yedek silme işareti okunamadı:', error);
-    return false;
   }
+
+  // 0003 uygulanmamış ya da bulut okunamadı: yalnız yerel işaret bilinir.
+  return Boolean(localMarker);
 };
 
 /** Kullanıcı yeniden yedeklemek istedi: silme işareti her iki tarafta kalkar. */
@@ -196,7 +212,7 @@ export async function backupToCloudSilently(options: { explicit?: boolean } = {}
         return { ok: false, reason: 'empty-local', record: existing };
       }
 
-      const { merged, differsFromLocal } = mergeCloudBackup({
+      const { merged, differsFromLocal, differsFromRemote } = mergeCloudBackup({
         base,
         local: payload,
         remote: existing?.data ?? null,
@@ -207,6 +223,14 @@ export async function backupToCloudSilently(options: { explicit?: boolean } = {}
       if (differsFromLocal) {
         await persistRestoredData(merged);
         hydrateStoresFromBackup(merged);
+      }
+
+      // Buluttaki içerik zaten aynıysa yazmaya gerek yok. Karşılaştırma zaman
+      // damgalarını saymaz: iki cihaz aynı içeriği farklı damgayla tutuyorsa
+      // her arka plana geçiş gereksiz bir yazma üretiyordu (R2-010).
+      if (!differsFromRemote) {
+        await storage.saveSyncBase(household.id, merged, existing?.updated_at ?? null);
+        return { ok: true, record: existing };
       }
 
       const outcome = await supabaseService.backupData(household.id, merged, existing?.updated_at ?? null);
@@ -265,6 +289,12 @@ export const useCloudSync = () => {
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   // Kod yenileme yalnız kurucuya açık olduğu için oturum kimliği de tutulur (R-011).
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  // Yedek silindikten sonra otomatik yedekleme duraklıyor; kullanıcı bunu
+  // ekranda görmeli, yoksa cihaz senkronmuş gibi görünür (R2-007).
+  const [isBackupPaused, setIsBackupPaused] = useState(false);
+  // Davet kodunun süresi ekran açıkken dolabilir; tek bir zamanlayıcı görünümü
+  // "süresi doldu" durumuna geçirir.
+  const [expiryTick, setExpiryTick] = useState(0);
   const [household, setHousehold] = useState<HouseholdWithMembers | null>(null);
   const [backupRecord, setBackupRecord] = useState<CloudBackupRecord | null>(null);
 
@@ -274,6 +304,7 @@ export const useCloudSync = () => {
       setSessionUserId(null);
       setHousehold(null);
       setBackupRecord(null);
+      setIsBackupPaused(false);
       return;
     }
 
@@ -292,6 +323,7 @@ export const useCloudSync = () => {
       const currentHousehold = await getMyHousehold();
       setHousehold(currentHousehold);
       setBackupRecord(currentHousehold ? await supabaseService.restoreData(currentHousehold.id) : null);
+      setIsBackupPaused(currentHousehold ? await isBackupDeletionActive(currentHousehold.id) : false);
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Bulut Durumu Alınamadı', text2: errorMessage(error, 'Lütfen tekrar deneyin.') });
     } finally {
@@ -302,6 +334,21 @@ export const useCloudSync = () => {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Süre dolduğu anda görünüm kendiliğinden güncellensin: saniye saniye
+  // yenilemeye gerek yok, tek bir zamanlayıcı yeter.
+  useEffect(() => {
+    const expiresAt = household?.invite_code_expires_at;
+    if (!expiresAt) return;
+
+    const remaining = new Date(expiresAt).getTime() - Date.now();
+    // Geçmiş tarihte zaten "doldu" görünür; çok uzak tarihlerde setTimeout
+    // taşar ve hemen tetiklenir, o yüzden ikisi de atlanır.
+    if (Number.isNaN(remaining) || remaining <= 0 || remaining > 2147483647) return;
+
+    const timer = setTimeout(() => setExpiryTick(tick => tick + 1), remaining + 1000);
+    return () => clearTimeout(timer);
+  }, [household?.invite_code_expires_at, expiryTick]);
 
   const sendOtp = useCallback(async (email: string) => {
     setIsLoading(true);
@@ -446,6 +493,7 @@ export const useCloudSync = () => {
       }
 
       setBackupRecord(null);
+      setIsBackupPaused(true);
       Toast.show({
         type: 'success',
         text1: 'Bulut Yedeği Silindi',
@@ -473,7 +521,8 @@ export const useCloudSync = () => {
       }
 
       setBackupRecord(result.record ?? null);
-      Toast.show({ type: 'success', text1: 'Yedekleme Başarılı', text2: 'Yerel veriler buluta kaydedildi.' });
+      setIsBackupPaused(false);
+      Toast.show({ type: 'success', text1: 'Yedekleme Başarılı', text2: 'Bu cihazdaki veriler bulut yedeğiyle birleştirildi.' });
       return true;
     } finally {
       setIsSyncing(false);
@@ -513,6 +562,7 @@ export const useCloudSync = () => {
     memberLimit: HOUSEHOLD_MEMBER_LIMIT,
     inviteExpiresAt: household?.invite_code_expires_at ?? null,
     isInviteExpired: isInviteCodeExpired(household?.invite_code_expires_at),
+    isBackupPaused,
     backupRecord,
     refresh,
     sendOtp,

@@ -54,11 +54,48 @@ const JOIN_ERROR_MESSAGES: Record<string, string> = {
   not_authenticated: 'Oturumunuz sonlanmış. Tekrar giriş yapın.',
 };
 
-/** join_household RPC'sinin ham hatasını kullanıcıya gösterilebilir metne çevirir. */
+const NETWORK_ERROR_PATTERN = /network|fetch|timeout|timed out|failed to connect|ECONN/i;
+
+/**
+ * Sunucuya hiç ulaşılamadı mı? supabase-js ağ hatalarını veritabanı kodu
+ * OLMAYAN bir TypeError/FetchError olarak yükseltir.
+ */
+export const isNetworkError = (error: unknown): boolean => {
+  const dbError = error as DatabaseError | null;
+  if (dbError?.code) return false;
+  return NETWORK_ERROR_PATTERN.test(dbError?.message ?? '');
+};
+
+/** Yetki ya da oturum sorunu: PostgreSQL 42501 ve PostgREST JWT hataları. */
+export const isAuthorizationError = (error: unknown): boolean => {
+  const code = (error as DatabaseError | null)?.code ?? '';
+  return code === '42501' || code === 'PGRST301' || code === '401';
+};
+
+/**
+ * join_household RPC'sinin ham hatasını kullanıcıya gösterilebilir metne çevirir.
+ *
+ * R2-004: eskiden bilinen anahtarlar dışındaki HER hata "Davet kodunu kontrol
+ * edin" metnine düşüyordu; ağ kesintisi, eksik migration ve yetki sorunu da
+ * kullanıcıya kodu suçlayan bir mesaj gösteriyordu. Ham hata çağıran tarafta
+ * loglanır, kullanıcıya sınıfına uygun metin gider.
+ */
 export const describeJoinError = (error: unknown): string => {
   const message = (error as DatabaseError | null)?.message ?? '';
   const key = Object.keys(JOIN_ERROR_MESSAGES).find(candidate => message.includes(candidate));
-  return key ? JOIN_ERROR_MESSAGES[key] : 'Eşleştirme başarısız. Davet kodunu kontrol edin.';
+  if (key) return JOIN_ERROR_MESSAGES[key];
+
+  if (isNetworkError(error)) {
+    return 'Sunucuya ulaşılamadı. İnternet bağlantını kontrol edip tekrar dene.';
+  }
+  if (isMissingDbObjectError(error)) {
+    return 'Eşleştirme işlevi sunucuda bulunamadı. Veritabanı kurulumu (migration) tamamlanmamış olabilir.';
+  }
+  if (isAuthorizationError(error)) {
+    return 'Bu işlem için yetki alınamadı. Çıkış yapıp yeniden giriş yapmayı dene.';
+  }
+
+  return 'Eşleştirme başarısız. Davet kodunu kontrol edin.';
 };
 
 const fetchHouseholdById = async (householdId: string): Promise<HouseholdWithMembers | null> => {
@@ -161,7 +198,11 @@ export async function joinHousehold(code: string): Promise<HouseholdWithMembers 
 
   const { data, error } = await client.rpc('join_household', { p_invite_code: normalizedCode });
   // Süresi dolmuş kod ve dolu hane reddi RPC'den ham anahtar olarak gelir.
-  if (error) throw new Error(describeJoinError(error));
+  // Ham hata teşhis için logda kalır; kullanıcıya sınıfına uygun metin gider.
+  if (error) {
+    console.warn('join_household RPC hatası:', error);
+    throw new Error(describeJoinError(error));
+  }
 
   const householdId = data?.[0]?.household_id;
   if (!householdId) return null;

@@ -69,8 +69,7 @@ export const buildFlexibleTaskProgress = (
       for (const date of weekDates) {
         const dayTasks: Task[] = plans[date] || [];
         const matches = dayTasks.some(dayTask => {
-          const recurringTaskId = (dayTask as Task & { recurringTaskId?: string }).recurringTaskId;
-          if (recurringTaskId) return recurringTaskId === task.id;
+          if (dayTask.recurringTaskId) return dayTask.recurringTaskId === task.id;
           return normalizeTaskTitle(dayTask.title) === normalizedTitle;
         });
 

@@ -9,6 +9,7 @@ DailyPlanner cloud sync uses Supabase email OTP auth and a two-person household 
 3. Paste and run `supabase/migrations/0001_init.sql`.
 4. Paste and run `supabase/migrations/0002_guvenlik_sertlestirme.sql` (invite code expiry, member limit, backup delete policy). It is idempotent and can be re-run safely.
 5. Paste and run `supabase/migrations/0003_sync_birlestirme.sql` (race-safe member limit, backup deletion marker). It requires 0002 and refuses to run without it. Idempotent.
+   **If you ever re-run 0002 afterwards, run 0003 again right after it:** both files define `join_household`, and the 0002 version silently drops the `for update` lock that 0003 adds.
 6. Copy the project URL from **Project Settings → API**.
 7. Copy the anon public key from **Project Settings → API**.
 8. Add EAS project secrets:
@@ -46,6 +47,13 @@ Do not commit `.env` or any Supabase key values.
 - The app silently backs up on `AppState` background when the user is signed in and paired.
 - Boot never auto-restores over local data; it only checks whether a cloud backup exists.
 - Realtime sync is not included in v1. It is a future enhancement.
+
+## Known limits
+
+- **Task order does not converge between devices.** The merge keeps the local order and appends tasks that only exist in the cloud; there is no order field to reconcile.
+- **Moving a task to another day while the partner edits it on the old day leaves the task on both days.** Base `D1:[task]`, device A moves it to `D2`, device B edits it in place on `D1` → the merge yields `{D2: [task], D1: [task as edited by B]}`. This is the direct consequence of "an edit beats a delete": the move looks like a delete on `D1` and B's edit protects it. If the partner did not touch the task, the move is clean and only `D2` remains. Delete the leftover copy manually if it happens.
+- **Conflicting edits to the same task lose one side's version** (the newer `updatedAt` wins, or a deterministic content rule when timestamps cannot decide). Nothing is silently merged field by field inside a single task.
+- **Recurring tasks written by app versions older than the `updatedAt` stamp** fall back to the deterministic content rule instead of "newest wins".
 
 ## Manual test plan
 

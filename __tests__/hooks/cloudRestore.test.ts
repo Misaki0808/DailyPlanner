@@ -20,7 +20,7 @@ jest.mock('../../src/services/supabase', () => ({
     backupData: jest.fn().mockResolvedValue(true),
     restoreData: jest.fn(),
     deleteBackup: jest.fn(),
-    getBackupDeletion: jest.fn().mockResolvedValue(null),
+    getBackupDeletion: jest.fn().mockResolvedValue({ supported: true, deletedAt: null }),
     markBackupDeleted: jest.fn(),
     clearBackupDeletion: jest.fn(),
   },
@@ -183,13 +183,16 @@ describe('bulut yedekleme koruması', () => {
     expect(backupDataMock).toHaveBeenCalledTimes(1);
   });
 
-  it('bulut da tamamen boşsa yerel boşken yedeklemeye izin verir', async () => {
+  // Koruma devrede DEĞİL: yerel de bulut da boşken yedekleme engellenmez.
+  // Yazmanın kendisi R2-010 gereği atlanır, çünkü buluttaki içerik zaten aynı.
+  it('bulut da tamamen boşsa yerel boşken yedekleme engellenmez', async () => {
     restoreDataMock.mockResolvedValue(emptyBackup());
 
     const result = await backupToCloudSilently();
 
     expect(result.ok).toBe(true);
-    expect(backupDataMock).toHaveBeenCalledTimes(1);
+    expect(result.reason).toBeUndefined();
+    expect(backupDataMock).not.toHaveBeenCalled();
   });
 
   // R-032: koruma yalnız plan/rutin/pomodoro'ya bakmıyor artık. Bulutta
