@@ -22,7 +22,7 @@ jest.mock('../../src/services/supabase', () => ({
     backupData: jest.fn().mockResolvedValue('written'),
     restoreData: jest.fn(),
     deleteBackup: jest.fn(),
-    getBackupDeletion: jest.fn().mockResolvedValue(null),
+    getBackupDeletion: jest.fn().mockResolvedValue({ supported: true, deletedAt: null }),
     markBackupDeleted: jest.fn(),
     clearBackupDeletion: jest.fn(),
   },
@@ -80,7 +80,7 @@ beforeEach(async () => {
   useUserStore.setState({ username: null, gender: 'male', aboutMe: '' });
   restoreDataMock.mockReset();
   backupDataMock.mockReset().mockResolvedValue('written');
-  getDeletionMock.mockReset().mockResolvedValue(null);
+  getDeletionMock.mockReset().mockResolvedValue({ supported: true, deletedAt: null });
   clearDeletionMock.mockReset().mockResolvedValue(true);
 });
 
@@ -116,9 +116,10 @@ describe('bulut birleştirme akışı', () => {
 
     await backupToCloudSilently();
 
-    expect(lastWrittenData().plans).toEqual({});
     expect(localDays()).toEqual([]);
     expect(await AsyncStorage.getItem('@dp_plan_2026-09-05')).toBeNull();
+    // Birleşim buluttaki içerikle aynı çıktı: yazacak bir şey yok (R2-010).
+    expect(backupDataMock).not.toHaveBeenCalled();
   });
 
   it('taban yokken hiçbir şeyi silmez', async () => {
@@ -174,20 +175,57 @@ describe('bulut birleştirme akışı', () => {
 });
 
 describe('silinen yedek dirilmiyor (R2-006)', () => {
-  it('yerel silme işareti varken otomatik yedekleme yazmaz', async () => {
+  // 0003 uygulanmamışsa buluttaki işaret bilinemez; silen cihazdaki yerel
+  // işaret tek bilgi kaynağıdır.
+  it('0003 yokken yerel silme işareti otomatik yedeklemeyi durdurur', async () => {
     await usePlansStore.getState().savePlan('2026-09-05', [task('1', 'Benim görevim')]);
     await storage.saveBackupDeletedAt('h1', '2026-09-05T12:00:00.000Z');
+    getDeletionMock.mockResolvedValue({ supported: false });
     restoreDataMock.mockResolvedValue(null);
 
     const result = await backupToCloudSilently();
 
     expect(result.reason).toBe('deleted-by-user');
     expect(backupDataMock).not.toHaveBeenCalled();
+    // İşaret bayat sayılıp silinmemeli: bulut bunu doğrulayamadı.
+    expect(await storage.getBackupDeletedAt('h1')).not.toBeNull();
+  });
+
+  // R2-007: eş "Şimdi Yedekle" ile bulut işaretini kaldırdıysa bu cihazın
+  // yerel işareti bayattır; eskiden otomatik yedekleme süresiz kapalı kalıyordu.
+  it('bulut işareti yoksa bayat yerel işareti temizleyip yedeklemeye devam eder', async () => {
+    await usePlansStore.getState().savePlan('2026-09-05', [task('1', 'Benim görevim')]);
+    await storage.saveBackupDeletedAt('h1', '2026-09-05T12:00:00.000Z');
+    getDeletionMock.mockResolvedValue({ supported: true, deletedAt: null });
+    restoreDataMock.mockResolvedValue(null);
+
+    const result = await backupToCloudSilently();
+
+    expect(result.ok).toBe(true);
+    expect(backupDataMock).toHaveBeenCalledTimes(1);
+    expect(await storage.getBackupDeletedAt('h1')).toBeNull();
+  });
+
+  it('bulut okunamazsa yerel işaret geçerliliğini korur', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await usePlansStore.getState().savePlan('2026-09-05', [task('1', 'Benim görevim')]);
+      await storage.saveBackupDeletedAt('h1', '2026-09-05T12:00:00.000Z');
+      getDeletionMock.mockRejectedValue({ code: 'PGRST301', message: 'JWT expired' });
+      restoreDataMock.mockResolvedValue(null);
+
+      const result = await backupToCloudSilently();
+
+      expect(result.reason).toBe('deleted-by-user');
+      expect(await storage.getBackupDeletedAt('h1')).not.toBeNull();
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('buluttaki silme işareti eşin cihazında da otomatik yedeklemeyi durdurur', async () => {
     await usePlansStore.getState().savePlan('2026-09-05', [task('1', 'Benim görevim')]);
-    getDeletionMock.mockResolvedValue('2026-09-05T12:00:00.000Z');
+    getDeletionMock.mockResolvedValue({ supported: true, deletedAt: '2026-09-05T12:00:00.000Z' });
     restoreDataMock.mockResolvedValue(null);
 
     const result = await backupToCloudSilently();
@@ -227,6 +265,23 @@ describe('geriye uyum', () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  // R2-010: içerik aynı, yalnız damgalar farklı -> yazmaya gerek yok.
+  it('aynı içerik farklı damgayla duruyorsa buluta yazmaz', async () => {
+    await usePlansStore.getState().savePlan('2026-09-05', [task('1', 'Aynı görev')]);
+    const localPlans = usePlansStore.getState().plans;
+    const remotePlans = {
+      '2026-09-05': localPlans['2026-09-05'].map(t => ({ ...t, updatedAt: '2026-09-01T08:00:00.000Z' })),
+    };
+    restoreDataMock.mockResolvedValue(cloudRecord(remotePlans));
+
+    const result = await backupToCloudSilently();
+
+    expect(result.ok).toBe(true);
+    expect(backupDataMock).not.toHaveBeenCalled();
+    // Taban yine de tazelenir: bir sonraki birleştirme doğru referansı kullanır.
+    expect(await storage.getSyncBase('h1')).not.toBeNull();
   });
 
   // Bulutta satır yoksa birleştirilecek bir şey de yoktur: yerel veri
