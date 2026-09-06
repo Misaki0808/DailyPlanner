@@ -205,10 +205,26 @@ export async function refreshInviteCode(): Promise<HouseholdWithMembers | null> 
     if (error.code === '23505') continue;
     if (!isMissingDbObjectError(error)) throw error;
 
-    const { error: updateError } = await client
+    // R2-002: yalnız kodu yazmak, geçmiş bir son kullanma tarihini yeni koda
+    // devrettiriyordu — migration uygulandıktan hemen sonra PostgREST şema
+    // önbelleği bayatsa bu yola düşülür ve kod doğar doğmaz süresi dolmuş
+    // olurdu. Kolon varsa süre de tazelenir. Zaman burada cihazdan gelir;
+    // sunucu saatini kullanan asıl yol rotate_invite_code RPC'sidir.
+    const expiresAt = new Date(Date.now() + INVITE_CODE_TTL_HOURS * 60 * 60 * 1000).toISOString();
+    const withExpiry = await client
       .from('households')
-      .update({ invite_code: inviteCode })
+      .update({ invite_code: inviteCode, invite_code_expires_at: expiresAt })
       .eq('id', household.id);
+
+    let updateError = withExpiry.error;
+    if (updateError && isMissingDbObjectError(updateError)) {
+      // Kolon henüz yok (0002 uygulanmamış): eski şemada kodlar zaten süresiz.
+      const legacyUpdate = await client
+        .from('households')
+        .update({ invite_code: inviteCode })
+        .eq('id', household.id);
+      updateError = legacyUpdate.error;
+    }
 
     if (!updateError) return fetchHouseholdById(household.id);
     if (updateError.code !== '23505') throw updateError;

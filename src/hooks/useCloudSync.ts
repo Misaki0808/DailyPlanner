@@ -10,13 +10,14 @@ import { useRecurringStore } from '../store/recurringStore';
 import { useUserStore } from '../store/userStore';
 import { usePomodoroStore } from '../store/pomodoroStore';
 import * as storage from '../utils/storage';
+import { mergeCloudBackup } from '../utils/syncMerge';
 
 const PLAN_PREFIX = '@dp_plan_';
 
 type BackupResult = {
   ok: boolean;
   record?: CloudBackupRecord | null;
-  reason?: 'not-configured' | 'not-signed-in' | 'not-paired' | 'no-backup' | 'empty-local' | 'empty-backup' | 'error';
+  reason?: 'not-configured' | 'not-signed-in' | 'not-paired' | 'no-backup' | 'empty-local' | 'empty-backup' | 'deleted-by-user' | 'conflict' | 'error';
   error?: unknown;
 };
 
@@ -118,7 +119,53 @@ export async function fetchCloudBackupRecord(): Promise<CloudBackupRecord | null
   return supabaseService.restoreData(household.id);
 }
 
-export async function backupToCloudSilently(): Promise<BackupResult> {
+/** Çakışma hâlinde yeniden okuyup birleştirme denemesi sayısı. */
+const MAX_SYNC_ATTEMPTS = 3;
+
+/**
+ * Kullanıcı ortak yedeği bilerek sildi mi? (R2-006)
+ *
+ * Buluttaki işaret eşin cihazını da kapsar; yerel işaret 0003 uygulanmamış
+ * olsa bile silen cihazda kuralın işlemesini sağlar.
+ */
+const isBackupDeletionActive = async (householdId: string): Promise<boolean> => {
+  if (await storage.getBackupDeletedAt(householdId)) return true;
+
+  try {
+    return Boolean(await supabaseService.getBackupDeletion(householdId));
+  } catch (error) {
+    console.warn('Yedek silme işareti okunamadı:', error);
+    return false;
+  }
+};
+
+/** Kullanıcı yeniden yedeklemek istedi: silme işareti her iki tarafta kalkar. */
+const clearBackupDeletion = async (householdId: string): Promise<void> => {
+  await storage.clearBackupDeletedAt();
+
+  try {
+    await supabaseService.clearBackupDeletion(householdId);
+  } catch (error) {
+    console.warn('Yedek silme işareti temizlenemedi:', error);
+  }
+};
+
+/**
+ * Yerel veriyi bulutla BİRLEŞTİRİR (eskiden: üzerine yazardı).
+ *
+ * Yedek hane başına tek satır olduğu için iki cihaz sırayla yazdığında son
+ * yazan kazanıyor, diğerinin değişiklikleri sessizce kayboluyordu. Artık
+ * yazmadan önce buluttaki satır okunur, son eşitlenen taban ile üç yönlü
+ * birleştirilir (bkz. utils/syncMerge) ve sonuç HEM buluta HEM cihaza uygulanır.
+ *
+ * Yazma, okuduğumuz sürüme koşulludur: araya eşin cihazı yazdıysa 'conflict'
+ * döner ve döngü yeniden okuyup birleştirir.
+ *
+ * `explicit`, kullanıcının kendi başlattığı yedeklemeyi işaretler; yalnız o
+ * durumda silme işareti kaldırılır (otomatik yedekleme silinen yedeği
+ * diriltmez).
+ */
+export async function backupToCloudSilently(options: { explicit?: boolean } = {}): Promise<BackupResult> {
   try {
     if (!isSupabaseConfigured) return { ok: false, reason: 'not-configured' };
 
@@ -128,25 +175,50 @@ export async function backupToCloudSilently(): Promise<BackupResult> {
     const household = await getMyHousehold();
     if (!household || !isHouseholdPaired(household)) return { ok: false, reason: 'not-paired' };
 
-    const payload = buildCloudBackupData();
-
-    // Yedek, household başına TEK bir satırda tutuluyor ve son yazan kazanıyor.
-    // Bu yedekleme her arka plana geçişte otomatik tetiklendiği için, henüz
-    // geri yükleme yapmamış taze bir cihaz eşin aylarca birikmiş verisini
-    // uyarısız boş veriyle ezebiliyordu. Yerelde veri yokken bulutta veri
-    // varsa yazma yapılmaz.
-    if (!hasSubstantiveContent(payload)) {
-      const existing = await supabaseService.restoreData(household.id);
-      if (hasUserData(existing?.data)) {
-        return { ok: false, reason: 'empty-local', record: existing };
-      }
+    if (options.explicit) {
+      await clearBackupDeletion(household.id);
+    } else if (await isBackupDeletionActive(household.id)) {
+      return { ok: false, reason: 'deleted-by-user' };
     }
 
-    const success = await supabaseService.backupData(household.id, payload);
-    if (!success) return { ok: false, reason: 'error' };
+    const base = await storage.getSyncBase(household.id);
 
-    const record = await supabaseService.restoreData(household.id);
-    return { ok: true, record };
+    for (let attempt = 0; attempt < MAX_SYNC_ATTEMPTS; attempt += 1) {
+      const payload = buildCloudBackupData();
+      const existing = await supabaseService.restoreData(household.id);
+
+      // Bu yedekleme her arka plana geçişte otomatik tetiklendiği için, henüz
+      // geri yükleme yapmamış taze bir cihaz eşin aylarca birikmiş verisini
+      // uyarısız boş veriyle ezebiliyordu. Birleştirme bunu zaten önlüyor ama
+      // koruma korunuyor: yerelde hiç içerik yokken buluttaki dolu satıra
+      // dokunmanın bir faydası da yok.
+      if (!hasSubstantiveContent(payload) && hasUserData(existing?.data)) {
+        return { ok: false, reason: 'empty-local', record: existing };
+      }
+
+      const { merged, differsFromLocal } = mergeCloudBackup({
+        base,
+        local: payload,
+        remote: existing?.data ?? null,
+      });
+
+      // Eşin değişiklikleri birleşimden geldiyse cihaza da uygulanır; senkron
+      // tek yönlü bir yedekleme olmaktan çıkıp gerçekten iki yönlü olur.
+      if (differsFromLocal) {
+        await persistRestoredData(merged);
+        hydrateStoresFromBackup(merged);
+      }
+
+      const outcome = await supabaseService.backupData(household.id, merged, existing?.updated_at ?? null);
+      if (outcome === 'conflict') continue;
+      if (outcome === 'failed') return { ok: false, reason: 'error' };
+
+      const record = await supabaseService.restoreData(household.id);
+      await storage.saveSyncBase(household.id, merged, record?.updated_at ?? null);
+      return { ok: true, record };
+    }
+
+    return { ok: false, reason: 'conflict' };
   } catch (error) {
     console.warn('Silent cloud backup failed:', error);
     return { ok: false, reason: 'error', error };
@@ -176,6 +248,9 @@ export async function restoreFromCloudSilently(): Promise<BackupResult> {
 
     await persistRestoredData(record.data);
     hydrateStoresFromBackup(record.data);
+    // Geri yükleme sonrası cihaz bulutla birebir aynı: bu hâl bir sonraki
+    // birleştirmenin tabanı olur, aksi halde silmeler tespit edilemez.
+    await storage.saveSyncBase(household.id, record.data, record.updated_at ?? null);
     return { ok: true, record };
   } catch (error) {
     return { ok: false, reason: 'error', error };
@@ -342,10 +417,9 @@ export const useCloudSync = () => {
 
     setIsSyncing(true);
     try {
-      const deleted = await supabaseService.deleteBackup(household.id);
-      if (!deleted) {
-        // Silme isteği hata vermeden 0 satır etkiledi: veritabanında DELETE
-        // politikası yok (0002 migration'ı uygulanmamış).
+      const outcome = await supabaseService.deleteBackup(household.id);
+
+      if (outcome === 'policy-missing') {
         Toast.show({
           type: 'error',
           text1: 'Yedek Silinemedi',
@@ -354,8 +428,29 @@ export const useCloudSync = () => {
         return false;
       }
 
+      if (outcome === 'not-found') {
+        // Silinen bir satır dönmedi ve satır okunamıyor: silecek bir şey
+        // görünmüyor. Bu "sildim" DEĞİLDİR, ayrı mesajla söylenir.
+        setBackupRecord(null);
+        Toast.show({ type: 'info', text1: 'Silinecek Yedek Yok', text2: 'Bu hane için görünen bir bulut yedeği bulunamadı.' });
+        return false;
+      }
+
+      // Silme niyeti kalıcı olsun: otomatik yedekleme satırı diriltmesin (R2-006).
+      await storage.saveBackupDeletedAt(household.id, new Date().toISOString());
+      await storage.clearSyncBase();
+      try {
+        await supabaseService.markBackupDeleted(household.id);
+      } catch (markError) {
+        console.warn('Yedek silme işareti yazılamadı:', markError);
+      }
+
       setBackupRecord(null);
-      Toast.show({ type: 'success', text1: 'Bulut Yedeği Silindi', text2: 'Ortak yedek kaldırıldı. Bu cihazdaki veriler duruyor.' });
+      Toast.show({
+        type: 'success',
+        text1: 'Bulut Yedeği Silindi',
+        text2: 'Bu cihazdaki veriler duruyor. Otomatik yedekleme, "Şimdi Yedekle" diyene kadar duraklatıldı.',
+      });
       return true;
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Yedek Silinemedi', text2: errorMessage(error, 'Lütfen tekrar deneyin.') });
@@ -368,7 +463,7 @@ export const useCloudSync = () => {
   const backupToCloud = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const result = await backupToCloudSilently();
+      const result = await backupToCloudSilently({ explicit: true });
       if (!result.ok) {
         const text2 = result.reason === 'empty-local'
           ? 'Bu cihazda yedeklenecek veri yok. Buluttaki yedeğin üzerine yazılmadı; önce "Buluttan Geri Yükle" yapın.'

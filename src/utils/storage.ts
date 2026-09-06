@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { CloudBackupData } from '../services/supabase';
 import { Plans, Task, Settings, RecurringTask } from '../types';
 import { defaultSettings, withSettingsDefaults } from './defaultSettings';
 import { getToday } from './dateUtils';
@@ -15,6 +16,8 @@ const STORAGE_KEYS = {
   ABOUT_ME: '@daily_planner_about_me',
   POMODORO_STATS: '@daily_planner_pomodoro_stats',
   LAST_CLEANUP_DATE: '@daily_planner_last_cleanup_date', // Temizlik performansı için
+  SYNC_BASE: '@dp_sync_base', // Bulut birleştirmesinin tabanı (son eşitlenen hâl)
+  BACKUP_DELETED: '@dp_cloud_backup_deleted', // Kullanıcı yedeği sildi işareti
 };
 
 /**
@@ -332,5 +335,91 @@ export const savePomodoroStats = async (stats: Record<string, number>) => {
   } catch (error) {
     console.error('Pomodoro istatistikleri kaydedilirken hata:', error);
     return false;
+  }
+};
+
+/**
+ * BULUT BİRLEŞTİRME TABANI
+ *
+ * Son başarılı eşitlemedeki anlık görüntü. Üç yönlü birleştirmede "bir kaydın
+ * yokluğu silme mi, hiç var olmama mı" sorusunun tek cevabı bu. Hane kimliğiyle
+ * birlikte tutulur: başka bir haneye geçildiyse eski taban kullanılmaz.
+ */
+type StoredSyncBase = {
+  householdId: string;
+  data: CloudBackupData;
+  cloudUpdatedAt: string | null;
+};
+
+export const getSyncBase = async (householdId: string): Promise<CloudBackupData | null> => {
+  try {
+    const json = await AsyncStorage.getItem(STORAGE_KEYS.SYNC_BASE);
+    if (!json) return null;
+
+    const stored = JSON.parse(json) as StoredSyncBase;
+    return stored.householdId === householdId ? stored.data : null;
+  } catch (error) {
+    console.warn('Eşitleme tabanı okunurken hata:', error);
+    return null;
+  }
+};
+
+export const saveSyncBase = async (
+  householdId: string,
+  data: CloudBackupData,
+  cloudUpdatedAt: string | null,
+): Promise<boolean> => {
+  try {
+    const payload: StoredSyncBase = { householdId, data, cloudUpdatedAt };
+    await AsyncStorage.setItem(STORAGE_KEYS.SYNC_BASE, JSON.stringify(payload));
+    return true;
+  } catch (error) {
+    console.warn('Eşitleme tabanı kaydedilirken hata:', error);
+    return false;
+  }
+};
+
+export const clearSyncBase = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.SYNC_BASE);
+  } catch (error) {
+    console.warn('Eşitleme tabanı silinirken hata:', error);
+  }
+};
+
+/**
+ * YEDEK SİLME İŞARETİ (yerel)
+ *
+ * Kullanıcı bulut yedeğini bilerek sildiğinde otomatik yedekleme onu bir
+ * sonraki arka plana geçişte diriltmemeli. Buluttaki işaret (0003) eşin
+ * cihazını da kapsar; bu yerel kopya migration uygulanmamış olsa bile silen
+ * cihazda kuralın işlemesini sağlar.
+ */
+export const getBackupDeletedAt = async (householdId: string): Promise<string | null> => {
+  try {
+    const json = await AsyncStorage.getItem(STORAGE_KEYS.BACKUP_DELETED);
+    if (!json) return null;
+
+    const stored = JSON.parse(json) as { householdId: string; deletedAt: string };
+    return stored.householdId === householdId ? stored.deletedAt : null;
+  } catch (error) {
+    console.warn('Yedek silme işareti okunurken hata:', error);
+    return null;
+  }
+};
+
+export const saveBackupDeletedAt = async (householdId: string, deletedAt: string): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.BACKUP_DELETED, JSON.stringify({ householdId, deletedAt }));
+  } catch (error) {
+    console.warn('Yedek silme işareti kaydedilirken hata:', error);
+  }
+};
+
+export const clearBackupDeletedAt = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEYS.BACKUP_DELETED);
+  } catch (error) {
+    console.warn('Yedek silme işareti silinirken hata:', error);
   }
 };

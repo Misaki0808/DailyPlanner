@@ -52,6 +52,18 @@ export type HouseholdWithMembers = Household & {
   members: HouseholdMember[];
 };
 
+/**
+ * Yazma sonucu. 'conflict', okuduğumuz sürümün artık geçerli olmadığını
+ * söyler: araya eşin cihazı yazmıştır ve birleştirme yeniden yapılmalıdır.
+ */
+export type BackupWriteResult = 'written' | 'conflict' | 'failed';
+
+/**
+ * Silme sonucu. 'not-found' ile 'deleted' ayrımı bilinçli: satırı GÖREMEMEK
+ * (RLS) silmiş olmakla aynı şey değil (R2-005).
+ */
+export type BackupDeleteResult = 'deleted' | 'not-found' | 'policy-missing';
+
 export type CloudBackupRecord = {
   household_id: string;
   data: CloudBackupData;
@@ -158,30 +170,66 @@ export async function ensureProfile(user?: User | null): Promise<Profile | null>
   return data;
 }
 
+/**
+ * 0003 uygulanmadan önce silme işareti tablosu yoktur; PostgREST bunu şema
+ * önbelleğinden (PGRST205), PostgreSQL ise 42P01 ile bildirir.
+ */
+const isMissingRelationError = (error: { code?: string } | null): boolean => {
+  const code = error?.code ?? '';
+  return code === 'PGRST205' || code === 'PGRST202' || code === '42P01';
+};
+
 export const supabaseService = {
   async loginOrRegister(email: string): Promise<boolean> {
     return signInWithEmailOtp(email);
   },
 
-  async backupData(householdId: string, data: CloudBackupData): Promise<boolean> {
+  /**
+   * Ortak yedeği yazar. `expectedUpdatedAt`, birleştirmenin dayandığı bulut
+   * sürümüdür: yazma yalnız satır hâlâ o sürümdeyse geçer. Araya eşin cihazı
+   * yazdıysa 0 satır etkilenir ve 'conflict' döner; çağıran yeniden okuyup
+   * birleştirir. Eskiden koşulsuz upsert yapılıyordu ve arada yazılan
+   * değişiklikler sessizce kayboluyordu (kayıp güncelleme).
+   *
+   * Yeni kolon/RPC gerektirmez; 0002/0003 uygulanmamış şemada da çalışır.
+   */
+  async backupData(
+    householdId: string,
+    data: CloudBackupData,
+    expectedUpdatedAt: string | null = null,
+  ): Promise<BackupWriteResult> {
     const client = getConfiguredClient();
-    if (!client) return false;
+    if (!client) return 'failed';
 
     const session = await getSession();
     const userId = session?.user.id;
-    if (!userId) return false;
+    if (!userId) return 'failed';
 
-    const { error } = await client
+    const payload = {
+      household_id: householdId,
+      data,
+      updated_at: new Date().toISOString(),
+      updated_by: userId,
+    };
+
+    if (!expectedUpdatedAt) {
+      // Bulutta satır olmadığını gördük: ekle. Aynı anda eşin cihazı eklediyse
+      // birincil anahtar çakışması döner ve bu da bir çakışmadır.
+      const { error } = await client.from('plan_backups').insert(payload);
+      if (!error) return 'written';
+      if (error.code === '23505') return 'conflict';
+      throw error;
+    }
+
+    const { data: updatedRows, error } = await client
       .from('plan_backups')
-      .upsert({
-        household_id: householdId,
-        data,
-        updated_at: new Date().toISOString(),
-        updated_by: userId,
-      }, { onConflict: 'household_id' });
+      .update(payload)
+      .eq('household_id', householdId)
+      .eq('updated_at', expectedUpdatedAt)
+      .select('household_id');
 
     if (error) throw error;
-    return true;
+    return updatedRows && updatedRows.length > 0 ? 'written' : 'conflict';
   },
 
   async restoreData(householdId: string): Promise<CloudBackupRecord | null> {
@@ -209,29 +257,99 @@ export const supabaseService = {
   /**
    * Hanenin ORTAK bulut yedeğini siler (R-009).
    *
-   * 0002 migration'ı uygulanmadan önce `plan_backups` için DELETE politikası
-   * yoktur; böyle bir durumda istek hata döndürmez, sessizce 0 satır etkiler.
-   * Bu yüzden silme sonrası satır gerçekten gitmiş mi diye okunur; aksi halde
-   * kullanıcıya yanlışlıkla "silindi" denirdi. Silinemediyse false döner.
+   * Silinen satırlar `.select()` ile geri istenir: gerçekten silindiğinin tek
+   * doğrudan kanıtı budur. Satır dönmezse iki ayrı durum vardır ve bunlar
+   * karıştırılmaz (R2-005): satır hâlâ okunabiliyorsa DELETE politikası yok
+   * demektir ('policy-missing', 0002 uygulanmamış); okunamıyorsa silinecek bir
+   * şey görünmüyordur ('not-found') — bu "sildim" DEĞİLDİR.
    */
-  async deleteBackup(householdId: string): Promise<boolean> {
+  async deleteBackup(householdId: string): Promise<BackupDeleteResult> {
     const client = getConfiguredClient();
-    if (!client) return false;
+    if (!client) return 'not-found';
 
-    const { error } = await client
+    const { data: deletedRows, error } = await client
       .from('plan_backups')
       .delete()
-      .eq('household_id', householdId);
+      .eq('household_id', householdId)
+      .select('household_id');
 
     if (error) throw error;
+    if (deletedRows && deletedRows.length > 0) return 'deleted';
 
-    const { data, error: verifyError } = await client
+    const { data: remaining, error: verifyError } = await client
       .from('plan_backups')
       .select('household_id')
       .eq('household_id', householdId)
       .maybeSingle();
 
     if (verifyError) throw verifyError;
-    return !data;
+    return remaining ? 'policy-missing' : 'not-found';
+  },
+
+  /**
+   * SİLME İŞARETİ (tombstone) — R2-006
+   *
+   * Yedek silindikten sonra otomatik yedeklemenin satırı diriltmemesi için
+   * hane başına bir işaret tutulur. Tablo 0003 ile geliyor; migration
+   * uygulanmamışsa okuma/yazma sessizce atlanır ve yalnız silen cihazdaki
+   * yerel işaret çalışır (bkz. utils/storage).
+   */
+  async getBackupDeletion(householdId: string): Promise<string | null> {
+    const client = getConfiguredClient();
+    if (!client) return null;
+
+    const { data, error } = await client
+      .from('plan_backup_deletions')
+      .select('deleted_at')
+      .eq('household_id', householdId)
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingRelationError(error)) return null;
+      throw error;
+    }
+
+    return data?.deleted_at ?? null;
+  },
+
+  async markBackupDeleted(householdId: string): Promise<boolean> {
+    const client = getConfiguredClient();
+    if (!client) return false;
+
+    const session = await getSession();
+    const userId = session?.user.id;
+    if (!userId) return false;
+
+    const { error } = await client
+      .from('plan_backup_deletions')
+      .upsert({
+        household_id: householdId,
+        deleted_at: new Date().toISOString(),
+        deleted_by: userId,
+      }, { onConflict: 'household_id' });
+
+    if (error) {
+      if (isMissingRelationError(error)) return false;
+      throw error;
+    }
+
+    return true;
+  },
+
+  async clearBackupDeletion(householdId: string): Promise<boolean> {
+    const client = getConfiguredClient();
+    if (!client) return false;
+
+    const { error } = await client
+      .from('plan_backup_deletions')
+      .delete()
+      .eq('household_id', householdId);
+
+    if (error) {
+      if (isMissingRelationError(error)) return false;
+      throw error;
+    }
+
+    return true;
   },
 };

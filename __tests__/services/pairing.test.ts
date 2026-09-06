@@ -28,12 +28,26 @@ const getCurrentUserMock = getCurrentUser as jest.Mock;
 
 const tableResults: Record<string, QueryResult> = {};
 const updateCalls: { table: string; payload: Record<string, unknown> }[] = [];
+/** Sıradaki update çağrılarına özel sonuçlar (ör. "kolon yok" hatası). */
+const updateResults: QueryResult[] = [];
 
 /**
  * Supabase sorgu zincirinin küçük taklidi: her metot kendini döndürür, zincir
  * await edilince tablo için ayarlanan sonucu verir. maybeSingle/single dizi
  * sonucunu ilk kayda indirger (PostgREST davranışı).
  */
+/** Zincirin geri kalanını yok sayıp verilen sonucu döndüren küçük sorgu. */
+const makeResolvedQuery = (result: QueryResult) => {
+  const query: Record<string, unknown> = {
+    eq: jest.fn(() => query),
+    select: jest.fn(() => query),
+    maybeSingle: jest.fn(async () => result),
+    then: (resolve: (value: QueryResult) => unknown, reject: (reason: unknown) => unknown) =>
+      Promise.resolve(result).then(resolve, reject),
+  };
+  return query;
+};
+
 const makeQuery = (table: string) => {
   const result = tableResults[table] ?? { data: null, error: null };
   const collapse = (): QueryResult =>
@@ -48,7 +62,8 @@ const makeQuery = (table: string) => {
     delete: jest.fn(() => query),
     update: jest.fn((payload: Record<string, unknown>) => {
       updateCalls.push({ table, payload });
-      return query;
+      const override = updateResults.shift();
+      return override ? makeResolvedQuery(override) : query;
     }),
     maybeSingle: jest.fn(async () => collapse()),
     single: jest.fn(async () => collapse()),
@@ -70,6 +85,7 @@ const household = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   updateCalls.length = 0;
+  updateResults.length = 0;
   tableResults.households = { data: household(), error: null };
   tableResults.household_members = {
     data: [{ household_id: 'h1', user_id: 'u1', joined_at: '2026-09-01T10:00:00.000Z' }],
@@ -201,14 +217,28 @@ describe('refreshInviteCode (R-010 / R-011)', () => {
 
   // 0002 uygulanmamış projelerde RPC yok; kod yenileme eski şemadaki doğrudan
   // UPDATE ile çalışmaya devam etmeli (süre alanına dokunmadan).
-  it('RPC yoksa doğrudan UPDATE yoluna düşer', async () => {
+  it('RPC yoksa doğrudan UPDATE yoluna düşer ve süreyi de tazeler', async () => {
     client.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'function not found' } });
 
     const updated = await refreshInviteCode();
 
     expect(updateCalls).toHaveLength(1);
     expect(updateCalls[0].table).toBe('households');
-    expect(Object.keys(updateCalls[0].payload)).toEqual(['invite_code']);
+    // R2-002: yalnız kod yazılsaydı yeni kod eski (geçmiş) süreyi devralırdı.
+    expect(Object.keys(updateCalls[0].payload).sort()).toEqual(['invite_code', 'invite_code_expires_at']);
+    expect(new Date(String(updateCalls[0].payload.invite_code_expires_at)).getTime()).toBeGreaterThan(Date.now());
+    expect(updated?.id).toBe('h1');
+  });
+
+  // 0002 uygulanmamış şemada süre kolonu yok; kod yenileme yine de çalışmalı.
+  it('süre kolonu yoksa yalnız kodu yazar', async () => {
+    client.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'function not found' } });
+    updateResults.push({ data: null, error: { code: 'PGRST204', message: 'column not found' } });
+
+    const updated = await refreshInviteCode();
+
+    expect(updateCalls).toHaveLength(2);
+    expect(Object.keys(updateCalls[1].payload)).toEqual(['invite_code']);
     expect(updated?.id).toBe('h1');
   });
 

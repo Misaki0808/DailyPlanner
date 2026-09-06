@@ -107,7 +107,7 @@ export default function CloudSyncSection() {
   const confirmBackup = () => {
     Alert.alert(
       'Bulut yedeği güncellensin mi?',
-      'Bu işlem ortak bulut yedeğinin üzerine bu cihazdaki verileri yazar.',
+      'Bu cihazdaki değişiklikler ortak bulut yedeğiyle BİRLEŞTİRİLİR: eşinin değişiklikleri silinmez, buluttaki yenilikler de bu cihaza uygulanır.',
       [
         { text: 'Vazgeç', style: 'cancel' },
         { text: 'Şimdi Yedekle', onPress: backupToCloud },
@@ -118,7 +118,7 @@ export default function CloudSyncSection() {
   const confirmRestore = () => {
     Alert.alert(
       'Buluttan geri yüklensin mi?',
-      'Bu işlem bu cihazdaki yerel plan, ayar, tekrarlayan görev ve istatistikleri bulut yedeğiyle değiştirir.',
+      'Bu işlem bu cihazdaki yerel plan, ayar, tekrarlayan görev ve istatistikleri bulut yedeğiyle DEĞİŞTİRİR (birleştirmez). Yalnız birleştirmek istiyorsan "Şimdi Yedekle" düğmesini kullan.',
       [
         { text: 'Vazgeç', style: 'cancel' },
         { text: 'Geri Yükle', style: 'destructive', onPress: restoreFromCloud },
@@ -142,7 +142,7 @@ export default function CloudSyncSection() {
   const confirmDeleteBackup = () => {
     confirmDestructive(
       'Bulut yedeği silinsin mi?',
-      'Bu yedek ev grubunun ORTAK yedeğidir: silersen eşin de buluttan geri yükleme yapamaz. Bu cihazdaki planların, ayarların ve istatistiklerin silinmez. İşlem geri alınamaz.',
+      'Bu yedek ev grubunun ORTAK yedeğidir: silersen eşin de buluttan geri yükleme yapamaz. Bu cihazdaki planların, ayarların ve istatistiklerin silinmez. Otomatik yedekleme, sen "Şimdi Yedekle" diyene kadar duraklatılır. İşlem geri alınamaz.',
       'Yedeği Sil',
       () => { deleteBackup(); }
     );
