@@ -48,7 +48,7 @@ export default function CalendarGridScreen() {
 
   const onDayPress = (day: any) => {
     // MultiDayView artık `date` parametresini okuyor; seçilen güne atlıyoruz.
-    (navigation as any).navigate('MultiDayView', { date: day.dateString });
+    navigation.navigate('MultiDayView', { date: day.dateString });
   };
 
   return (

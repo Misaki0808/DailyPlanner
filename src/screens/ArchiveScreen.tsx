@@ -5,7 +5,6 @@ import { useNavigation } from '@react-navigation/native';
 import { usePlansContext, useTheme } from '../context/AppContext';
 import { ArchiveDay, buildArchiveMonths, summarizeArchive } from '../utils/archive';
 import { getCategoryEmoji } from '../utils/categories';
-import { AppStackParamList } from '../navigation/routes';
 
 /**
  * Geçmiş planların salt-okuma görünümü.
@@ -18,7 +17,7 @@ import { AppStackParamList } from '../navigation/routes';
 export default function ArchiveScreen() {
   const { plans } = usePlansContext();
   const theme = useTheme();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
   const months = useMemo(() => buildArchiveMonths(plans), [plans]);
@@ -39,8 +38,7 @@ export default function ArchiveScreen() {
   }, []);
 
   const goToDay = useCallback((date: string) => {
-    const target: keyof AppStackParamList = 'MultiDayView';
-    navigation.navigate(target, { date });
+    navigation.navigate('MultiDayView', { date });
   }, [navigation]);
 
   const renderDay = useCallback(({ item }: { item: ArchiveDay }) => {
