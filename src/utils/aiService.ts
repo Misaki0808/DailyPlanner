@@ -16,6 +16,49 @@ const GEMINI_API_KEY =
 
 const getAiGenerateUrl = () => `${AI_CONFIG.baseUrl}/${AI_CONFIG.model}:generateContent?key=${GEMINI_API_KEY}`;
 
+const PROXY_FUNCTION_PATH = '/functions/v1/gemini-proxy';
+
+/**
+ * Yalnız proje adresi verildiyse fonksiyon yolunu ekler; tam fonksiyon adresi
+ * verildiyse olduğu gibi kullanır.
+ */
+const normalizeProxyUrl = (value: string): string => {
+  const trimmed = value.trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+  return trimmed.includes('/functions/') ? trimmed : `${trimmed}${PROXY_FUNCTION_PATH}`;
+};
+
+/**
+ * AI VEKİLİ (proxy)
+ *
+ * `EXPO_PUBLIC_` önekli her değer istemci paketine gömülür; Gemini anahtarı bu
+ * yüzden fiilen ifşa oluyordu. Vekil tanımlıysa AI çağrıları sunucudan geçer ve
+ * anahtar yalnız orada durur. Tanımlı DEĞİLSE eski doğrudan yol aynen çalışır,
+ * yani kullanıcı fonksiyonu dağıtana kadar uygulama bozulmaz.
+ * Dağıtım: docs/AI_PROXY_SETUP.md
+ */
+const AI_PROXY_URL = normalizeProxyUrl(
+  process.env.EXPO_PUBLIC_AI_PROXY_URL ||
+  Constants.expoConfig?.extra?.aiProxyUrl ||
+  ''
+);
+
+const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  Constants.expoConfig?.extra?.supabaseAnonKey ||
+  '';
+
+/** Vekil hazır değil mi? (fonksiyon dağıtılmamış ya da anahtarı tanımlanmamış) */
+const isProxyUnavailableStatus = (status: number) => status === 404 || status === 501 || status === 503;
+
+/** AI kullanılabilir mi? Vekil varsa istemcide anahtar olmasa da kullanılabilir. */
+export const isAiConfigured = (): boolean => Boolean(AI_PROXY_URL || GEMINI_API_KEY);
+
+const buildGenerationBody = (prompt: string) => ({
+  contents: [{ parts: [{ text: prompt }] }],
+  generationConfig: { temperature: 0.7 },
+});
+
 // Kategori listesini prompt'a eklemek için
 const categoryListForPrompt = TASK_CATEGORIES.map(c => `"${c.id}" (${c.label})`).join(', ');
 const VALID_PRIORITIES = ['low', 'medium', 'high'] as const;
@@ -115,23 +158,78 @@ const isRetryableStatus = (status: number) => status === 408 || status === 429 |
 /**
  * Otomatik tekrar deneme (retry) mekanizması ile API isteği atar.
  */
-const fetchWithRetry = async (url: string, options: RequestInit, retries = 3, backoff = 1000): Promise<Response> => {
+const fetchWithRetry = async (
+  url: string,
+  options: RequestInit,
+  retries = 3,
+  backoff = 1000,
+  shouldRetryStatus: (status: number) => boolean = isRetryableStatus,
+): Promise<Response> => {
   try {
     const response = await fetch(url, options);
-    if (!response.ok && retries > 0 && isRetryableStatus(response.status)) {
+    if (!response.ok && retries > 0 && shouldRetryStatus(response.status)) {
       console.warn(`API isteği ${response.status} hatası döndürdü. ${backoff}ms sonra tekrar deneniyor... (Kalan: ${retries})`);
       await new Promise(resolve => setTimeout(resolve, backoff));
-      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+      return fetchWithRetry(url, options, retries - 1, backoff * 2, shouldRetryStatus);
     }
     return response;
   } catch (err) {
     if (retries > 0) {
       console.warn(`Ağ hatası: ${err}. ${backoff}ms sonra tekrar deneniyor... (Kalan: ${retries})`);
       await new Promise(resolve => setTimeout(resolve, backoff));
-      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+      return fetchWithRetry(url, options, retries - 1, backoff * 2, shouldRetryStatus);
     }
     throw err;
   }
+};
+
+/**
+ * TÜM Gemini çağrılarının tek geçidi.
+ *
+ * Vekil tanımlıysa istek oradan gider ve istemcideki anahtar HİÇ kullanılmaz.
+ * Vekil dağıtılmamış (404), anahtarı tanımlanmamış (503) ya da erişilemiyorsa
+ * ve elde bir anahtar varsa eski doğrudan yola düşülür; böylece dağıtım
+ * yapılmadan da uygulama çalışmaya devam eder. Kota (429) ve sunucu hataları
+ * olduğu gibi aktarılır, mevcut hata akışları aynen işler.
+ */
+const requestGeneration = async (prompt: string): Promise<Response> => {
+  const payload = buildGenerationBody(prompt);
+
+  if (AI_PROXY_URL) {
+    try {
+      const response = await fetchWithRetry(
+        AI_PROXY_URL,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(SUPABASE_ANON_KEY
+              ? { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, apikey: SUPABASE_ANON_KEY }
+              : {}),
+          },
+          body: JSON.stringify({ ...payload, model: AI_CONFIG.model }),
+        },
+        // Düşecek bir yol varsa vekilde uzun uzun beklemenin anlamı yok; yoksa
+        // (anahtar istemciden kaldırıldıysa) bugünkü dayanıklılık korunur.
+        GEMINI_API_KEY ? 1 : 3,
+        1000,
+        // "Hazır değil" kalıcı bir durum: yeniden denemek yalnız geciktirir.
+        status => isRetryableStatus(status) && !isProxyUnavailableStatus(status),
+      );
+
+      if (!isProxyUnavailableStatus(response.status) || !GEMINI_API_KEY) return response;
+      console.warn(`AI vekili hazır değil (${response.status}), doğrudan anahtar yoluna düşülüyor.`);
+    } catch (error) {
+      if (!GEMINI_API_KEY) throw error;
+      console.warn('AI vekiline ulaşılamadı, doğrudan anahtar yoluna düşülüyor:', error);
+    }
+  }
+
+  return fetchWithRetry(getAiGenerateUrl(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 };
 
 /**
@@ -141,8 +239,8 @@ const fetchWithRetry = async (url: string, options: RequestInit, retries = 3, ba
  * @returns Task bilgileri (title + category)
  */
 export const convertParagraphToTasks = async (paragraph: string, aboutMe?: string): Promise<ConvertParagraphResult> => {
-  if (!GEMINI_API_KEY) {
-    console.warn('AI API anahtarı yok, paragraf yerel olarak ayrıştırılıyor.');
+  if (!isAiConfigured()) {
+    console.warn('AI yapılandırılmamış (vekil ve anahtar yok), paragraf yerel olarak ayrıştırılıyor.');
     return splitParagraphIntoLocalTasks(paragraph);
   }
 
@@ -170,29 +268,8 @@ Paragraf: "${paragraph}"
 
 Görev listesi (sadece JSON array):`;
 
-  const url = getAiGenerateUrl();
-
   try {
-    const response = await fetchWithRetry(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-        },
-      }),
-    });
+    const response = await requestGeneration(prompt);
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -258,7 +335,7 @@ Görev listesi (sadece JSON array):`;
  * API key kontrolü
  */
 export const checkApiKey = (): boolean => {
-  return !!GEMINI_API_KEY;
+  return isAiConfigured();
 };
 
 /**
@@ -268,8 +345,8 @@ export const generateWeeklySummary = async (
   userName: string,
   weeklyData: { date: string; tasks: Task[] }[]
 ): Promise<string> => {
-  if (!GEMINI_API_KEY) {
-    throw new Error('API key bulunamadı. Lütfen .env dosyasını kontrol edin.');
+  if (!isAiConfigured()) {
+    throw new Error('Yapay zeka yapılandırılmamış: AI vekili yok ve API key bulunamadı.');
   }
 
   // Veriyi metne dök
@@ -310,17 +387,8 @@ KURALLAR:
 4. Robot gibi değil, yakın bir arkadaş veya yaşam koçu gibi konuş. Mutlaka emoji kullan.
 5. Sadece yanıtı döndür, başka hiçbir şey yazma.`;
 
-  const url = getAiGenerateUrl();
-
   try {
-    const response = await fetchWithRetry(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7 },
-      }),
-    });
+    const response = await requestGeneration(prompt);
 
     if (!response.ok) {
       throw new Error('API yanıt vermedi.');
@@ -344,8 +412,8 @@ KURALLAR:
  * @returns Güncellenmiş Task listesi
  */
 export const modifyPlanWithAI = async (currentTasks: Task[], userPrompt: string): Promise<Task[]> => {
-  if (!GEMINI_API_KEY) {
-    throw new Error('API key bulunamadı.');
+  if (!isAiConfigured()) {
+    throw new Error('Yapay zeka yapılandırılmamış: AI vekili yok ve API key bulunamadı.');
   }
 
   const prompt = `
@@ -363,16 +431,8 @@ KURALLAR:
 4. Çıktı formatı: [{"id": "...", "title": "...", "priority": "low|medium|high", "done": boolean}, ...]
 `;
 
-  const url = getAiGenerateUrl();
   try {
-    const response = await fetchWithRetry(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7 },
-      }),
-    });
+    const response = await requestGeneration(prompt);
 
     if (!response.ok) throw new Error('API hatası');
     const data = await response.json();
