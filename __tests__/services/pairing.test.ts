@@ -170,23 +170,53 @@ describe('katılma hatası mesajları', () => {
     expect(describeJoinError({ code: '22023', message: 'invalid_invite_code' })).toMatch(/geçersiz/);
   });
 
-  it('bilinmeyen hatada genel mesaja düşer', () => {
-    expect(describeJoinError({ message: 'network error' })).toMatch(/Eşleştirme başarısız/);
+  // R2-004: eskiden ağ, migration ve yetki hataları da "davet kodunu kontrol
+  // edin" metnine düşüyordu.
+  it('ağ hatasını bağlantı sorunu olarak açıklar', () => {
+    expect(describeJoinError({ message: 'Network request failed' })).toMatch(/İnternet bağlantını/);
+    expect(describeJoinError(new TypeError('Failed to fetch'))).toMatch(/İnternet bağlantını/);
+  });
+
+  it('eksik RPC hatasını kurulum sorunu olarak açıklar', () => {
+    expect(describeJoinError({ code: 'PGRST202', message: 'function not found' })).toMatch(/migration/);
+  });
+
+  it('yetki hatasını oturum sorunu olarak açıklar', () => {
+    expect(describeJoinError({ code: '42501', message: 'permission denied' })).toMatch(/yetki/i);
+    expect(describeJoinError({ code: 'PGRST301', message: 'JWT expired' })).toMatch(/yetki/i);
+  });
+
+  it('sınıflandırılamayan hatada genel mesaja düşer', () => {
+    expect(describeJoinError({ code: 'XX000', message: 'internal error' })).toMatch(/Eşleştirme başarısız/);
     expect(describeJoinError(null)).toMatch(/Eşleştirme başarısız/);
   });
 });
 
 describe('joinHousehold', () => {
-  it('RPC hatasını kullanıcıya gösterilebilir mesaja çevirir', async () => {
+  it('RPC hatasını kullanıcıya gösterilebilir mesaja çevirir ve hamını loglar', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     client.rpc.mockResolvedValue({ data: null, error: { code: '22023', message: 'invite_code_expired' } });
 
-    await expect(joinHousehold('ABC123')).rejects.toThrow(/süresi dolmuş/);
+    try {
+      await expect(joinHousehold('ABC123')).rejects.toThrow(/süresi dolmuş/);
+      expect(warnSpy).toHaveBeenCalledWith(
+        'join_household RPC hatası:',
+        expect.objectContaining({ code: '22023' })
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('dolu hane reddini iletir', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     client.rpc.mockResolvedValue({ data: null, error: { code: '23514', message: 'household_full' } });
 
-    await expect(joinHousehold('ABC123')).rejects.toThrow(/dolu/);
+    try {
+      await expect(joinHousehold('ABC123')).rejects.toThrow(/dolu/);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('başarılı katılımda haneyi döndürür', async () => {

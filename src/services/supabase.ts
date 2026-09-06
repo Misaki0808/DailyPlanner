@@ -64,6 +64,15 @@ export type BackupWriteResult = 'written' | 'conflict' | 'failed';
  */
 export type BackupDeleteResult = 'deleted' | 'not-found' | 'policy-missing';
 
+/**
+ * Silme işaretinin durumu. `supported: false`, 0003 uygulanmadığı için
+ * buluttaki işaretin BİLİNMEDİĞİ anlamına gelir; "işaret yok" ile
+ * karıştırılmamalı (R2-007 uzlaştırması buna dayanıyor).
+ */
+export type BackupDeletionState =
+  | { supported: false }
+  | { supported: true; deletedAt: string | null };
+
 export type CloudBackupRecord = {
   household_id: string;
   data: CloudBackupData;
@@ -294,9 +303,9 @@ export const supabaseService = {
    * uygulanmamışsa okuma/yazma sessizce atlanır ve yalnız silen cihazdaki
    * yerel işaret çalışır (bkz. utils/storage).
    */
-  async getBackupDeletion(householdId: string): Promise<string | null> {
+  async getBackupDeletion(householdId: string): Promise<BackupDeletionState> {
     const client = getConfiguredClient();
-    if (!client) return null;
+    if (!client) return { supported: false };
 
     const { data, error } = await client
       .from('plan_backup_deletions')
@@ -305,11 +314,13 @@ export const supabaseService = {
       .maybeSingle();
 
     if (error) {
-      if (isMissingRelationError(error)) return null;
+      // Tablo yoksa işaretin varlığı BİLİNMİYOR demektir; çağıran bunu
+      // "işaret yok" sanıp yerel işareti silmemeli.
+      if (isMissingRelationError(error)) return { supported: false };
       throw error;
     }
 
-    return data?.deleted_at ?? null;
+    return { supported: true, deletedAt: data?.deleted_at ?? null };
   },
 
   async markBackupDeleted(householdId: string): Promise<boolean> {
