@@ -11,7 +11,8 @@ import {
 import { useDrawer } from '../context/DrawerContext';
 import { useUserContext, useTheme } from '../context/AppContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { navigationRef } from '../utils/navigationRef';
+import { navigate, navigationRef } from '../utils/navigationRef';
+import { ParamlessRouteName } from '../navigation/routes';
 
 const DRAWER_WIDTH = 280;
 
@@ -91,12 +92,11 @@ export default function JSDrawer({ children }: { children: React.ReactNode }) {
         return unsubscribe;
     }, []);
 
-    const navigateTo = (screenName: import('../navigation/routes').AppRouteName) => {
-        if (navigationRef.isReady()) {
-            // @ts-ignore - React Navigation'ın parametreli/parametresiz rota birleşimi
-            navigationRef.navigate(screenName);
-            closeDrawer();
-        }
+    // Drawer yalnız parametre GEREKTİRMEYEN rotalara gidiyor; tip bunu
+    // zorluyor, dolayısıyla @ts-ignore'a gerek kalmadı.
+    const navigateTo = (screenName: ParamlessRouteName) => {
+        navigate(screenName);
+        closeDrawer();
     };
 
     const getAvatarContent = () => {

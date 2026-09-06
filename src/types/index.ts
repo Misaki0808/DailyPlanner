@@ -79,12 +79,6 @@ export interface Settings {
   weeklyTaskGoal?: number; // Haftalık tamamlama hedefi (0 = kapalı)
 }
 
-// Navigation için tip tanımları
-export type RootTabParamList = {
-  CreatePlan: undefined;
-  MultiDayView: undefined;
-  PlanOverview: undefined;
-  Pomodoro: undefined;
-  CalendarGrid: undefined;
-  Settings: undefined;
-};
+// Gezinme tipleri src/navigation/routes.ts içindedir (tek doğruluk kaynağı).
+// Buradaki kopya kaldırıldı: MultiDayView'ı parametresiz gösteriyor ve
+// Archive rotasını bilmiyordu, yani onu okuyan yanlış bilgi alıyordu.
