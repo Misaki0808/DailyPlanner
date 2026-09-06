@@ -1,16 +1,22 @@
 /**
  * TZ BURADA, config dosyasının EN ÜSTÜNDE ayarlanmalı.
  *
- * Node/V8 saat dilimini süreç başlarken bir kez okuyup önbelleğe alır.
- * Bu atama daha önce `setupFiles` içindeydi (jest.setup.js); orası test
- * worker'ı ayağa kalktıktan SONRA çalıştığı için `process.env.TZ` değişse
- * bile geçerli dilim değişmiyordu. Geliştirici makinesinde ortam zaten
- * Europe/Istanbul olduğu için sorun görünmüyor, CI (UTC) ise
- * yerel-tarih testlerinde kırmızıya düşüyordu.
+ * Jest her test dosyasını kendi test ortamı (jest-environment) bağlamında
+ * çalıştırır ve bu bağlamı `setupFiles` çalışmadan ÖNCE kurar. Ortam
+ * kurulurken bağlamın Date/Intl yerelleştirmesi o anki saat dilimine
+ * bağlanır; `setupFiles` içinde `process.env.TZ` değiştirmek artık geç
+ * kalır — env değişkeni değişir ama bağlamın geçerli dilimi değişmez.
+ * (Ölçüm: TZ=UTC ortamda `process.env.TZ` "Europe/Istanbul" görünürken
+ * `Intl.DateTimeFormat().resolvedOptions().timeZone` hâlâ "UTC" dönüyordu.)
  *
- * Bu dosya jest tarafından ANA süreçte, worker'lar fork edilmeden önce
- * değerlendirilir; dolayısıyla worker'lar doğru dilimle başlar.
- * `npm test`, `npx jest` ve CI için aynı biçimde çalışır.
+ * Bu dosya ise jest tarafından ANA süreçte, test ortamları kurulmadan ve
+ * worker'lar fork edilmeden önce değerlendirilir; dolayısıyla ortamlar
+ * doğru dilimle kurulur. `npm test`, `npx jest` ve CI için aynı biçimde
+ * çalışır.
+ *
+ * Not: bu jest'e özgü bir sıralama sorunudur. Node'un genelinde
+ * `process.env.TZ` çalışma anında değiştirilebilir; buradaki kısıt,
+ * atamanın test ortamı bağlamı kurulduktan sonra yapılmasından kaynaklanır.
  */
 process.env.TZ = 'Europe/Istanbul';
 
