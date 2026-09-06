@@ -19,6 +19,12 @@ export interface Task {
   pomodoroCount?: number; // Bu göreve bağlı tamamlanan pomodoro sayısı
   subtasks?: Subtask[]; // Alt görevler listesi
   /**
+   * Görev esnek tekrarlayan görev havuzundan eklendiyse, kaynak rutinin
+   * kimliği. Diske ve bulut yedeğine yazılıyor; esnek görev eşleştirmesi
+   * bu alana bakıyor (R-039).
+   */
+  recurringTaskId?: string;
+  /**
    * Son içerik değişikliğinin ISO zamanı. Bulut birleştirmesinde iki cihaz
    * aynı görevi değiştirdiyse kazananı belirler (bkz. utils/syncMerge).
    * Eski kayıtlarda ve eski uygulama sürümlerinde bulunmaz.
@@ -39,6 +45,12 @@ export interface RecurringTask {
   flexibleTarget?: number; // flexible: haftada kaç kez? (örneğin 2)
   isActive: boolean;
   createdAt: string;     // YYYY-MM-DD
+  /**
+   * Son değişikliğin ISO zamanı. Bulut birleştirmesinde iki cihaz aynı rutini
+   * değiştirdiyse kazananı belirler (bkz. utils/syncMerge). Eski kayıtlarda ve
+   * eski uygulama sürümlerinin yazdığı yedeklerde bulunmaz.
+   */
+  updatedAt?: string;
 }
 
 // Plan tipi - bir gün için plan

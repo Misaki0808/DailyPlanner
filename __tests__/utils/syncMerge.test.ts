@@ -157,6 +157,35 @@ describe('mergeRecurringTasks', () => {
     const merged = mergeRecurringTasks(base, [], [{ ...recurring('1', 'Spor'), isActive: false }]);
     expect(merged).toHaveLength(1);
   });
+
+  // Damga eklendikten sonra rutinler de görevlerle aynı kurala tabi.
+  it('iki taraf da değiştirdiyse yeni damga kazanır', () => {
+    const base = [{ ...recurring('1', 'Spor'), updatedAt: '2026-09-01T08:00:00.000Z' }];
+    const local = [{ ...recurring('1', 'Yerel sürüm'), updatedAt: '2026-09-05T09:00:00.000Z' }];
+    const remote = [{ ...recurring('1', 'Uzak sürüm'), updatedAt: '2026-09-05T11:00:00.000Z' }];
+
+    expect(mergeRecurringTasks(base, local, remote)[0].title).toBe('Uzak sürüm');
+    expect(mergeRecurringTasks(base, remote, local)[0].title).toBe('Uzak sürüm');
+  });
+
+  // Geriye uyum: damgasız (eski) kayıtlarda deterministik kural sürüyor.
+  it('damga yoksa iki cihazda da aynı kazananı seçer', () => {
+    const base = [recurring('1', 'Spor')];
+    const local = [recurring('1', 'A sürümü')];
+    const remote = [recurring('1', 'B sürümü')];
+
+    expect(mergeRecurringTasks(base, local, remote)[0].title).toBe(
+      mergeRecurringTasks(base, remote, local)[0].title
+    );
+  });
+
+  it('yalnız damga farkı değişiklik sayılmaz', () => {
+    const base = [{ ...recurring('1', 'Spor'), updatedAt: '2026-09-01T08:00:00.000Z' }];
+    const local = [{ ...recurring('1', 'Spor'), updatedAt: '2026-09-05T09:00:00.000Z' }];
+    const remote = [{ ...recurring('1', 'Spor'), updatedAt: '2026-09-04T09:00:00.000Z' }];
+
+    expect(mergeRecurringTasks(base, local, remote)).toHaveLength(1);
+  });
 });
 
 describe('mergePomodoroStats', () => {
@@ -211,6 +240,39 @@ describe('mergeCloudBackup', () => {
     });
 
     expect(differsFromLocal).toBe(false);
+  });
+
+  // R2-010: aynı içerik farklı damgayla duruyorsa her arka plana geçişte
+  // gereksiz bir bulut yazması üretiliyordu.
+  it('yalnız damga farkı bulut yazması gerektirmez', () => {
+    const local = backup({ plans: { '2026-09-05': [task('1', 'Aynı', { updatedAt: '2026-09-05T10:00:00.000Z' })] } });
+    const remote = backup({ plans: { '2026-09-05': [task('1', 'Aynı', { updatedAt: '2026-09-04T10:00:00.000Z' })] } });
+
+    const { differsFromRemote } = mergeCloudBackup({ base: local, local, remote });
+
+    expect(differsFromRemote).toBe(false);
+  });
+
+  it('içerik farkı bulut yazması gerektirir', () => {
+    const local = backup({ plans: { '2026-09-05': [task('1', 'Yerel')] } });
+    const remote = backup({ plans: { '2026-09-05': [task('2', 'Uzak')] } });
+
+    expect(mergeCloudBackup({ base: null, local, remote }).differsFromRemote).toBe(true);
+  });
+
+  it('rutinlerde de damga farkı yazma sebebi değildir', () => {
+    const recurringTask = {
+      id: 'r1',
+      title: 'Spor',
+      priority: 'medium' as const,
+      frequency: 'daily' as const,
+      isActive: true,
+      createdAt: '2026-09-01',
+    };
+    const local = backup({ recurringTasks: [{ ...recurringTask, updatedAt: '2026-09-05T10:00:00.000Z' }] });
+    const remote = backup({ recurringTasks: [{ ...recurringTask, updatedAt: '2026-09-01T10:00:00.000Z' }] });
+
+    expect(mergeCloudBackup({ base: local, local, remote }).differsFromRemote).toBe(false);
   });
 
   it('ayarlarda yalnız yerelde değişmemiş alan uzaktan gelir', () => {

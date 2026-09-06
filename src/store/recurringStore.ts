@@ -20,6 +20,8 @@ export const useRecurringStore = create<RecurringState>((set, get) => ({
       ...taskData,
       id: generateId(),
       createdAt: getToday(),
+      // Damga bulut birleştirmesinde çakışan rutinin kazananını belirliyor.
+      updatedAt: new Date().toISOString(),
     };
     
     const updated = [...get().recurringTasks, newTask];
@@ -42,7 +44,7 @@ export const useRecurringStore = create<RecurringState>((set, get) => ({
   
   toggleRecurringTask: async (id: string) => {
     const updated = get().recurringTasks.map(t => 
-      t.id === id ? { ...t, isActive: !t.isActive } : t
+      t.id === id ? { ...t, isActive: !t.isActive, updatedAt: new Date().toISOString() } : t
     );
     set({ recurringTasks: updated });
     await persistOrNotify('Tekrarlayan görev', storage.saveRecurringTasks(updated));

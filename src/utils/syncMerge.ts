@@ -41,13 +41,19 @@ const isSame = (left: unknown, right: unknown) => stableStringify(left) === stab
 const pickDeterministic = <T>(local: T, remote: T): T =>
   stableStringify(local) >= stableStringify(remote) ? local : remote;
 
-const withoutStamp = ({ updatedAt: _updatedAt, ...rest }: Task) => rest;
+type Stamped = { updatedAt?: string };
 
-/** Görev içeriği aynı mı? Yalnız zaman damgası farkı "değişiklik" sayılmaz. */
-const sameTaskContent = (left: Task, right: Task) => isSame(withoutStamp(left), withoutStamp(right));
+const withoutStamp = <T extends Stamped>({ updatedAt: _updatedAt, ...rest }: T) => rest;
 
-/** İki taraf da aynı görevi değiştirdiyse: yeni zaman damgası kazanır. */
-const pickNewerTask = (local: Task, remote: Task): Task => {
+/** İçerik aynı mı? Yalnız zaman damgası farkı "değişiklik" sayılmaz. */
+const sameContent = <T extends Stamped>(left: T, right: T) => isSame(withoutStamp(left), withoutStamp(right));
+
+/**
+ * İki taraf da aynı kaydı değiştirdiyse: yeni zaman damgası kazanır. Damga
+ * eski verilerde ve eski uygulama sürümlerinin yazdığı yedeklerde bulunmaz;
+ * o durumda deterministik kurala düşülür.
+ */
+const pickNewerStamped = <T extends Stamped>(local: T, remote: T): T => {
   const localStamp = local.updatedAt;
   const remoteStamp = remote.updatedAt;
 
@@ -129,7 +135,7 @@ export const mergeTaskList = (
   base: Task[] | undefined | null,
   local: Task[] | undefined | null,
   remote: Task[] | undefined | null,
-): Task[] => mergeById(base, local, remote, pickNewerTask, sameTaskContent);
+): Task[] => mergeById(base, local, remote, pickNewerStamped, sameContent);
 
 /** Planlar tarih anahtarlı olduğu için birleştirme gün bazında yürür. */
 export const mergePlans = (
@@ -154,14 +160,15 @@ export const mergePlans = (
 };
 
 /**
- * Tekrarlayan görevlerde zaman damgası yok (recurringStore bu task'ın kapsamı
- * dışında), bu yüzden iki taraf da değiştirdiyse deterministik kural işler.
+ * Tekrarlayan görevler de görevlerle aynı kurala tabi: iki taraf da
+ * değiştirdiyse yeni damga kazanır. Damgasız (0008 öncesi yazılmış) kayıtlarda
+ * deterministik kurala düşülür, böylece eski yedekler bozulmaz.
  */
 export const mergeRecurringTasks = (
   base: RecurringTask[] | undefined | null,
   local: RecurringTask[] | undefined | null,
   remote: RecurringTask[] | undefined | null,
-): RecurringTask[] => mergeById(base, local, remote, pickDeterministic, isSame);
+): RecurringTask[] => mergeById(base, local, remote, pickNewerStamped, sameContent);
 
 /**
  * Pomodoro sayaçları yalnız artar; gün başına büyük olan alınır. Taban
@@ -223,12 +230,27 @@ export type CloudMergeResult = {
   merged: CloudBackupData;
   /** Cihazdaki veriden farklı mı? (yerele yazmaya değer mi) */
   differsFromLocal: boolean;
+  /**
+   * Buluttaki İÇERİKTEN farklı mı? Zaman damgaları karşılaştırmaya girmez:
+   * iki cihaz aynı içeriği farklı damgayla tutuyorsa her arka plana geçişte
+   * gereksiz bir yazma üretiyordu (R2-010).
+   */
+  differsFromRemote: boolean;
 };
+
+/** Karşılaştırmadan önce tüm zaman damgalarını düşürür (R2-010). */
+const withoutStamps = (data: Partial<CloudBackupData>) => ({
+  ...data,
+  plans: Object.fromEntries(
+    Object.entries(data.plans ?? {}).map(([date, tasks]) => [date, (tasks ?? []).map(withoutStamp)]),
+  ),
+  recurringTasks: (data.recurringTasks ?? []).map(withoutStamp),
+});
 
 export const mergeCloudBackup = ({ base, local, remote }: CloudMergeInput): CloudMergeResult => {
   // Bulutta satır yoksa birleştirilecek bir şey de yok.
   if (!remote) {
-    return { merged: local, differsFromLocal: false };
+    return { merged: local, differsFromLocal: false, differsFromRemote: true };
   }
 
   const merged: CloudBackupData = {
@@ -240,7 +262,11 @@ export const mergeCloudBackup = ({ base, local, remote }: CloudMergeInput): Clou
     pomodoroStats: mergePomodoroStats(local.pomodoroStats, remote.pomodoroStats),
   };
 
-  return { merged, differsFromLocal: !isSame(merged, local) };
+  return {
+    merged,
+    differsFromLocal: !isSame(merged, local),
+    differsFromRemote: !isSame(withoutStamps(merged), withoutStamps(remote)),
+  };
 };
 
 /**
@@ -258,7 +284,7 @@ export const stampTaskUpdates = (
 
   return next.map(task => {
     const before = previousMap.get(task.id);
-    if (before && sameTaskContent(before, task)) {
+    if (before && sameContent(before, task)) {
       return before.updatedAt ? { ...task, updatedAt: before.updatedAt } : task;
     }
     return { ...task, updatedAt: nowIso };

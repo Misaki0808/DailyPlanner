@@ -220,7 +220,7 @@ export default function MultiDayViewScreen() {
       normalizeTaskTitle(rt.title) === normalizedTitle
     );
     const explicitCategory = (flexibleTask as { category?: string } | undefined)?.category;
-    const newTask: Task & { recurringTaskId?: string } = {
+    const newTask: Task = {
       id: generateId(),
       title,
       done: false,
