@@ -186,6 +186,51 @@ describe('extractTimesLocal', () => {
       ]);
     });
 
+    // Regresyon (R-034): iki haneli noktalı sayı bağlamsız da saat sayılıyordu;
+    // "koli 12.30 kg" görevi için 12:30'a alarm kuruluyordu. Ayırt edici sayının
+    // kendisi değil, ardından gelen BİRİM — "14.30 toplantı" ile "12.30 kg"
+    // aynı şekle sahip.
+    it('ardından birim gelen iki haneli sayıyı saat SAYMAZ', () => {
+      expect(extractTimesLocal('koli 12.30 kg')).toEqual([]);
+      expect(extractTimesLocal('Boy 18.45 cm')).toEqual([]);
+      expect(extractTimesLocal('Sıcaklık 21.30 derece')).toEqual([]);
+      expect(extractTimesLocal('Mesafe 10.50 km')).toEqual([]);
+      expect(extractTimesLocal('Not 18.50 puan')).toEqual([]);
+      expect(extractTimesLocal('Bütçe 15.40 milyon')).toEqual([]);
+    });
+
+    it('süre birimlerini saat SAYMAZ', () => {
+      expect(extractTimesLocal('10.30 dakika koş')).toEqual([]);
+      expect(extractTimesLocal('12.15 saat çalış')).toEqual([]);
+    });
+
+    it('tanımlayıcı sözcüğünden sonraki sayıyı saat SAYMAZ', () => {
+      expect(extractTimesLocal('Sürüm 10.20 çıktı')).toEqual([]);
+      expect(extractTimesLocal('Versiyon 14.30 yayınlandı')).toEqual([]);
+      expect(extractTimesLocal('Model 12.30')).toEqual([]);
+    });
+
+    // Türkçe'de saatten önce isim gelmesi çok yaygın; tanımlayıcı listesi bu
+    // yüzden dar tutuldu ve yalnız bağlamsız yazıma uygulanıyor.
+    it('saatten önce gelen sıradan isimleri etkilemez', () => {
+      expect(extractTimesLocal('Toplantı 18.45')).toEqual([
+        { hour: 18, minute: 45, label: 'Toplantı' },
+      ]);
+      expect(extractTimesLocal('Ders 14.30')).toEqual([
+        { hour: 14, minute: 30, label: 'Ders' },
+      ]);
+      expect(extractTimesLocal('Maç 20.45')).toEqual([
+        { hour: 20, minute: 45, label: 'Maç' },
+      ]);
+    });
+
+    it('açık saat işareti tanımlayıcı korumasını geçersiz kılar', () => {
+      // "10.20'de" bulunma hâli eki net bir saat işareti; tanımlayıcıya bakılmaz.
+      expect(extractTimesLocal("Sürüm 10.20'de çıkacak")).toEqual([
+        { hour: 10, minute: 20, label: 'Çıkacak' },
+      ]);
+    });
+
     it('iki nokta ayracı her zaman saattir (bağlam aranmaz)', () => {
       expect(extractTimesLocal('14:30 toplantı')).toEqual([
         { hour: 14, minute: 30, label: 'Toplantı' },
