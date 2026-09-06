@@ -93,6 +93,8 @@ EXPO_PUBLIC_GEMINI_API_KEY=AIzaSy...Sizin_API_Anahtarınız
 > ```
 >
 > Secret build ortamına otomatik enjekte edilir; `eas.json` içinde ayrıca tanımlanmaz. `EXPO_PUBLIC_` önekli değişkenler client bundle'a gömüldüğü için, üretimde anahtarı bir backend proxy arkasına almanız önerilir.
+>
+> **Kalıcı çözüm:** `supabase/functions/gemini-proxy` altındaki Edge Function'ı dağıtıp `EXPO_PUBLIC_AI_PROXY_URL` tanımlarsanız anahtar yalnız sunucuda durur ve istemciden tamamen kaldırılabilir. Adımlar (dağıtım, doğrulama, eski anahtarın rotasyonu): [`docs/AI_PROXY_SETUP.md`](docs/AI_PROXY_SETUP.md).
 
 ### 4. Uygulamayı Başlatın
 

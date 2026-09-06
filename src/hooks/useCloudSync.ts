@@ -134,7 +134,27 @@ const MAX_SYNC_ATTEMPTS = 3;
  * yapıldığı için cihaz eşin değişikliklerini almayı bırakıyordu. Artık bulut
  * okunabiliyor ve işaret YOKSA bayat yerel işaret temizlenir.
  */
-export const isBackupDeletionActive = async (householdId: string): Promise<boolean> => {
+type BackupPauseListener = (paused: boolean) => void;
+
+const backupPauseListeners = new Set<BackupPauseListener>();
+
+/**
+ * Duraklatma durumu arka plan senkronunda da değişiyor (bayat işaretin
+ * temizlenmesi). Ekran açıkken uyarı bir sonraki refresh'e kadar bayat
+ * kalıyordu; bu abonelik onu anında tazeler (R2-011).
+ */
+export const subscribeToBackupPause = (listener: BackupPauseListener): (() => void) => {
+  backupPauseListeners.add(listener);
+  return () => {
+    backupPauseListeners.delete(listener);
+  };
+};
+
+const notifyBackupPause = (paused: boolean) => {
+  backupPauseListeners.forEach(listener => listener(paused));
+};
+
+const resolveBackupDeletionState = async (householdId: string): Promise<boolean> => {
   const localMarker = await storage.getBackupDeletedAt(householdId);
 
   try {
@@ -155,6 +175,12 @@ export const isBackupDeletionActive = async (householdId: string): Promise<boole
   return Boolean(localMarker);
 };
 
+export const isBackupDeletionActive = async (householdId: string): Promise<boolean> => {
+  const paused = await resolveBackupDeletionState(householdId);
+  notifyBackupPause(paused);
+  return paused;
+};
+
 /** Kullanıcı yeniden yedeklemek istedi: silme işareti her iki tarafta kalkar. */
 const clearBackupDeletion = async (householdId: string): Promise<void> => {
   await storage.clearBackupDeletedAt();
@@ -164,6 +190,8 @@ const clearBackupDeletion = async (householdId: string): Promise<void> => {
   } catch (error) {
     console.warn('Yedek silme işareti temizlenemedi:', error);
   }
+
+  notifyBackupPause(false);
 };
 
 /**
@@ -334,6 +362,10 @@ export const useCloudSync = () => {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Arka plan senkronu duraklatmayı kaldırdığında (ya da başlattığında) uyarı
+  // bir sonraki refresh'i beklemeden güncellenir (R2-011).
+  useEffect(() => subscribeToBackupPause(setIsBackupPaused), []);
 
   // Süre dolduğu anda görünüm kendiliğinden güncellensin: saniye saniye
   // yenilemeye gerek yok, tek bir zamanlayıcı yeter.
